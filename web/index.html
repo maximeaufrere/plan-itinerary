@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Plan Itinéraire</title>
   <meta name="description" content="Générez des boucles de course à pied ou de vélo selon la distance et le dénivelé.">
   <meta name="theme-color" content="#1e4d3a">
@@ -18,7 +18,7 @@
   <!-- Thème appliqué avant l'affichage pour éviter un flash de la mauvaise couleur. -->
   <script>try { const t = JSON.parse(localStorage.getItem('theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
-<body>
+<body class="no-page-zoom">
   <main class="layout">
     <div id="map" class="map" aria-label="Carte : touchez pour choisir le point de départ"></div>
     <div id="sheet-actions" class="sheet-actions">

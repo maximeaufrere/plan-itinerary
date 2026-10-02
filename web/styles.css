@@ -1696,3 +1696,7 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
   box-shadow: 0 0 0 2px #ffffff, 0 2px 8px rgb(0 0 0 / 0.3);
 }
 .ui-pin.me { background: #2f7cf6; }
+
+/* Page de l'app : défilement autorisé, mais ni pincement ni double-toucher pour zoomer la page.
+   La carte n'est pas concernée : Leaflet gère lui-même ses gestes (touch-action: none sur la carte). */
+html:has(body.no-page-zoom), body.no-page-zoom { touch-action: pan-x pan-y; }
