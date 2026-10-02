@@ -1,0 +1,43 @@
+# Généré avec XcodeGen : `brew install xcodegen && xcodegen`
+name: PlanItinerary
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  PlanItinerary:
+    type: application
+    platform: iOS
+    sources: [PlanItinerary]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.planitinerary
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Plan Itinéraire"
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Votre position sert de point de départ aux itinéraires générés."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+  PlanItineraryTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [PlanItineraryTests]
+    dependencies:
+      - target: PlanItinerary
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  PlanItinerary:
+    build:
+      targets:
+        PlanItinerary: all
+        PlanItineraryTests: [test]
+    test:
+      targets: [PlanItineraryTests]
