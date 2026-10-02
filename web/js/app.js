@@ -1,3 +1,4 @@
+import { initAccount } from './account.js';
 import { elevationChart, sparkline } from './chart.js';
 import {
   ACTIVITIES,
@@ -16,7 +17,7 @@ import { icons } from './icons.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
-import { KEYS, storage } from './storage.js';
+import { KEYS, applyTheme, storage } from './storage.js';
 
 /* global L */
 
@@ -458,12 +459,23 @@ function renderDetails(route) {
       ${stat('Chemins', route.surface ? formatPercent(route.surface.unpaved) : '–')}
     </div>
     ${surfaceBreakdown(route.surface)}
-    <div class="actions">
+    <div class="actions actions-grid">
       <button type="button" id="save-favorite" class="secondary" ${isFavorite ? 'disabled' : ''}>${isFavorite ? `${icons.starFilled} Enregistré` : `${icons.star} Enregistrer`}</button>
       <button type="button" id="export-gpx" class="secondary">${icons.download} GPX</button>
+      <button type="button" id="share-route" class="secondary">${icons.share} Partager</button>
+      <button type="button" id="log-outing" class="secondary">${icons.check} Réalisé</button>
     </div>`;
+  const routeName = () => route.name ?? `${ACTIVITIES[state.routesActivity].label} ${formatDistance(route.distance)}`;
   $('export-gpx').addEventListener('click', () => exportGpx(route));
   $('save-favorite').addEventListener('click', () => saveFavorite(route));
+  $('share-route').addEventListener('click', () => account.shareRoute(route, { activity: state.routesActivity, name: routeName() }));
+  $('log-outing').addEventListener('click', () =>
+    account.logOuting(route, {
+      activity: state.routesActivity,
+      name: routeName(),
+      duration: estimatedDuration(route, state.routesActivity, state.criteria.speeds),
+    }),
+  );
 }
 
 async function exportGpx(route) {
@@ -559,6 +571,40 @@ const settings = initSettings({
 });
 
 $('open-settings').addEventListener('click', () => settings.open());
+
+// MARK: - Compte
+
+const account = initAccount({
+  getFavorites: () => state.favorites,
+  setFavorites: (favorites) => {
+    state.favorites = favorites.filter(isValidFavorite);
+    storage.set(KEYS.favorites, state.favorites, { silent: true });
+    const shown = state.routes.find((r) => r.id === state.selectedId);
+    if (shown) renderDetails(shown);
+  },
+  applySettings: (row) => {
+    if (row.criteria) {
+      state.criteria = sanitizeCriteria(row.criteria);
+      storage.set(KEYS.criteria, state.criteria, { silent: true });
+      syncForm();
+    }
+    if (row.ors_api_key) storage.set(KEYS.apiKey, row.ors_api_key, { silent: true });
+    if (row.theme) {
+      storage.set(KEYS.theme, row.theme, { silent: true });
+      applyTheme(row.theme);
+      styleRoutes();
+    }
+    if (row.base_layer) {
+      storage.set(KEYS.baseLayer, row.base_layer, { silent: true });
+      setBaseLayer(row.base_layer);
+    }
+  },
+  openRoute: (route, activity) => {
+    if (ACTIVITIES[activity]) updateCriteria({ activity });
+    showRoutes([route], activity);
+  },
+  setStatus,
+});
 
 // MARK: - Bienvenue
 

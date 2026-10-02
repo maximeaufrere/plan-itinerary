@@ -8,5 +8,7 @@ export const icons = {
   star: svg(STAR),
   starFilled: svg(STAR, { fill: 'currentColor' }),
   download: svg('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'),
+  share: svg('<path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>'),
+  check: svg('<path d="M4 12.5l5 5L20 6.5"/>'),
   trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
 };

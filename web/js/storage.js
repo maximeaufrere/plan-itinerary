@@ -8,7 +8,13 @@ export const KEYS = {
   theme: 'theme',
   baseLayer: 'baseLayer',
   welcomeDismissed: 'welcomeDismissed',
+  /** Favoris déjà présents dans le compte lors de la dernière synchronisation. */
+  syncedFavoriteIds: 'syncedFavoriteIds',
+  /** Date de la dernière modification locale des réglages synchronisés. */
+  settingsUpdatedAt: 'settingsUpdatedAt',
 };
+
+const listeners = new Set();
 
 export const storage = {
   get(key, fallback) {
@@ -19,13 +25,21 @@ export const storage = {
       return fallback;
     }
   },
-  set(key, value) {
+  /** `silent` : n'avertit pas les observateurs (données venant du compte en ligne). */
+  set(key, value, { silent = false } = {}) {
+    let saved;
     try {
       localStorage.setItem(key, JSON.stringify(value));
-      return true;
+      saved = true;
     } catch {
-      return false;
+      saved = false;
     }
+    if (!silent) for (const listener of listeners) listener(key, value);
+    return saved;
+  },
+  /** Observe les modifications faites par l'app (pour la synchronisation). */
+  onChange(listener) {
+    listeners.add(listener);
   },
   remove(key) {
     try {

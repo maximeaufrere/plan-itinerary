@@ -43,6 +43,7 @@
         <li><a href="#favoris">Favoris et export GPX</a></li>
         <li><a href="#installer">Installer l'app sur son téléphone</a></li>
         <li><a href="#reglages">Les réglages</a></li>
+        <li><a href="#compte">Compte, partage et sorties</a></li>
         <li><a href="#fonctionnement">Comment les parcours sont calculés</a></li>
         <li><a href="#faq">Questions fréquentes</a></li>
       </ol>
@@ -186,8 +187,26 @@
       </dl>
     </section>
 
+    <section id="compte" aria-labelledby="compte-title">
+      <h2 id="compte-title"><span class="guide-num">8</span> Compte, partage et sorties</h2>
+      <p>
+        Le compte est facultatif : sans compte, tout fonctionne sur votre appareil. Avec un compte (bouton
+        <span class="ui-button" aria-label="Mon compte"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span> en haut à droite de la carte) :
+      </p>
+      <dl class="guide-defs compact">
+        <dt>Synchronisation</dt><dd>Vos favoris, vos critères, votre clé OpenRouteService, le thème et le fond de carte vous suivent sur tous vos appareils. Les favoris créés avant de vous connecter sont ajoutés au compte.</dd>
+        <dt>Partager</dt><dd>Sous un parcours, <span class="ui-button">Partager</span> crée un lien à envoyer (message, WhatsApp…). La personne qui l'ouvre voit le parcours dans l'app, sans avoir besoin de compte. Vous pouvez arrêter un partage depuis « Mon compte ».</dd>
+        <dt>Mes sorties</dt><dd>Après une sortie, touchez <span class="ui-button">Réalisé</span> sous le parcours : indiquez la date et la durée. « Mon compte ▸ Mes sorties » affiche votre historique et vos totaux (sorties, distance, D+, temps) sur 30 jours, l'année ou depuis le début.</dd>
+      </dl>
+      <p>
+        Pour créer un compte : « Créer un compte », votre e-mail et un mot de passe d'au moins 8 caractères, puis cliquez
+        sur le lien de confirmation reçu par e-mail. Mot de passe oublié ? Saisissez votre e-mail et touchez
+        « Mot de passe oublié ? » : un lien vous permettra d'en choisir un nouveau.
+      </p>
+    </section>
+
     <section id="fonctionnement" aria-labelledby="fonctionnement-title">
-      <h2 id="fonctionnement-title"><span class="guide-num">8</span> Comment les parcours sont calculés</h2>
+      <h2 id="fonctionnement-title"><span class="guide-num">9</span> Comment les parcours sont calculés</h2>
       <p>Pour les curieux, voici ce qui se passe quand vous touchez « Générer » :</p>
       <ol class="guide-steps">
         <li>L'app demande à OpenRouteService plusieurs parcours candidats, chacun dans une direction différente.</li>
@@ -230,7 +249,7 @@
       </details>
       <details>
         <summary>Mes données sont-elles envoyées quelque part ?</summary>
-        <p>Votre clé, vos favoris et vos réglages restent sur votre appareil. Seuls les points de départ/d'arrivée et vos critères de calcul sont envoyés à OpenRouteService pour calculer les itinéraires, et les fonds de carte sont chargés depuis les serveurs OpenStreetMap.</p>
+        <p>Sans compte, votre clé, vos favoris et vos réglages restent sur votre appareil. Avec un compte, ils sont aussi enregistrés dans votre espace en ligne (Supabase), accessible à vous seul ; « Supprimer mon compte » efface tout définitivement. Seuls les points de départ/d'arrivée et vos critères de calcul sont envoyés à OpenRouteService pour calculer les itinéraires, et les fonds de carte sont chargés depuis les serveurs OpenStreetMap.</p>
       </details>
     </section>
 

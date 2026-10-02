@@ -132,6 +132,7 @@
   </main>
 
   <div class="floating-buttons">
+    <button type="button" id="open-account" aria-label="Mon compte"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></button>
     <button type="button" id="open-settings" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
     <button type="button" id="open-favorites" aria-label="Favoris"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></button>
   </div>
@@ -215,6 +216,132 @@
     </section>
   </dialog>
 
+  <dialog id="account" class="sheet" aria-labelledby="account-title">
+    <div class="sheet-header">
+      <h2 id="account-title">Mon compte</h2>
+      <button type="button" class="link-button" data-close>OK</button>
+    </div>
+    <p id="account-message" class="settings-message" hidden></p>
+
+    <section id="account-disabled" class="settings-section" hidden>
+      <div class="settings-card">
+        <p class="hint">
+          Les comptes ne sont pas encore activés sur cette installation de l'app. Le propriétaire doit relier un projet
+          Supabase gratuit (voir le README du projet). En attendant, tout fonctionne sur cet appareil sans compte.
+        </p>
+      </div>
+    </section>
+
+    <section id="account-signed-out" class="settings-section" hidden>
+      <div class="settings-card">
+        <ul class="benefits">
+          <li>Favoris et réglages synchronisés sur tous vos appareils</li>
+          <li>Partage de parcours par lien</li>
+          <li>Historique de vos sorties et statistiques</li>
+        </ul>
+        <fieldset class="segmented" id="auth-mode" aria-label="Connexion ou création de compte">
+          <label><input type="radio" name="auth-mode" value="signin" checked><span>Se connecter</span></label>
+          <label><input type="radio" name="auth-mode" value="signup"><span>Créer un compte</span></label>
+        </fieldset>
+        <form id="auth-form" class="auth-form" novalidate>
+          <label class="field"><span>E-mail</span>
+            <input type="email" id="auth-email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
+          </label>
+          <label class="field"><span>Mot de passe</span>
+            <input type="password" id="auth-password" autocomplete="current-password" required>
+          </label>
+          <label class="field" id="auth-confirm-field" hidden><span>Confirmer le mot de passe</span>
+            <input type="password" id="auth-confirm" autocomplete="new-password">
+          </label>
+          <button type="submit" id="auth-submit" class="primary"><span id="auth-submit-label">Se connecter</span></button>
+          <button type="button" id="forgot-password" class="link-button">Mot de passe oublié ?</button>
+          <p id="auth-status" class="key-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section id="account-recovery" class="settings-section" hidden>
+      <form id="recovery-form" class="settings-card auth-form">
+        <label class="field"><span>Nouveau mot de passe</span>
+          <input type="password" id="recovery-password" autocomplete="new-password" required>
+        </label>
+        <label class="field"><span>Confirmer</span>
+          <input type="password" id="recovery-confirm" autocomplete="new-password" required>
+        </label>
+        <button type="submit" class="primary">Enregistrer le mot de passe</button>
+        <p id="recovery-status" class="key-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <div id="account-signed-in" hidden>
+      <section class="settings-section">
+        <div class="settings-card account-card">
+          <span id="account-avatar" class="avatar" aria-hidden="true"></span>
+          <div class="account-identity">
+            <strong id="account-email"></strong>
+            <span id="sync-status" class="key-status" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="outings-title">
+        <h3 id="outings-title">Mes sorties</h3>
+        <div class="settings-card">
+          <fieldset class="segmented compact" id="outing-period" aria-label="Période">
+            <label><input type="radio" name="outing-period" value="30" checked><span>30 jours</span></label>
+            <label><input type="radio" name="outing-period" value="year"><span>Année</span></label>
+            <label><input type="radio" name="outing-period" value="all"><span>Tout</span></label>
+          </fieldset>
+          <div id="outing-stats" class="stats stats-4"></div>
+          <ul id="outings-list" class="item-list"></ul>
+        </div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="shares-title">
+        <h3 id="shares-title">Mes parcours partagés</h3>
+        <div class="settings-card">
+          <ul id="shares-list" class="item-list"></ul>
+        </div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="security-title">
+        <h3 id="security-title">Compte</h3>
+        <div class="settings-card">
+          <form id="change-password-form" class="key-row">
+            <input type="password" id="new-password" autocomplete="new-password" placeholder="Nouveau mot de passe" aria-label="Nouveau mot de passe">
+            <button type="submit" class="secondary small">Changer</button>
+          </form>
+          <p id="password-status" class="key-status" role="status" aria-live="polite"></p>
+          <div class="settings-row">
+            <button type="button" id="sign-out" class="secondary small">Se déconnecter</button>
+            <button type="button" id="delete-account" class="secondary small danger">Supprimer mon compte</button>
+          </div>
+          <p id="account-status" class="key-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="outing-dialog" aria-labelledby="outing-title">
+    <form id="outing-form" class="settings-form">
+      <h2 id="outing-title">Ajouter à mes sorties</h2>
+      <label class="field"><span>Nom</span><input type="text" id="outing-name" maxlength="120" required></label>
+      <label class="field"><span>Date</span><input type="date" id="outing-date" required></label>
+      <div class="field">
+        <span>Durée</span>
+        <div class="duration-row">
+          <span class="unit-input"><input type="number" id="outing-hours" min="0" max="48" inputmode="numeric" aria-label="Heures"><span aria-hidden="true">h</span></span>
+          <span class="unit-input"><input type="number" id="outing-minutes" min="0" max="59" inputmode="numeric" aria-label="Minutes"><span aria-hidden="true">min</span></span>
+        </div>
+      </div>
+      <p id="outing-status" class="key-status" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" id="outing-cancel" class="secondary">Annuler</button>
+        <button type="submit" class="primary">Ajouter</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="favorites">
     <form method="dialog" class="settings-form">
       <h2>Favoris</h2>
@@ -227,6 +354,7 @@
   </dialog>
 
   <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/supabase/supabase.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

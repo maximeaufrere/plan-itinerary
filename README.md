@@ -33,8 +33,47 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 - **Favoris** enregistrés sur l'appareil (bouton ★), export GPX (feuille de partage sur mobile → Strava, Komoot…)
 - **Réglages** (⚙️) : clé OpenRouteService avec test, thème clair / sombre / auto, fond de carte
   (topographique par défaut, standard, vélo), export / import des favoris, réinitialisation
+- **Comptes** (facultatifs) : synchronisation, partage de parcours par lien, historique des sorties — voir plus bas
 - **Tutoriel** intégré (`web/aide.html`), proposé à la première visite
 - Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »)
+
+## Comptes utilisateurs (facultatif)
+
+Avec un compte (e-mail + mot de passe), l'utilisateur retrouve ses **favoris et réglages sur tous ses appareils**,
+peut **partager un parcours par lien** et tient un **historique de ses sorties** avec statistiques.
+Sans configuration, l'app fonctionne sans comptes (bouton « Mon compte » ▸ message d'explication).
+
+Les comptes reposent sur [Supabase](https://supabase.com) (offre gratuite : authentification + base Postgres),
+appelé directement depuis le navigateur : aucun serveur à héberger.
+
+### Mise en service (une fois, ~10 minutes)
+
+1. Créez un compte sur [supabase.com](https://supabase.com), puis **New project** (région Europe conseillée).
+2. **SQL Editor ▸ New query** : collez le contenu de [`supabase/schema.sql`](supabase/schema.sql), puis **Run**.
+   Il crée les tables (réglages, favoris, partages, sorties), les règles d'accès (chacun ne voit que ses
+   données) et les fonctions de lecture d'un partage et de suppression de compte.
+3. **Authentication ▸ URL Configuration** :
+   - *Site URL* : `https://maximeaufrere.github.io/plan-itinerary/`
+   - *Redirect URLs* : ajoutez la même adresse (et `http://localhost:8080/` pour les tests en local).
+4. **Authentication ▸ Sign In / Providers ▸ Email** : laissez « Confirm email » activé ; réglez la longueur
+   minimale du mot de passe à 8 (comme l'app).
+5. **Project Settings ▸ API** : copiez la *Project URL* et la clé *anon public* dans
+   [`web/js/config.js`](web/js/config.js), puis poussez : GitHub Pages republie l'app.
+
+La clé « anon » est publique par conception : la sécurité repose sur les règles d'accès (Row Level Security)
+du schéma. Ne mettez **jamais** la clé « service_role » dans l'app.
+
+> E-mails : l'expéditeur intégré de Supabase est limité à quelques e-mails par heure, ce qui suffit pour un
+> usage personnel. Pour plus d'utilisateurs, configurez un SMTP (Authentication ▸ Emails ▸ SMTP Settings).
+
+### Fonctionnement
+
+- **Synchronisation** : à la connexion, les favoris locaux et ceux du compte sont fusionnés (un favori supprimé
+  sur un autre appareil n'est pas recréé) ; pour les réglages, la version la plus récente l'emporte. Ensuite,
+  chaque modification est envoyée au compte (`web/js/account.js`, règles testées dans `web/js/sync.js`).
+- **Partage** : un lien `…/?parcours=<identifiant aléatoire>` ; le parcours se lit via la fonction
+  `get_shared_route`, sans compte, mais la liste des partages n'est pas consultable.
+- **Suppression du compte** : efface le compte et toutes ses données en ligne (fonction `delete_my_account`).
 
 ## Clé OpenRouteService
 

@@ -1158,3 +1158,100 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .criteria-summary { min-width: 0; max-width: 100%; }
 .criteria-summary em { flex: 0 0 auto; }
 .criteria-summary strong { white-space: normal; overflow: visible; }
+
+/* ==========================================================================
+   Comptes
+   ========================================================================== */
+
+/* Indicateur « connecté » sur le bouton de compte */
+#open-account { position: relative; }
+#open-account.signed-in::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--route);
+  border: 2px solid var(--bg);
+}
+
+.benefits { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); font-size: 0.9rem; }
+.auth-form { display: grid; gap: 12px; }
+.auth-form .link-button { justify-self: center; }
+.auth-form input[type="email"], .auth-form input[type="password"], #change-password-form input,
+#outing-form input[type="text"], #outing-form input[type="date"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.account-card { grid-template-columns: auto 1fr; align-items: center; gap: 14px; }
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3rem;
+}
+.account-identity { display: grid; gap: 2px; min-width: 0; }
+.account-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.stats.stats-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 420px) {
+  .stats.stats-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.item-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.item-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px 8px 12px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+.item-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.item-main:disabled { cursor: default; opacity: 1; }
+.item-main small { color: var(--muted); }
+.item-action {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.item-action:hover { background: var(--bg); color: var(--danger); }
+.item-list .list-empty { display: block; padding: 12px; color: var(--muted); font-size: 0.9rem; }
+
+.duration-row { display: flex; gap: 10px; }
+.duration-row .unit-input { height: 44px; }
+
+/* Actions sous un parcours : grille 2 × 2 */
+.actions.actions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.actions.actions-grid button { min-height: 48px; padding: 10px 12px; font-size: 0.92rem; }
+
+button.secondary.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
