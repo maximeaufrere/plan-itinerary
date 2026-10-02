@@ -1,4 +1,5 @@
 import { initAccount } from './account.js';
+import { initAddressField } from './address.js';
 import { elevationChart, sparkline } from './chart.js';
 import {
   ACTIVITIES,
@@ -12,6 +13,7 @@ import {
 import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPace, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
+import { reverse as reverseGeocode } from './geocode.js';
 import { toGpx } from './gpx.js';
 import { icons } from './icons.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
@@ -62,13 +64,23 @@ const pinIcon = (className) => L.divIcon({ className: '', html: `<div class="${c
 const markers = { start: null, end: null };
 const routeLayers = new Map();
 
-function setPoint(kind, point) {
+/** Champs d'adresse (départ, arrivée), initialisés plus bas. */
+const addressFields = {};
+
+/**
+ * Place le départ ou l'arrivée.
+ * @param {{ label?: string }} [options]  adresse à afficher ; à défaut, elle est recherchée à partir du point
+ */
+function setPoint(kind, point, { label } = {}) {
   state[kind] = point;
   if (!point) {
     markers[kind]?.remove();
     markers[kind] = null;
+    addressFields[kind]?.setLabel('');
     return;
   }
+  if (label !== undefined) addressFields[kind]?.setLabel(label);
+  else describePoint(kind, point);
   if (markers[kind]) markers[kind].setLatLng(point);
   else {
     markers[kind] = L.marker(point, {
@@ -81,6 +93,33 @@ function setPoint(kind, point) {
 
 const isPointToPoint = () => state.criteria.shape === 'point_to_point';
 const placing = () => document.querySelector('input[name="placing"]:checked').value;
+
+/** Affiche l'adresse d'un point touché sur la carte (si la clé OpenRouteService est disponible). */
+async function describePoint(kind, point) {
+  addressFields[kind]?.setLabel('Point choisi sur la carte');
+  const apiKey = storage.get(KEYS.apiKey, '');
+  if (!apiKey) return;
+  try {
+    const label = await reverseGeocode({ apiKey, point });
+    if (label && state[kind] === point) addressFields[kind]?.setLabel(label);
+  } catch {
+    // Sans adresse, le libellé « Point choisi sur la carte » suffit.
+  }
+}
+
+/** Cadre la carte sur un ou deux points, dans la partie visible au-dessus du panneau. */
+function showPoints(points) {
+  const valid = points.filter(Boolean);
+  if (valid.length === 1) {
+    centerOnVisible(valid[0], Math.max(map.getZoom(), 14), { animate: true });
+  } else if (valid.length > 1) {
+    map.fitBounds(L.latLngBounds(valid), {
+      paddingTopLeft: [40, 60 + (mobileQuery.matches ? safeArea.top : 0)],
+      paddingBottomRight: [40, hiddenMapBottom() + 40],
+      maxZoom: 15,
+    });
+  }
+}
 
 map.on('click', (event) => {
   const point = [event.latlng.lat, event.latlng.lng];
@@ -105,7 +144,7 @@ function locate({ silent = false } = {}) {
     (position) => {
       $('locate').classList.remove('locating');
       const point = [position.coords.latitude, position.coords.longitude];
-      setPoint('start', point);
+      setPoint('start', point, { label: 'Ma position' });
       centerOnVisible(point, 14);
       setStatus('');
     },
@@ -175,6 +214,7 @@ function syncForm() {
   document.querySelector(`input[name="activity"][value="${criteria.activity}"]`).checked = true;
   document.querySelector(`input[name="shape"][value="${criteria.shape}"]`).checked = true;
   $('placing-field').hidden = !isPointToPoint();
+  $('end-field').hidden = !isPointToPoint();
 
   const distance = $('distance');
   [distance.min, distance.max] = activity.range;
@@ -790,6 +830,36 @@ const selectedRouteId = () => (state.routes.some((r) => r.id === state.selectedI
   window.addEventListener('resize', () => snapTo(sheetState, { save: false, fit: false }));
   mobileQuery.addEventListener('change', () => snapTo(sheetState, { save: false }));
 }
+// MARK: - Adresses de départ et d'arrivée
+
+addressFields.start = initAddressField({
+  kind: 'start',
+  getApiKey: () => storage.get(KEYS.apiKey, ''),
+  getFocus: () => state.start ?? [map.getCenter().lat, map.getCenter().lng],
+  shortcuts: [{ label: 'Ma position', action: () => locate() }],
+  onSelect: ({ label, point }) => {
+    setPoint('start', point, { label });
+    setStatus('');
+    if (isPointToPoint() && !state.end) {
+      document.querySelector('input[name="placing"][value="end"]').checked = true;
+      $('end-address').focus();
+    }
+    showPoints(isPointToPoint() ? [state.start, state.end] : [state.start]);
+  },
+});
+
+addressFields.end = initAddressField({
+  kind: 'end',
+  getApiKey: () => storage.get(KEYS.apiKey, ''),
+  getFocus: () => state.end ?? state.start ?? [map.getCenter().lat, map.getCenter().lng],
+  onSelect: ({ label, point }) => {
+    setPoint('end', point, { label });
+    setStatus('');
+    showPoints([state.start, state.end]);
+  },
+  onClear: () => setPoint('end', null),
+});
+
 // MARK: - Compte
 
 const account = initAccount({

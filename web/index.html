@@ -56,8 +56,30 @@
           <section class="group" aria-labelledby="group-shape">
             <h2 id="group-shape" class="group-title">Parcours</h2>
             <fieldset class="segmented" id="shape" aria-labelledby="group-shape"></fieldset>
+            <div class="addresses">
+            <div class="address-field" id="start-field">
+              <label for="start-address" class="address-label"><i class="pin start"></i>Départ</label>
+              <div class="address-input">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                <input type="search" id="start-address" class="address" placeholder="Ma position, une adresse, un lieu…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+                       role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="start-suggestions">
+                <button type="button" class="address-clear" data-clear="start" aria-label="Effacer l'adresse de départ" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              </div>
+              <ul id="start-suggestions" class="suggestions" role="listbox" aria-label="Suggestions d'adresses" hidden></ul>
+            </div>
+            <div class="address-field" id="end-field" hidden>
+              <label for="end-address" class="address-label"><i class="pin end"></i>Arrivée</label>
+              <div class="address-input">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                <input type="search" id="end-address" class="address" placeholder="Adresse ou lieu d'arrivée" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+                       role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="end-suggestions">
+                <button type="button" class="address-clear" data-clear="end" aria-label="Effacer l'adresse de arrivée" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              </div>
+              <ul id="end-suggestions" class="suggestions" role="listbox" aria-label="Suggestions d'adresses" hidden></ul>
+            </div>
+            </div>
             <div id="placing-field" class="field" hidden>
-              <span class="hint">Touchez la carte pour placer :</span>
+              <span class="hint">Ou touchez la carte pour placer :</span>
               <fieldset class="segmented" id="placing" aria-label="Point à placer">
                 <label><input type="radio" name="placing" value="start" checked><span><i class="pin start"></i>Départ</span></label>
                 <label><input type="radio" name="placing" value="end"><span><i class="pin end"></i>Arrivée</span></label>

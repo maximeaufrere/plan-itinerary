@@ -16,7 +16,8 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 
 ## Fonctionnalités
 
-- Départ depuis votre position (GPS du navigateur) ou un point touché sur la carte
+- Départ (et arrivée en A → B) par **adresse avec suggestions**, position GPS ou point touché sur la carte
+  (géocodage OpenRouteService, même clé ; quota gratuit d'environ 1 000 recherches par jour)
 - Activités : course (piéton), trail (randonnée), vélo de route, vélo, VTT — chacune avec son profil de calcul ORS
 - Types de parcours :
   - **Boucle** (option `round_trip` d'ORS, longueur corrigée si l'écart dépasse 5 %)
