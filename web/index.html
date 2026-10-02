@@ -38,64 +38,88 @@
         </button>
 
         <div id="criteria-fields" class="criteria-fields">
-        <fieldset class="chips" id="activity" aria-label="Activité"></fieldset>
+          <section class="group" aria-labelledby="group-activity">
+            <h2 id="group-activity" class="group-title">Activité</h2>
+            <fieldset class="chips scroll" id="activity" aria-labelledby="group-activity"></fieldset>
+          </section>
 
-        <fieldset class="segmented" id="shape" aria-label="Type de parcours"></fieldset>
+          <section class="group" aria-labelledby="group-shape">
+            <h2 id="group-shape" class="group-title">Parcours</h2>
+            <fieldset class="segmented" id="shape" aria-labelledby="group-shape"></fieldset>
+            <div id="placing-field" class="field" hidden>
+              <span class="hint">Touchez la carte pour placer :</span>
+              <fieldset class="segmented" id="placing" aria-label="Point à placer">
+                <label><input type="radio" name="placing" value="start" checked><span><i class="pin start"></i>Départ</span></label>
+                <label><input type="radio" name="placing" value="end"><span><i class="pin end"></i>Arrivée</span></label>
+              </fieldset>
+            </div>
+          </section>
 
-        <div id="placing-field" class="field" hidden>
-          <span>Touchez la carte pour placer</span>
-          <fieldset class="segmented" id="placing" aria-label="Point à placer">
-            <label><input type="radio" name="placing" value="start" checked><span><i class="pin start"></i>Départ</span></label>
-            <label><input type="radio" name="placing" value="end"><span><i class="pin end"></i>Arrivée</span></label>
-          </fieldset>
-        </div>
+          <section class="group sliders">
+            <div class="field slider">
+              <label for="distance">Distance</label>
+              <output id="distance-output" for="distance"></output>
+              <input type="range" id="distance" step="1">
+            </div>
+            <div class="field slider">
+              <label for="speed" id="speed-label">Allure</label>
+              <output id="speed-output" for="speed"></output>
+              <input type="range" id="speed">
+            </div>
+          </section>
 
-        <div class="field slider">
-          <label for="distance">Distance</label>
-          <output id="distance-output" for="distance"></output>
-          <input type="range" id="distance" step="1">
-        </div>
+          <section class="group" aria-labelledby="group-elevation">
+            <h2 id="group-elevation" class="group-title">Dénivelé</h2>
+            <fieldset class="chips wrap" id="elevation" aria-labelledby="group-elevation"></fieldset>
+          </section>
 
-        <div class="field slider">
-          <label for="speed" id="speed-label">Allure</label>
-          <output id="speed-output" for="speed"></output>
-          <input type="range" id="speed">
-        </div>
+          <section class="group" aria-labelledby="group-surface">
+            <h2 id="group-surface" class="group-title">Revêtement</h2>
+            <fieldset class="chips wrap" id="surface" aria-labelledby="group-surface"></fieldset>
+          </section>
 
-        <div class="row">
-          <label class="field compact">
-            <span>Dénivelé</span>
-            <select id="elevation"></select>
-          </label>
-          <label class="field compact">
-            <span>Revêtement</span>
-            <select id="surface"></select>
-          </label>
-        </div>
+          <section class="group" aria-labelledby="group-options">
+            <h2 id="group-options" class="group-title">Options</h2>
+            <div class="list">
+              <div class="list-row">
+                <label for="limit-gain" class="list-label">Limiter le dénivelé positif</label>
+                <div class="list-control">
+                  <span class="unit-input" id="max-gain-field">
+                    <input type="number" id="max-gain" min="0" step="50" inputmode="numeric" aria-label="Dénivelé positif maximal">
+                    <span aria-hidden="true">m</span>
+                  </span>
+                  <input type="checkbox" id="limit-gain" class="switch">
+                </div>
+              </div>
+              <div class="list-row">
+                <label for="avoid-major-roads" class="list-label">Éviter les grands axes</label>
+                <input type="checkbox" id="avoid-major-roads" class="switch">
+              </div>
+              <div class="list-row">
+                <span class="list-label" id="proposals-label">Propositions</span>
+                <div class="stepper" role="group" aria-labelledby="proposals-label">
+                  <button type="button" id="proposals-minus" aria-label="Moins de propositions">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>
+                  </button>
+                  <output id="proposals" aria-live="polite"></output>
+                  <button type="button" id="proposals-plus" aria-label="Plus de propositions">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
 
-        <div class="row max-gain">
-          <label class="checkbox"><input type="checkbox" id="limit-gain"> D+ max</label>
-          <input type="number" id="max-gain" min="0" step="50" inputmode="numeric" aria-label="Dénivelé positif maximal en mètres">
-          <span>m</span>
-        </div>
-
-        <div class="row">
-          <label class="checkbox grow"><input type="checkbox" id="avoid-major-roads"> Éviter les grands axes</label>
-          <label class="field compact proposals">
-            <span>Propositions</span>
-            <select id="proposals">
-              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="actions">
-          <button type="button" id="locate" class="secondary">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-            Ma position
-          </button>
-          <button type="submit" id="generate" class="primary">Générer</button>
-        </div>
+          <div class="actions sticky-actions">
+            <button type="button" id="locate" class="tonal icon-only" aria-label="Utiliser ma position">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+            </button>
+            <button type="submit" id="generate" class="primary grow">
+              <span class="spinner" aria-hidden="true"></span>
+              <span id="generate-label">Générer</span>
+              <svg class="icon arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
         </div>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </form>

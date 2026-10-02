@@ -780,3 +780,381 @@ dialog.sheet {
 /* Sur la page tutoriel, le fond est déjà « pierre » : les encadrés passent en blanc. */
 .guide-quick, .guide-toc, .guide-card, .guide details { background: var(--bg); }
 .guide-header { background: color-mix(in srgb, var(--bg) 92%, transparent); }
+
+/* ==========================================================================
+   Composants (v2) : boutons, pastilles, curseurs, interrupteurs, listes.
+   Ces règles complètent et remplacent les styles de base ci-dessus.
+   ========================================================================== */
+
+:root {
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --press: scale(0.97);
+}
+
+button, a, label, input { -webkit-tap-highlight-color: transparent; }
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--route) 75%, transparent);
+  outline-offset: 2px;
+}
+
+/* Groupes du formulaire */
+.group { display: grid; gap: 10px; }
+.group-title {
+  margin: 0;
+  font: 700 0.75rem/1.2 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.criteria-fields { gap: 22px; }
+
+/* Boutons */
+button.primary, button.secondary, button.tonal, a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), background-color 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+button.primary, a.button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 8px 18px -8px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+button.primary:hover, a.button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+button.secondary, button.tonal { background: var(--accent-soft); color: var(--accent); }
+button.secondary:hover, button.tonal:hover { background: color-mix(in srgb, var(--accent-soft) 85%, var(--accent)); }
+button.small, a.button.small { min-height: 40px; padding: 8px 16px; font-size: 0.9rem; }
+:is(button.primary, button.secondary, button.tonal, a.button, .chip span, .card, .floating-buttons button, .stepper button, .criteria-summary):active:not(:disabled) {
+  transform: var(--press);
+}
+button:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+.actions .grow { flex: 1; }
+.actions button.icon-only { flex: 0 0 52px; width: 52px; padding: 0; }
+.actions button.icon-only .icon { width: 22px; height: 22px; }
+
+/* Bouton Générer : flèche au repos, roue pendant le calcul */
+#generate .spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+#generate.loading .spinner { display: inline-block; }
+#generate.loading .arrow { display: none; }
+#generate .arrow { transition: transform 0.2s var(--ease); }
+#generate:hover .arrow { transform: translateX(3px); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Barre d'actions collée en bas du panneau sur téléphone */
+@media (max-width: 899px) {
+  .sticky-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -18px;
+    padding: 12px 18px 4px;
+    background: linear-gradient(to bottom, transparent, var(--bg) 35%);
+  }
+}
+
+/* Pastilles */
+.chips { display: flex; gap: 8px; }
+.chips.scroll { overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 2px 18px; }
+.chips.scroll::-webkit-scrollbar { display: none; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+.chip span {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.12s var(--ease), border-color 0.2s;
+}
+.chip:hover span { border-color: var(--border); }
+.chip input:checked + span {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: transparent;
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+/* Contrôle segmenté */
+.segmented { background: var(--surface); border-radius: 16px; padding: 4px; }
+.segmented span {
+  min-height: 40px;
+  border-radius: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.segmented input:checked + span {
+  background: var(--bg);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgb(27 38 32 / 0.12);
+}
+
+/* Curseurs */
+.group.sliders {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 14px 16px 10px;
+  gap: 14px;
+}
+.field.slider > label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.field.slider output { font-size: 1.45rem; line-height: 1.1; }
+input[type="range"] {
+  --fill: 50%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--border) var(--fill));
+}
+input[type="range"]::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--border) var(--fill));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  transition: transform 0.15s var(--ease);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
+
+/* Liste d'options (façon réglages iPhone) */
+.list { background: var(--surface); border-radius: 20px; padding: 0 16px; }
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+}
+.list-row + .list-row { border-top: 1px solid var(--border); }
+.list-label { font-weight: 600; }
+.list-control { display: flex; align-items: center; gap: 10px; }
+
+/* Interrupteur */
+.switch {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--border);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.25);
+  transition: transform 0.22s var(--ease);
+}
+.switch:checked { background: var(--accent); }
+.switch:checked::after { transform: translateX(20px); }
+
+/* Champ numérique avec unité */
+.unit-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-weight: 600;
+  color: var(--muted);
+  transition: opacity 0.2s;
+}
+.unit-input input[type="number"] {
+  width: 52px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  font-weight: 700;
+  color: var(--text);
+  -moz-appearance: textfield;
+}
+.unit-input input::-webkit-inner-spin-button, .unit-input input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.unit-input.disabled { opacity: 0.4; }
+
+/* Compteur − / + */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.stepper button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), opacity 0.2s;
+}
+.stepper button .icon { width: 16px; height: 16px; }
+.stepper output {
+  min-width: 22px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+/* Résumé des critères repliés */
+.criteria-summary {
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 12px 12px 12px 16px;
+  transition: transform 0.12s var(--ease);
+}
+.criteria-summary em {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+/* Messages */
+.status.error {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+/* Cartes de propositions */
+.card {
+  min-width: 148px;
+  padding: 12px 14px 10px;
+  border-radius: 18px;
+  border: 2px solid transparent;
+  background: var(--surface);
+  transition: transform 0.12s var(--ease), border-color 0.2s, background-color 0.2s;
+}
+.card[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.sparkline { display: block; width: 100%; height: 26px; margin-top: 6px; }
+.sparkline-area { fill: var(--accent); opacity: 0.12; }
+.sparkline-line { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.card[aria-selected="true"] .sparkline-line { stroke: var(--route); }
+.card[aria-selected="true"] .sparkline-area { fill: var(--route); }
+
+/* Statistiques */
+.stat { border: 0; background: var(--surface); border-radius: 16px; padding: 10px 12px; }
+.stat small { font-weight: 600; }
+
+/* Boutons flottants sur la carte : verre dépoli */
+.floating-buttons button {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: var(--float-shadow), inset 0 0 0 1px rgb(255 255 255 / 0.35);
+  transition: transform 0.12s var(--ease), background-color 0.2s;
+}
+.floating-buttons button:hover { background: var(--bg); }
+
+/* Zoom et crédits Leaflet assortis */
+.leaflet-bar, .leaflet-touch .leaflet-bar {
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--float-shadow);
+}
+.leaflet-bar a, .leaflet-touch .leaflet-bar a {
+  width: 42px;
+  height: 42px;
+  line-height: 42px;
+  font-size: 20px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.leaflet-bar a:hover { background: var(--bg); color: var(--accent); }
+.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--muted);
+  border-radius: 10px 0 0 0;
+}
+.leaflet-container .leaflet-control-attribution a { color: var(--accent); }
+
+/* Réglages : boutons radio des fonds de carte */
+.layer-options label { border-radius: 14px; transition: border-color 0.2s, background-color 0.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
+}
+.criteria-summary { min-width: 0; max-width: 100%; }
+.criteria-summary em { flex: 0 0 auto; }
+.criteria-summary strong { white-space: normal; overflow: visible; }

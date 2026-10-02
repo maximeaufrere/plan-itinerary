@@ -1,4 +1,4 @@
-import { elevationChart } from './chart.js';
+import { elevationChart, sparkline } from './chart.js';
 import {
   ACTIVITIES,
   ELEVATION_PREFERENCES,
@@ -118,20 +118,16 @@ function locate({ silent = false } = {}) {
 
 // MARK: - Formulaire
 
-const options = (entries) => entries.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+const chips = (name, entries) =>
+  entries.map(([value, label]) => `<label class="chip"><input type="radio" name="${name}" value="${value}"><span>${label}</span></label>`).join('');
 
 function buildForm() {
-  $('activity').innerHTML = Object.entries(ACTIVITIES)
-    .map(
-      ([key, activity]) =>
-        `<label class="chip"><input type="radio" name="activity" value="${key}"><span>${activity.label}</span></label>`,
-    )
-    .join('');
+  $('activity').innerHTML = chips('activity', Object.entries(ACTIVITIES).map(([key, a]) => [key, a.label]));
   $('shape').innerHTML = Object.entries(SHAPES)
     .map(([key, label]) => `<label><input type="radio" name="shape" value="${key}"><span>${label}</span></label>`)
     .join('');
-  $('elevation').innerHTML = options(Object.entries(ELEVATION_PREFERENCES).map(([key, p]) => [key, p.label]));
-  $('surface').innerHTML = options(Object.entries(SURFACES));
+  $('elevation').innerHTML = chips('elevation', Object.entries(ELEVATION_PREFERENCES).map(([key, p]) => [key, p.label]));
+  $('surface').innerHTML = chips('surface', Object.entries(SURFACES));
 }
 
 /** À pied, le curseur règle une allure en secondes par km ; à vélo, une vitesse en km/h. */
@@ -160,6 +156,14 @@ function speedSlider(activityKey) {
   };
 }
 
+/** Partie remplie des curseurs (le navigateur ne la colore pas partout de la même façon). */
+function fillRange(input) {
+  const min = Number(input.min);
+  const max = Number(input.max);
+  const ratio = max > min ? (Number(input.value) - min) / (max - min) : 0;
+  input.style.setProperty('--fill', `${(ratio * 100).toFixed(1)}%`);
+}
+
 function syncForm() {
   const { criteria } = state;
   const activity = ACTIVITIES[criteria.activity];
@@ -179,13 +183,17 @@ function syncForm() {
   speed.value = slider.toSlider(criteria.speeds[criteria.activity]);
   $('speed-output').textContent = slider.format(criteria.speeds[criteria.activity]);
 
-  $('elevation').value = criteria.elevation;
-  $('surface').value = criteria.surface;
+  document.querySelector(`input[name="elevation"][value="${criteria.elevation}"]`).checked = true;
+  document.querySelector(`input[name="surface"][value="${criteria.surface}"]`).checked = true;
   $('avoid-major-roads').checked = criteria.avoidMajorRoads;
-  $('proposals').value = String(criteria.proposals);
+  $('proposals').textContent = String(criteria.proposals);
+  $('proposals-minus').disabled = criteria.proposals <= 1;
+  $('proposals-plus').disabled = criteria.proposals >= 5;
   $('limit-gain').checked = criteria.maxGain != null;
   $('max-gain').disabled = criteria.maxGain == null;
+  $('max-gain-field').classList.toggle('disabled', criteria.maxGain == null);
   $('max-gain').value = criteria.maxGain ?? 200;
+  for (const range of [distance, speed]) fillRange(range);
   $('criteria-summary-text').textContent = criteriaSummary();
 }
 
@@ -238,7 +246,8 @@ $('speed').addEventListener('input', (event) => {
 $('elevation').addEventListener('change', (event) => updateCriteria({ elevation: event.target.value }));
 $('surface').addEventListener('change', (event) => updateCriteria({ surface: event.target.value }));
 $('avoid-major-roads').addEventListener('change', (event) => updateCriteria({ avoidMajorRoads: event.target.checked }));
-$('proposals').addEventListener('change', (event) => updateCriteria({ proposals: Number(event.target.value) }));
+$('proposals-minus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals - 1 }));
+$('proposals-plus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals + 1 }));
 $('limit-gain').addEventListener('change', (event) =>
   updateCriteria({ maxGain: event.target.checked ? Number($('max-gain').value) || 200 : null }),
 );
@@ -254,10 +263,9 @@ function setStatus(message, isError = false) {
 // MARK: - Génération
 
 function setGenerating(isGenerating) {
-  const button = $('generate');
-  button.textContent = isGenerating ? 'Annuler' : 'Générer';
-  button.classList.toggle('primary', !isGenerating);
-  button.classList.toggle('secondary', isGenerating);
+  $('generate').classList.toggle('loading', isGenerating);
+  $('generate').setAttribute('aria-busy', String(isGenerating));
+  $('generate-label').textContent = isGenerating ? 'Annuler' : 'Générer';
 }
 
 $('criteria-form').addEventListener('submit', async (event) => {
@@ -347,6 +355,7 @@ function renderRoutes() {
         <small>${state.routes.length > 1 ? `Proposition ${index + 1}` : escapeHtml(route.name ?? 'Itinéraire')}</small>
         <strong>${formatDistance(route.distance)}</strong>
         <span>↗ ${formatElevation(route.ascent)} · <span class="card-duration">${routeDuration(route)}</span></span>
+        ${sparkline(route.profile)}
       </button>`,
     )
     .join('');

@@ -34,3 +34,20 @@ export function elevationChart(profile) {
       <figcaption class="chart-axis"><span>0 km</span><span>${(totalDistance / 1000).toFixed(1).replace('.', ',')} km</span></figcaption>
     </figure>`;
 }
+
+/** Mini-courbe d'altitude pour les cartes de propositions. */
+export function sparkline(profile, { width = 120, height = 28 } = {}) {
+  if (profile.length < 2) return '';
+  const points = downsample(profile, 40);
+  const total = points.at(-1).distance || 1;
+  const elevations = points.map((p) => p.elevation);
+  const min = Math.min(...elevations);
+  const range = Math.max(Math.max(...elevations) - min, 20);
+  const path = points
+    .map((p, i) => `${i ? 'L' : 'M'}${((p.distance / total) * width).toFixed(1)},${(height - 2 - ((p.elevation - min) / range) * (height - 4)).toFixed(1)}`)
+    .join('');
+  return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${path}L${width},${height}L0,${height}Z" class="sparkline-area"/>
+    <path d="${path}" class="sparkline-line" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
