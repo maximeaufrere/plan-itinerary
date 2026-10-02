@@ -60,15 +60,10 @@ export function initAddressField({ kind, getApiKey, getFocus, onSelect, onClear,
       render();
       return;
     }
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      items = [{ label: 'Ajoutez votre clé OpenRouteService dans les réglages pour chercher une adresse.', disabled: true }];
-      render();
-      return;
-    }
     controller = new AbortController();
     try {
-      const results = await autocomplete({ apiKey, text, focus: getFocus(), signal: controller.signal });
+      // Sans clé OpenRouteService, la recherche passe directement par le service de secours.
+      const results = await autocomplete({ apiKey: getApiKey(), text, focus: getFocus(), signal: controller.signal });
       items = results.length ? results : [{ label: 'Aucune adresse trouvée. Essayez avec la ville.', disabled: true }];
     } catch (error) {
       if (error.name === 'AbortError') return;

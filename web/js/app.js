@@ -97,10 +97,8 @@ const placing = () => document.querySelector('input[name="placing"]:checked').va
 /** Affiche l'adresse d'un point touché sur la carte (si la clé OpenRouteService est disponible). */
 async function describePoint(kind, point) {
   addressFields[kind]?.setLabel('Point choisi sur la carte');
-  const apiKey = storage.get(KEYS.apiKey, '');
-  if (!apiKey) return;
   try {
-    const label = await reverseGeocode({ apiKey, point });
+    const label = await reverseGeocode({ apiKey: storage.get(KEYS.apiKey, ''), point });
     if (label && state[kind] === point) addressFields[kind]?.setLabel(label);
   } catch {
     // Sans adresse, le libellé « Point choisi sur la carte » suffit.
