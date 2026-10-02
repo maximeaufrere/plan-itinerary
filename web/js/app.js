@@ -99,14 +99,17 @@ function locate({ silent = false } = {}) {
     return;
   }
   if (!silent) setStatus('Recherche de votre position…');
+  $('locate').classList.add('locating');
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      $('locate').classList.remove('locating');
       const point = [position.coords.latitude, position.coords.longitude];
       setPoint('start', point);
       map.setView(point, 14);
       setStatus('');
     },
     (error) => {
+      $('locate').classList.remove('locating');
       setStatus(
         error.code === error.PERMISSION_DENIED
           ? 'Localisation refusée : touchez la carte pour choisir un départ.'
@@ -644,6 +647,11 @@ function setSheetHeight(height, { animate = true } = {}) {
   // La feuille repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
   panel.style.bottom = `${tabbarHeight()}px`;
   document.querySelector('.layout').classList.toggle('map-full', height <= sheetHeights().peek + 12);
+  // Le bouton de localisation s'efface quand la feuille monte jusqu'à lui.
+  const locateButton = $('locate');
+  const opacity = Math.max(0, Math.min(1, (window.innerHeight - tabbarHeight() - height - 70) / 50));
+  locateButton.style.opacity = String(opacity);
+  locateButton.style.pointerEvents = opacity < 0.5 ? 'none' : '';
 }
 
 /** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
@@ -661,6 +669,8 @@ function snapTo(state, { save = true, fit = true } = {}) {
   } else {
     panel.style.removeProperty('--sheet-h');
     panel.style.bottom = '';
+    $('locate').style.opacity = '';
+    $('locate').style.pointerEvents = '';
     panel.classList.remove('dragging');
     document.querySelector('.layout').classList.toggle('map-full', collapsed);
   }
