@@ -14,9 +14,15 @@ struct GeoTests {
 
     @Test func resampleKeepsTotalDistance() {
         let end = Geo.destination(from: paris, distance: 1_000, bearing: 90)
+        let total = Geo.distance(paris, end)
         let samples = Geo.resample([paris, end], spacing: 100)
-        #expect(samples.count == 11)
-        #expect(abs((samples.last?.distance ?? 0) - 1_000) < 5)
+
+        #expect(samples.first?.distance == 0)
+        // Points réguliers tous les 100 m, plus éventuellement le point d'arrivée exact.
+        for (a, b) in zip(samples, samples.dropFirst()) {
+            #expect(b.distance - a.distance <= 100 + 1e-6)
+        }
+        #expect(abs((samples.last?.distance ?? 0) - total) < 1)
     }
 
     @Test func elevationGainIgnoresNoise() {
