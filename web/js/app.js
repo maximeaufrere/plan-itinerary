@@ -196,6 +196,7 @@ function syncForm() {
   $('max-gain').value = criteria.maxGain ?? 200;
   for (const range of [distance, speed]) fillRange(range);
   $('criteria-summary-text').textContent = criteriaSummary();
+  updatePeek();
 }
 
 function criteriaSummary() {
@@ -213,6 +214,7 @@ function setCriteriaCollapsed(collapsed) {
   $('criteria-form').classList.toggle('collapsed', collapsed);
   $('criteria-summary').setAttribute('aria-expanded', String(!collapsed));
   $('criteria-summary-text').textContent = criteriaSummary();
+  updatePeek();
 }
 
 $('criteria-summary').addEventListener('click', () => {
@@ -256,6 +258,8 @@ $('max-gain').addEventListener('change', (event) => updateCriteria({ maxGain: Nu
 $('locate').addEventListener('click', () => locate());
 
 function setStatus(message, isError = false) {
+  // Une erreur ne doit pas rester cachée derrière le panneau réduit.
+  if (isError && message) setPanelCollapsed(false);
   const status = $('status');
   status.textContent = message;
   status.classList.toggle('error', isError);
@@ -331,7 +335,7 @@ function showRoutes(routes, activity) {
   setCriteriaCollapsed(true);
   // Le premier parcours est généré : le message de bienvenue a fait son office.
   dismissWelcome();
-  document.querySelector('.panel').scrollTo({ top: 0 });
+  $('panel-scroll').scrollTo({ top: 0 });
 }
 
 const routeDuration = (route) => formatDuration(estimatedDuration(route, state.routesActivity, state.criteria.speeds));
@@ -370,6 +374,7 @@ function refreshDurations() {
     const route = state.routes.find((r) => r.id === card.dataset.id);
     card.querySelector('.card-duration').textContent = routeDuration(route);
   }
+  updatePeek();
   const duration = $('detail-duration');
   const selected = state.routes.find((r) => r.id === state.selectedId);
   if (duration && selected) duration.textContent = routeDuration(selected);
@@ -386,14 +391,21 @@ function selectRoute(id) {
   if (!route) return;
 
   styleRoutes();
-  map.invalidateSize();
-  // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (réglages, favoris, zoom).
-  map.fitBounds(routeLayers.get(id).getBounds(), { paddingTopLeft: [30, 30], paddingBottomRight: [70, 30], animate: false });
+  fitToRoute(id);
 
   for (const card of $('cards').children) {
     card.setAttribute('aria-selected', String(card.dataset.id === id));
   }
   renderDetails(route);
+  updatePeek();
+}
+
+function fitToRoute(id) {
+  const layer = routeLayers.get(id);
+  if (!layer) return;
+  map.invalidateSize();
+  // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (compte, réglages, favoris, zoom).
+  map.fitBounds(layer.getBounds(), { paddingTopLeft: [30, 30], paddingBottomRight: [70, 30], animate: false });
 }
 
 /** Couleurs des tracés (dépendent du thème). */
@@ -572,6 +584,67 @@ const settings = initSettings({
 
 $('open-settings').addEventListener('click', () => settings.open());
 
+// MARK: - Panneau repliable (carte en plein écran)
+
+/** Texte de la barre d'aperçu affichée quand le panneau est réduit. */
+function updatePeek() {
+  const route = state.routes.find((r) => r.id === state.selectedId);
+  $('panel-peek-text').textContent = route
+    ? `${formatDistance(route.distance)} · ↗ ${formatElevation(route.ascent)} · ${routeDuration(route)}`
+    : criteriaSummary();
+}
+
+function isPanelCollapsed() {
+  return document.querySelector('.layout').classList.contains('map-full');
+}
+
+function setPanelCollapsed(collapsed, { save = true } = {}) {
+  if (collapsed === isPanelCollapsed()) return;
+  document.querySelector('.layout').classList.toggle('map-full', collapsed);
+  const toggle = $('panel-toggle');
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+  toggle.setAttribute(
+    'aria-label',
+    collapsed ? 'Afficher le panneau des critères et résultats' : 'Réduire le panneau pour voir la carte en plein écran',
+  );
+  updatePeek();
+  if (save) storage.set(KEYS.panelCollapsed, collapsed);
+  // Une fois l'animation terminée, la carte occupe la nouvelle place et se recadre sur le parcours.
+  setTimeout(() => {
+    map.invalidateSize();
+    if (state.selectedId) fitToRoute(state.selectedId);
+  }, 330);
+}
+
+// Toucher la poignée bascule le panneau ; la glisser vers le bas le réduit, vers le haut le rouvre.
+{
+  const toggle = $('panel-toggle');
+  let startY = null;
+  let swiped = false;
+  toggle.addEventListener('pointerdown', (event) => {
+    startY = event.clientY;
+    swiped = false;
+    // Le geste continue d'être suivi même si le doigt sort de la poignée.
+    toggle.setPointerCapture(event.pointerId);
+  });
+  toggle.addEventListener('pointerup', (event) => {
+    if (startY === null) return;
+    const dy = event.clientY - startY;
+    startY = null;
+    if (Math.abs(dy) > 30) {
+      swiped = true;
+      setPanelCollapsed(dy > 0);
+    }
+  });
+  toggle.addEventListener('click', () => {
+    if (swiped) {
+      swiped = false;
+      return;
+    }
+    setPanelCollapsed(!isPanelCollapsed());
+  });
+}
+
 // MARK: - Compte
 
 const account = initAccount({
@@ -620,4 +693,5 @@ $('welcome').querySelector('a').addEventListener('click', dismissWelcome);
 
 buildForm();
 syncForm();
+setPanelCollapsed(storage.get(KEYS.panelCollapsed, false), { save: false });
 locate({ silent: true });

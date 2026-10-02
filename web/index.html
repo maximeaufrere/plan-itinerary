@@ -22,7 +22,13 @@
   <main class="layout">
     <div id="map" class="map" aria-label="Carte : touchez pour choisir le point de départ"></div>
 
-    <section class="panel" aria-label="Critères et résultats">
+    <section id="panel" class="panel" aria-label="Critères et résultats">
+      <button type="button" id="panel-toggle" class="panel-handle" aria-controls="panel-scroll" aria-expanded="true" aria-label="Réduire le panneau pour voir la carte en plein écran">
+        <span class="grabber" aria-hidden="true"></span>
+        <span class="panel-peek"><span id="panel-peek-text"></span><svg class="icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></span>
+        <span class="tab-chevron" aria-hidden="true"><svg class="icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></span>
+      </button>
+      <div id="panel-scroll" class="panel-scroll">
       <div id="welcome" class="welcome" hidden>
         <p><strong>Bienvenue !</strong> Découvrez en 2 minutes comment générer vos parcours.</p>
         <div class="welcome-actions">
@@ -127,6 +133,7 @@
       <div id="results" class="results" hidden>
         <div id="cards" class="cards" role="listbox" aria-label="Propositions"></div>
         <div id="details" class="details"></div>
+      </div>
       </div>
     </section>
   </main>

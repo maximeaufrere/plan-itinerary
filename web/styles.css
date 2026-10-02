@@ -1255,3 +1255,99 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .actions.actions-grid button { min-height: 48px; padding: 10px 12px; font-size: 0.92rem; }
 
 button.secondary.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+/* ==========================================================================
+   Panneau repliable : carte en plein écran
+   ========================================================================== */
+
+.layout { overflow: hidden; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  padding: 0;
+}
+.panel-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 18px calc(20px + env(safe-area-inset-bottom));
+}
+
+.panel-handle {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  touch-action: none;
+}
+.panel-handle .icon { width: 20px; height: 20px; }
+.panel-handle .chevron { transition: transform 0.25s var(--ease); }
+
+/* Téléphone : poignée en haut du panneau, barre d'aperçu quand il est réduit */
+@media (max-width: 899px) {
+  .panel-handle {
+    flex: 0 0 auto;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 18px 8px;
+  }
+  .grabber {
+    width: 40px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--border);
+    transition: background-color 0.2s;
+  }
+  .panel-handle:hover .grabber { background: var(--muted); }
+  .panel-peek, .tab-chevron { display: none; }
+
+  .layout.map-full .panel-scroll { display: none; }
+  .layout.map-full .panel-handle { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .layout.map-full .panel-peek {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 4px 4px 0;
+    color: var(--text);
+    font-weight: 700;
+    text-align: left;
+  }
+  .layout.map-full .panel-peek .icon { color: var(--accent); }
+}
+
+/* Ordinateur : onglet sur le bord gauche du panneau, qui glisse hors de l'écran */
+@media (min-width: 900px) {
+  .panel {
+    padding: 0;
+    transition: flex-basis 0.3s var(--ease), margin-right 0.3s var(--ease);
+  }
+  .panel-scroll { padding: 28px; min-width: 440px; }
+  .panel-handle {
+    position: absolute;
+    top: 50%;
+    left: -34px;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 72px;
+    margin-top: -36px;
+    border-radius: 14px 0 0 14px;
+    background: var(--bg);
+    box-shadow: -6px 0 16px rgb(27 38 32 / 0.12);
+  }
+  .grabber, .panel-peek { display: none; }
+  .tab-chevron .chevron { transform: rotate(90deg); }
+  .panel { min-width: 0; }
+  .layout.map-full .panel { flex-basis: 0; }
+  .layout.map-full .tab-chevron .chevron { transform: rotate(-90deg); }
+  .floating-buttons { transition: right 0.3s var(--ease); }
+  .layout.map-full ~ .floating-buttons { right: 12px; }
+}

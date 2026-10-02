@@ -8,6 +8,7 @@ export const KEYS = {
   theme: 'theme',
   baseLayer: 'baseLayer',
   welcomeDismissed: 'welcomeDismissed',
+  panelCollapsed: 'panelCollapsed',
   /** Favoris déjà présents dans le compte lors de la dernière synchronisation. */
   syncedFavoriteIds: 'syncedFavoriteIds',
   /** Date de la dernière modification locale des réglages synchronisés. */
