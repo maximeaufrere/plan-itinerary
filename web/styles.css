@@ -842,20 +842,6 @@ button:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
 .actions button.icon-only { flex: 0 0 52px; width: 52px; padding: 0; }
 .actions button.icon-only .icon { width: 22px; height: 22px; }
 
-/* Bouton Générer : flèche au repos, roue pendant le calcul */
-#generate .spinner {
-  display: none;
-  width: 18px;
-  height: 18px;
-  border: 2.5px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-#generate.loading .spinner { display: inline-block; }
-#generate.loading .arrow { display: none; }
-#generate .arrow { transition: transform 0.2s var(--ease); }
-#generate:hover .arrow { transform: translateX(3px); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Barre d'actions collée en bas du panneau sur téléphone */
@@ -1474,7 +1460,6 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
 /* ==========================================================================
    Bouton « Générer » en fin de critères et bouton de localisation sur la carte
    ========================================================================== */
-.generate-button { width: 100%; min-height: 56px; font-size: 1.05rem; }
 
 .map-button {
   position: absolute;
@@ -1700,3 +1685,6 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
 /* Page de l'app : défilement autorisé, mais ni pincement ni double-toucher pour zoomer la page.
    La carte n'est pas concernée : Leaflet gère lui-même ses gestes (touch-action: none sur la carte). */
 html:has(body.no-page-zoom), body.no-page-zoom { touch-action: pan-x pan-y; }
+
+.quick-generate .arrow { transition: transform 0.2s var(--ease); }
+.quick-generate:hover .arrow { transform: translateX(3px); }

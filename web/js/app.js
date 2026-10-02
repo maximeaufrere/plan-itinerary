@@ -400,11 +400,8 @@ function setStatus(message, isError = false) {
 // MARK: - Génération
 
 function setGenerating(isGenerating) {
-  for (const id of ['generate', 'quick-generate']) {
-    $(id).classList.toggle('loading', isGenerating);
-    $(id).setAttribute('aria-busy', String(isGenerating));
-  }
-  $('generate-label').textContent = isGenerating ? 'Annuler' : 'Générer';
+  $('quick-generate').classList.toggle('loading', isGenerating);
+  $('quick-generate').setAttribute('aria-busy', String(isGenerating));
   $('quick-generate-label').textContent = isGenerating ? 'Annuler' : 'Générer';
 }
 
@@ -990,11 +987,19 @@ const account = initAccount({
 // MARK: - Barre d'onglets
 
 // « Parcours » réduit ou rouvre le panneau ; « Sorties » ouvre l'historique du compte.
-// « Parcours » affiche la vue Parcours ; si elle est déjà affichée, réduit ou rouvre le panneau.
-$('tab-route').addEventListener('click', () => {
-  if (currentView() !== 'route') showView('route');
-  else snapTo(sheetState === 'peek' ? 'mid' : 'peek');
-});
+$('tab-route').addEventListener('click', () => showView('route'));
+
+// Toucher l'onglet déjà affiché (quel qu'il soit) réduit ou rouvre le panneau, au lieu de rouvrir la vue.
+$('tabbar').addEventListener(
+  'click',
+  (event) => {
+    const tab = event.target.closest('[data-tab]');
+    if (!tab?.classList.contains('active')) return;
+    event.stopPropagation(); // l'action habituelle de l'onglet n'est pas exécutée
+    snapTo(sheetState === 'peek' ? 'mid' : 'peek');
+  },
+  true,
+);
 
 // Changer de vue rouvre la feuille si elle était réduite et revient en haut de son contenu.
 onViewChange((view) => {
