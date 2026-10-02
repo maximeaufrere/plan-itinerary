@@ -53,7 +53,8 @@ Site statique : il suffit de publier le dossier `web/`.
 
 - **Netlify** : « Add new site ▸ Import from Git », choisir ce dépôt ; `netlify.toml` configure déjà le dossier.
 - **Cloudflare Pages** : connecter le dépôt, commande de build vide, dossier de sortie `web`.
-- **GitHub Pages** : gratuit uniquement pour un dépôt public (ou avec un abonnement GitHub payant).
+- **GitHub Pages** (utilisé actuellement) : `.github/workflows/pages.yml` publie `web/` à chaque modification.
+  Adresse : https://maximeaufrere.github.io/plan-itinerary/
 
 # App iPhone native (`PlanItinerary/`)
 
