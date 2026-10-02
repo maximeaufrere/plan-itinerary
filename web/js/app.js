@@ -12,35 +12,18 @@ import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPace, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
 import { toGpx } from './gpx.js';
+import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
+import { initSettings } from './settings.js';
+import { shareOrDownload } from './share.js';
+import { KEYS, storage } from './storage.js';
 
 /* global L */
-
-// Stockage local : critères, clé API et favoris restent sur l'appareil.
-const storage = {
-  get(key, fallback) {
-    try {
-      const value = localStorage.getItem(key);
-      return value === null ? fallback : JSON.parse(value);
-    } catch {
-      return fallback;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      // Navigation privée, stockage bloqué ou plein.
-      return false;
-    }
-  },
-};
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (text) => String(text).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 
 const state = {
-  criteria: sanitizeCriteria(storage.get('criteria', {})),
+  criteria: sanitizeCriteria(storage.get(KEYS.criteria, {})),
   start: null,
   end: null,
   routes: [],
@@ -48,7 +31,7 @@ const state = {
   routesActivity: null,
   selectedId: null,
   controller: null,
-  favorites: storage.get('favorites', []).filter(isValidFavorite),
+  favorites: storage.get(KEYS.favorites, []).filter(isValidFavorite),
 };
 
 // MARK: - Carte
@@ -58,10 +41,19 @@ map.attributionControl.setPrefix(false);
 // Le panneau change de taille (résultats, rotation) : Leaflet doit recalculer la taille de la carte.
 new ResizeObserver(() => map.invalidateSize()).observe($('map'));
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://openrouteservice.org">openrouteservice</a>',
-}).addTo(map);
+let baseLayer = null;
+
+function setBaseLayer(key) {
+  const config = BASE_LAYERS[key] ?? BASE_LAYERS[DEFAULT_BASE_LAYER];
+  baseLayer?.remove();
+  baseLayer = L.tileLayer(config.url, {
+    maxZoom: config.maxZoom,
+    attribution: `${config.attribution} · <a href="https://openrouteservice.org">openrouteservice</a>`,
+  }).addTo(map);
+  baseLayer.bringToBack();
+}
+
+setBaseLayer(storage.get(KEYS.baseLayer, DEFAULT_BASE_LAYER));
 
 const pinIcon = (className) => L.divIcon({ className: '', html: `<div class="${className}"></div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
 const markers = { start: null, end: null };
@@ -197,7 +189,7 @@ function syncForm() {
 
 function updateCriteria(changes) {
   state.criteria = sanitizeCriteria({ ...state.criteria, ...changes });
-  storage.set('criteria', state.criteria);
+  storage.set(KEYS.criteria, state.criteria);
   syncForm();
 }
 
@@ -251,9 +243,9 @@ $('criteria-form').addEventListener('submit', async (event) => {
     state.controller.abort();
     return;
   }
-  const apiKey = storage.get('orsApiKey', '');
+  const apiKey = storage.get(KEYS.apiKey, '');
   if (!apiKey) {
-    openSettings('Ajoutez votre clé OpenRouteService (gratuite) pour générer des itinéraires.');
+    settings.open('Ajoutez votre clé OpenRouteService (gratuite) pour générer des itinéraires. Le tutoriel explique comment l\'obtenir en 2 minutes.');
     return;
   }
   if (!state.start) {
@@ -355,16 +347,7 @@ function selectRoute(id) {
   const route = state.routes.find((r) => r.id === id);
   if (!route) return;
 
-  const styles = getComputedStyle(document.documentElement);
-  for (const [routeId, layer] of routeLayers) {
-    const selected = routeId === id;
-    layer.setStyle({
-      color: styles.getPropertyValue(selected ? '--accent' : '--route-other').trim(),
-      weight: selected ? 6 : 4,
-      opacity: selected ? 0.95 : 0.7,
-    });
-    if (selected) layer.bringToFront();
-  }
+  styleRoutes();
   map.invalidateSize();
   // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (⚙️ ★ et zoom).
   map.fitBounds(routeLayers.get(id).getBounds(), { paddingTopLeft: [30, 30], paddingBottomRight: [70, 30], animate: false });
@@ -373,6 +356,20 @@ function selectRoute(id) {
     card.setAttribute('aria-selected', String(card.dataset.id === id));
   }
   renderDetails(route);
+}
+
+/** Couleurs des tracés (dépendent du thème). */
+function styleRoutes() {
+  const styles = getComputedStyle(document.documentElement);
+  for (const [routeId, layer] of routeLayers) {
+    const selected = routeId === state.selectedId;
+    layer.setStyle({
+      color: styles.getPropertyValue(selected ? '--accent' : '--route-other').trim(),
+      weight: selected ? 6 : 4,
+      opacity: selected ? 0.95 : 0.7,
+    });
+    if (selected) layer.bringToFront();
+  }
 }
 
 function surfaceBreakdown(surface) {
@@ -421,22 +418,7 @@ async function exportGpx(route) {
   const name = route.name ?? `${ACTIVITIES[state.routesActivity].label} ${formatDistance(route.distance)}`;
   const fileName = `${name.replace(/[^\p{L}\p{N}]+/gu, '-')}.gpx`;
   const file = new File([toGpx(route, name)], fileName, { type: 'application/gpx+xml' });
-
-  // Sur mobile, la feuille de partage permet d'envoyer directement vers Strava, Komoot, Fichiers…
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: name });
-      return;
-    } catch (error) {
-      if (error.name === 'AbortError') return;
-    }
-  }
-  const url = URL.createObjectURL(file);
-  const link = Object.assign(document.createElement('a'), { href: url, download: fileName });
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await shareOrDownload(file, name);
 }
 
 // MARK: - Favoris
@@ -449,7 +431,7 @@ function saveFavorite(route) {
 
   const favorite = toFavorite(route, { name: name.trim() || suggested, activity });
   const favorites = [favorite, ...state.favorites];
-  if (!storage.set('favorites', favorites)) {
+  if (!storage.set(KEYS.favorites, favorites)) {
     setStatus('Impossible d\'enregistrer : le stockage de ce navigateur est plein ou désactivé.', true);
     return;
   }
@@ -499,7 +481,7 @@ $('favorites-list').addEventListener('click', (event) => {
     const favorite = state.favorites.find((f) => f.id === remove.dataset.id);
     if (!favorite || !window.confirm(`Supprimer « ${favorite.name} » ?`)) return;
     state.favorites = state.favorites.filter((f) => f.id !== favorite.id);
-    storage.set('favorites', state.favorites);
+    storage.set(KEYS.favorites, state.favorites);
     renderFavorites();
     const shown = state.routes.find((r) => r.id === favorite.id);
     if (shown) renderDetails(shown);
@@ -508,21 +490,33 @@ $('favorites-list').addEventListener('click', (event) => {
 
 // MARK: - Réglages
 
-const settings = $('settings');
-
-function openSettings(message) {
-  $('settings-message').hidden = !message;
-  $('settings-message').textContent = message ?? '';
-  $('api-key').value = storage.get('orsApiKey', '');
-  settings.showModal();
-}
-
-$('open-settings').addEventListener('click', () => openSettings());
-settings.addEventListener('close', () => {
-  if (settings.returnValue === 'save') {
-    storage.set('orsApiKey', $('api-key').value.trim());
-  }
+const settings = initSettings({
+  getFavorites: () => state.favorites,
+  setFavorites: (favorites) => {
+    if (!storage.set(KEYS.favorites, favorites)) return false;
+    state.favorites = favorites;
+    return true;
+  },
+  onBaseLayerChange: setBaseLayer,
+  onThemeChange: styleRoutes,
+  onResetCriteria: () => {
+    state.criteria = sanitizeCriteria({});
+    storage.set(KEYS.criteria, state.criteria);
+    syncForm();
+  },
 });
+
+$('open-settings').addEventListener('click', () => settings.open());
+
+// MARK: - Bienvenue
+
+if (!storage.get(KEYS.welcomeDismissed, false)) $('welcome').hidden = false;
+const dismissWelcome = () => {
+  storage.set(KEYS.welcomeDismissed, true);
+  $('welcome').hidden = true;
+};
+$('dismiss-welcome').addEventListener('click', dismissWelcome);
+$('welcome').querySelector('a').addEventListener('click', dismissWelcome);
 
 // MARK: - Démarrage
 

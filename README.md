@@ -31,7 +31,10 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 - Statistiques (distance, D+/D−, altitudes, durée, % de repassages, % de grands axes), répartition du revêtement,
   profil altimétrique
 - **Favoris** enregistrés sur l'appareil (bouton ★), export GPX (feuille de partage sur mobile → Strava, Komoot…)
-- Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »), mode sombre
+- **Réglages** (⚙️) : clé OpenRouteService avec test, thème clair / sombre / auto, fond de carte
+  (standard, topographique, vélo), export / import des favoris, réinitialisation
+- **Tutoriel** intégré (`web/aide.html`), proposé à la première visite
+- Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »)
 
 ## Clé OpenRouteService
 

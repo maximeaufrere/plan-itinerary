@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tutoriel · Plan Itinéraire</title>
+  <meta name="description" content="Comment générer des parcours de course à pied et de vélo avec Plan Itinéraire.">
+  <meta name="theme-color" content="#1d4ed8">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>try { const t = JSON.parse(localStorage.getItem('theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
+</head>
+<body class="guide-page">
+  <header class="guide-header">
+    <a href="./" class="guide-back">‹ Retour à l'app</a>
+  </header>
+
+  <main class="guide">
+    <h1>Comment ça marche</h1>
+    <p class="guide-lead">
+      Plan Itinéraire crée pour vous des parcours de course à pied ou de vélo selon la distance, le dénivelé
+      et le type de terrain que vous voulez. Voici tout ce qu'il faut savoir, en quelques minutes.
+    </p>
+
+    <section class="guide-quick" aria-labelledby="quick">
+      <h2 id="quick">En bref</h2>
+      <ol class="guide-steps">
+        <li><strong>Une seule fois :</strong> ajoutez votre clé gratuite OpenRouteService dans les réglages ⚙️.</li>
+        <li><strong>Choisissez le départ :</strong> votre position, ou touchez la carte.</li>
+        <li><strong>Réglez vos critères :</strong> activité, distance, dénivelé…</li>
+        <li><strong>Touchez « Générer »</strong> et comparez les propositions.</li>
+      </ol>
+    </section>
+
+    <nav class="guide-toc" aria-label="Sommaire">
+      <h2>Sommaire</h2>
+      <ol>
+        <li><a href="#cle">Obtenir sa clé gratuite</a></li>
+        <li><a href="#depart">Choisir le départ (et l'arrivée)</a></li>
+        <li><a href="#criteres">Régler les critères</a></li>
+        <li><a href="#resultats">Lire les résultats</a></li>
+        <li><a href="#favoris">Favoris et export GPX</a></li>
+        <li><a href="#installer">Installer l'app sur son téléphone</a></li>
+        <li><a href="#reglages">Les réglages</a></li>
+        <li><a href="#fonctionnement">Comment les parcours sont calculés</a></li>
+        <li><a href="#faq">Questions fréquentes</a></li>
+      </ol>
+    </nav>
+
+    <section id="cle" aria-labelledby="cle-title">
+      <h2 id="cle-title"><span class="guide-num">1</span> Obtenir sa clé gratuite</h2>
+      <p>
+        Les itinéraires sont calculés par <strong>OpenRouteService</strong>, un service gratuit basé sur
+        OpenStreetMap. Il demande une « clé », une sorte de mot de passe qui identifie l'app. Comptez 2 minutes :
+      </p>
+      <ol class="guide-steps">
+        <li>Ouvrez <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">openrouteservice.org</a> et créez un compte gratuit (e-mail + mot de passe).</li>
+        <li>Confirmez votre adresse e-mail grâce au message reçu.</li>
+        <li>Connectez-vous : votre tableau de bord affiche une clé (une longue suite de lettres et de chiffres). <strong>Copiez-la en entier.</strong></li>
+        <li>Dans Plan Itinéraire, touchez <span class="ui-button">⚙️</span>, collez la clé dans « Clé OpenRouteService », puis touchez <span class="ui-button">Tester la clé</span>.</li>
+      </ol>
+      <p class="guide-tip">
+        🔒 La clé reste enregistrée <strong>uniquement sur votre appareil</strong>. L'offre gratuite permet environ
+        2 000 itinéraires par jour : largement de quoi faire (une génération en utilise au plus 13, souvent moins de 8).
+      </p>
+    </section>
+
+    <section id="depart" aria-labelledby="depart-title">
+      <h2 id="depart-title"><span class="guide-num">2</span> Choisir le départ (et l'arrivée)</h2>
+      <ul class="guide-list">
+        <li><span class="ui-pin start"></span> <strong>Départ :</strong> l'app utilise votre position (acceptez la demande de localisation), ou touchez <span class="ui-button">📍 Ma position</span>. Vous pouvez aussi <strong>toucher n'importe où sur la carte</strong> pour partir d'ailleurs.</li>
+        <li><span class="ui-pin end"></span> <strong>Arrivée</strong> (mode <span class="ui-chip">A&nbsp;→&nbsp;B</span> uniquement) : après le départ, touchez la carte une seconde fois pour placer l'arrivée. Le sélecteur <span class="ui-chip">🟢 Départ</span> <span class="ui-chip">🔴 Arrivée</span> permet de déplacer l'un ou l'autre.</li>
+      </ul>
+    </section>
+
+    <section id="criteres" aria-labelledby="criteres-title">
+      <h2 id="criteres-title"><span class="guide-num">3</span> Régler les critères</h2>
+      <p>Vos réglages sont mémorisés d'une fois sur l'autre.</p>
+
+      <dl class="guide-defs">
+        <dt>Activité</dt>
+        <dd>
+          <div class="ui-row"><span class="ui-chip on">🏃 Course</span><span class="ui-chip">⛰️ Trail</span><span class="ui-chip">🚴 Vélo route</span><span class="ui-chip">🚲 Vélo</span><span class="ui-chip">🚵 VTT</span></div>
+          Chaque activité utilise des chemins adaptés : la course passe par les trottoirs et parcs, le trail privilégie
+          les sentiers, le vélo de route évite les chemins de terre, le VTT les recherche.
+        </dd>
+
+        <dt>Type de parcours</dt>
+        <dd>
+          <div class="ui-row"><span class="ui-chip on">Boucle</span><span class="ui-chip">Aller-retour</span><span class="ui-chip">A&nbsp;→&nbsp;B</span></div>
+          <strong>Boucle</strong> : retour au départ par un autre chemin. <strong>Aller-retour</strong> : on fait
+          demi-tour à mi-parcours. <strong>A&nbsp;→&nbsp;B</strong> : d'un point à un autre, en ajoutant un détour si le trajet
+          direct est plus court que la distance voulue (pratique pour aller au travail en courant !).
+        </dd>
+
+        <dt>Distance</dt>
+        <dd>La distance visée. Les propositions s'en approchent généralement à ±5 %.</dd>
+
+        <dt>Allure / Vitesse moyenne</dt>
+        <dd>
+          À pied, votre allure en minutes par kilomètre (ex. <strong>5'30/km</strong>) ; à vélo, votre vitesse moyenne
+          en km/h. Elle sert uniquement à estimer la durée.
+        </dd>
+
+        <dt>Dénivelé</dt>
+        <dd>
+          <strong>Plat</strong>, <strong>Vallonné</strong> (environ 10 m de montée par km) ou <strong>Montagneux</strong>
+          (environ 25 m/km). Cochez <strong>D+ max</strong> pour fixer une limite de montée totale.
+        </dd>
+
+        <dt>Revêtement</dt>
+        <dd><strong>Bitume</strong> pour rester sur routes et trottoirs, <strong>Chemins</strong> pour privilégier la terre, le gravier et l'herbe.</dd>
+
+        <dt>Éviter les grands axes</dt>
+        <dd>Écarte autant que possible les routes principales, souvent bruyantes et fréquentées.</dd>
+
+        <dt>Propositions</dt>
+        <dd>Le nombre de parcours proposés (1 à 5). Chacun part dans une direction différente.</dd>
+      </dl>
+      <p class="guide-tip">
+        💡 Ces critères servent à <strong>classer</strong> les parcours trouvés : le premier proposé est celui qui
+        respecte le mieux l'ensemble. Si aucun ne vous convient, générez à nouveau : les directions changent à chaque fois.
+      </p>
+    </section>
+
+    <section id="resultats" aria-labelledby="resultats-title">
+      <h2 id="resultats-title"><span class="guide-num">4</span> Lire les résultats</h2>
+      <p>
+        Les propositions apparaissent sous forme de cartes : touchez-en une (ou son tracé sur la carte) pour
+        l'afficher en bleu. En dessous, le détail :
+      </p>
+      <dl class="guide-defs compact">
+        <dt>D+ / D−</dt><dd>Total des montées et des descentes, en mètres.</dd>
+        <dt>Alt. min / max</dt><dd>Points le plus bas et le plus haut du parcours.</dd>
+        <dt>Durée</dt><dd>Estimée avec votre allure. À pied, chaque 100 m de montée compte comme 1 km de plus (le « kilomètre-effort » des traileurs).</dd>
+        <dt>Repassages</dt><dd>Part du parcours qui emprunte un chemin déjà parcouru. Proche de 0 % pour une vraie boucle, environ 50 % pour un aller-retour.</dd>
+        <dt>Grands axes</dt><dd>Part du parcours sur des routes principales.</dd>
+        <dt>Revêtement</dt><dd>La barre colorée montre la part de bitume, de chemins et de revêtement inconnu (non renseigné dans OpenStreetMap).</dd>
+        <dt>Profil</dt><dd>La courbe d'altitude tout au long du parcours.</dd>
+      </dl>
+    </section>
+
+    <section id="favoris" aria-labelledby="favoris-title">
+      <h2 id="favoris-title"><span class="guide-num">5</span> Favoris et export GPX</h2>
+      <ul class="guide-list">
+        <li><span class="ui-button">☆ Enregistrer</span> garde le parcours affiché dans vos favoris, avec le nom de votre choix. Retrouvez-les avec le bouton <span class="ui-button">★</span> en haut à droite de la carte.</li>
+        <li><span class="ui-button">⬇︎ GPX</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers.</li>
+      </ul>
+      <p class="guide-tip">
+        ⚠️ Les favoris sont enregistrés dans le navigateur de cet appareil. Pour les retrouver sur un autre appareil,
+        utilisez <strong>Réglages ▸ Mes données ▸ Exporter</strong>, puis <strong>Importer</strong> sur l'autre appareil.
+      </p>
+    </section>
+
+    <section id="installer" aria-labelledby="installer-title">
+      <h2 id="installer-title"><span class="guide-num">6</span> Installer l'app sur son téléphone</h2>
+      <p>Plan Itinéraire s'installe sur l'écran d'accueil comme une vraie app, sans passer par un store :</p>
+      <div class="guide-columns">
+        <div class="guide-card">
+          <h3>iPhone (Safari)</h3>
+          <ol>
+            <li>Touchez le bouton <strong>Partager</strong> (carré avec une flèche vers le haut).</li>
+            <li>Choisissez <strong>« Sur l'écran d'accueil »</strong>.</li>
+            <li>Touchez <strong>Ajouter</strong>.</li>
+          </ol>
+        </div>
+        <div class="guide-card">
+          <h3>Android (Chrome)</h3>
+          <ol>
+            <li>Touchez le menu <strong>⋮</strong> en haut à droite.</li>
+            <li>Choisissez <strong>« Installer l'application »</strong> ou « Ajouter à l'écran d'accueil ».</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section id="reglages" aria-labelledby="reglages-title">
+      <h2 id="reglages-title"><span class="guide-num">7</span> Les réglages</h2>
+      <p>Le bouton <span class="ui-button">⚙️</span> ouvre les réglages :</p>
+      <dl class="guide-defs compact">
+        <dt>Clé OpenRouteService</dt><dd>Votre clé, avec un bouton pour vérifier qu'elle fonctionne.</dd>
+        <dt>Thème</dt><dd>Clair, sombre, ou automatique (suit le réglage de votre téléphone).</dd>
+        <dt>Fond de carte</dt><dd><strong>Standard</strong>, <strong>Topographique</strong> (courbes de niveau, idéal en trail) ou <strong>Vélo</strong> (pistes cyclables mises en avant).</dd>
+        <dt>Mes données</dt><dd>Exporter / importer vos favoris, réinitialiser les critères, ou tout effacer.</dd>
+      </dl>
+    </section>
+
+    <section id="fonctionnement" aria-labelledby="fonctionnement-title">
+      <h2 id="fonctionnement-title"><span class="guide-num">8</span> Comment les parcours sont calculés</h2>
+      <p>Pour les curieux, voici ce qui se passe quand vous touchez « Générer » :</p>
+      <ol class="guide-steps">
+        <li>L'app demande à OpenRouteService plusieurs parcours candidats, chacun dans une direction différente.</li>
+        <li>Si un candidat est trop long ou trop court, elle le recalcule une fois en corrigeant la longueur demandée.</li>
+        <li>Pour chaque candidat, elle mesure le dénivelé, les repassages, le revêtement et la part de grands axes.</li>
+        <li>Elle donne une note à chacun selon vos critères et vous présente les meilleurs.</li>
+      </ol>
+      <p>
+        En mode A&nbsp;→&nbsp;B, si le trajet direct est trop court, l'app ajoute un point de passage placé de façon à
+        allonger le parcours juste ce qu'il faut, d'un côté ou de l'autre de la ligne droite.
+      </p>
+    </section>
+
+    <section id="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title"><span class="guide-num">?</span> Questions fréquentes</h2>
+
+      <details>
+        <summary>« Clé OpenRouteService invalide »</summary>
+        <p>La clé a sans doute été mal copiée (un caractère en moins ou un espace). Recopiez-la depuis votre tableau de bord OpenRouteService, puis utilisez <strong>Tester la clé</strong> dans les réglages.</p>
+      </details>
+      <details>
+        <summary>« Quota OpenRouteService atteint »</summary>
+        <p>L'offre gratuite limite le nombre de calculs par minute et par jour. Patientez une minute ; si le message persiste, le quota du jour est épuisé et sera remis à zéro le lendemain.</p>
+      </details>
+      <details>
+        <summary>Ma position n'est pas trouvée</summary>
+        <p>Vérifiez que la localisation est autorisée pour Safari : <strong>Réglages de l'iPhone ▸ Confidentialité et sécurité ▸ Service de localisation ▸ Sites web Safari</strong>. Vous pouvez aussi simplement toucher la carte pour choisir le départ.</p>
+      </details>
+      <details>
+        <summary>« Aucun itinéraire trouvé »</summary>
+        <p>Le départ est peut-être dans une zone sans chemin (au milieu d'un lac, d'un champ privé…), ou la distance est trop grande pour le secteur. Déplacez légèrement le départ sur une rue ou réduisez la distance.</p>
+      </details>
+      <details>
+        <summary>La distance n'est pas exactement celle demandée</summary>
+        <p>Les parcours suivent de vrais chemins : il est rare de tomber pile sur la distance. L'app vise ±5 % et vous montre d'abord les parcours les plus proches.</p>
+      </details>
+      <details>
+        <summary>Le parcours repasse par la même rue</summary>
+        <p>Ça arrive quand le secteur offre peu de chemins (presqu'île, vallée…). Ces parcours sont classés après les autres ; générez à nouveau ou déplacez légèrement le départ pour obtenir d'autres variantes.</p>
+      </details>
+      <details>
+        <summary>Mes données sont-elles envoyées quelque part ?</summary>
+        <p>Votre clé, vos favoris et vos réglages restent sur votre appareil. Seuls les points de départ/d'arrivée et vos critères de calcul sont envoyés à OpenRouteService pour calculer les itinéraires, et les fonds de carte sont chargés depuis les serveurs OpenStreetMap.</p>
+      </details>
+    </section>
+
+    <p class="guide-footer"><a href="./" class="button primary">C'est parti : retour à l'app</a></p>
+  </main>
+</body>
+</html>

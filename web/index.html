@@ -15,12 +15,22 @@
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="styles.css">
+  <!-- Thème appliqué avant l'affichage pour éviter un flash de la mauvaise couleur. -->
+  <script>try { const t = JSON.parse(localStorage.getItem('theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
   <main class="layout">
     <div id="map" class="map" aria-label="Carte : touchez pour choisir le point de départ"></div>
 
     <section class="panel" aria-label="Critères et résultats">
+      <div id="welcome" class="welcome" hidden>
+        <p><strong>👋 Bienvenue !</strong> Découvrez en 2 minutes comment générer vos parcours.</p>
+        <div class="welcome-actions">
+          <a href="aide.html" class="button primary small">📖 Voir le tutoriel</a>
+          <button type="button" id="dismiss-welcome" class="link-button">Plus tard</button>
+        </div>
+      </div>
+
       <form id="criteria-form" class="criteria">
         <fieldset class="chips" id="activity" aria-label="Activité"></fieldset>
 
@@ -92,24 +102,83 @@
     <button type="button" id="open-favorites" aria-label="Favoris">★</button>
   </div>
 
-  <dialog id="settings">
-    <form method="dialog" class="settings-form">
-      <h2>Réglages</h2>
-      <p id="settings-message" class="settings-message" hidden></p>
-      <label class="field">
-        <span>Clé API OpenRouteService</span>
-        <input type="text" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez votre clé ici">
-      </label>
-      <p class="hint">
-        Gratuite : créez un compte sur
-        <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">openrouteservice.org</a>,
-        puis copiez la clé affichée dans votre tableau de bord. Elle reste enregistrée sur cet appareil uniquement.
-      </p>
-      <div class="actions">
-        <button value="cancel" class="secondary" formnovalidate>Annuler</button>
-        <button value="save" class="primary">Enregistrer</button>
+  <dialog id="settings" class="sheet" aria-labelledby="settings-title">
+    <div class="sheet-header">
+      <h2 id="settings-title">Réglages</h2>
+      <button type="button" class="link-button" data-close>OK</button>
+    </div>
+    <p id="settings-message" class="settings-message" hidden></p>
+
+    <section class="settings-section" aria-labelledby="settings-key">
+      <h3 id="settings-key">Clé OpenRouteService</h3>
+      <div class="settings-card">
+        <div class="key-row">
+          <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="Collez votre clé ici" aria-label="Clé API OpenRouteService">
+          <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false">👁</button>
+        </div>
+        <div class="key-row">
+          <button type="button" id="test-key" class="secondary small">Tester la clé</button>
+          <span id="key-status" class="key-status" role="status" aria-live="polite"></span>
+        </div>
+        <p class="hint">
+          Gratuite, elle sert à calculer les itinéraires. Elle reste enregistrée sur cet appareil uniquement.
+          <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">Créer un compte</a> ·
+          <a href="aide.html#cle">Comment l'obtenir ?</a>
+        </p>
       </div>
-    </form>
+    </section>
+
+    <section class="settings-section" aria-labelledby="settings-display">
+      <h3 id="settings-display">Affichage</h3>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span>Thème</span>
+          <fieldset class="segmented compact" id="theme" aria-label="Thème">
+            <label><input type="radio" name="theme" value="auto"><span>Auto</span></label>
+            <label><input type="radio" name="theme" value="light"><span>Clair</span></label>
+            <label><input type="radio" name="theme" value="dark"><span>Sombre</span></label>
+          </fieldset>
+        </div>
+        <div class="settings-row stacked">
+          <span>Fond de carte</span>
+          <fieldset id="base-layer" class="layer-options" aria-label="Fond de carte"></fieldset>
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section" aria-labelledby="settings-data">
+      <h3 id="settings-data">Mes données</h3>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span>Favoris <small id="favorites-count" class="muted"></small></span>
+          <div class="button-group">
+            <button type="button" id="export-favorites" class="secondary small">Exporter</button>
+            <button type="button" id="import-favorites" class="secondary small">Importer</button>
+            <input type="file" id="import-file" accept="application/json,.json" hidden>
+          </div>
+        </div>
+        <p class="hint">Pour transférer vos favoris vers un autre appareil : exportez, puis importez le fichier.</p>
+        <div class="settings-row">
+          <button type="button" id="reset-criteria" class="secondary small">Réinitialiser les critères</button>
+          <button type="button" id="clear-all" class="secondary small danger">Tout effacer</button>
+        </div>
+        <p id="data-status" class="key-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="settings-section" aria-labelledby="settings-help">
+      <h3 id="settings-help">Aide</h3>
+      <div class="settings-card">
+        <a href="aide.html" class="settings-link">📖 Tutoriel : comment ça marche <span aria-hidden="true">›</span></a>
+        <a href="aide.html#faq" class="settings-link">❓ Questions fréquentes <span aria-hidden="true">›</span></a>
+        <p class="hint about">
+          Plan Itinéraire <span id="app-version"></span> · Cartes © OpenStreetMap ·
+          Itinéraires <a href="https://openrouteservice.org" target="_blank" rel="noopener">openrouteservice</a> ·
+          <a href="https://github.com/maximeaufrere/plan-itinerary" target="_blank" rel="noopener">Code source</a>
+        </p>
+      </div>
+    </section>
   </dialog>
 
   <dialog id="favorites">
