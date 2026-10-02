@@ -1,0 +1,9 @@
+{
+  "name": "plan-itinerary-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes serve -l 8080 .",
+    "test": "node --test test/*.test.js"
+  }
+}

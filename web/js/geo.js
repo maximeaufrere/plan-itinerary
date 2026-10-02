@@ -1,0 +1,61 @@
+// Coordonnées internes : [latitude, longitude] (ordre Leaflet).
+
+export const EARTH_RADIUS = 6_371_000;
+
+const toRad = (deg) => (deg * Math.PI) / 180;
+const toDeg = (rad) => (rad * 180) / Math.PI;
+
+/** Distance en mètres entre deux points (formule de haversine). */
+export function distance([lat1, lon1], [lat2, lon2]) {
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** Point atteint en partant de `origin` sur `dist` mètres au cap `bearing` (degrés, 0 = nord). */
+export function destination([lat, lon], dist, bearing) {
+  const delta = dist / EARTH_RADIUS;
+  const theta = toRad(bearing);
+  const phi1 = toRad(lat);
+  const lambda1 = toRad(lon);
+  const phi2 = Math.asin(Math.sin(phi1) * Math.cos(delta) + Math.cos(phi1) * Math.sin(delta) * Math.cos(theta));
+  const lambda2 =
+    lambda1 + Math.atan2(Math.sin(theta) * Math.sin(delta) * Math.cos(phi1), Math.cos(delta) - Math.sin(phi1) * Math.sin(phi2));
+  return [toDeg(phi2), ((toDeg(lambda2) + 540) % 360) - 180];
+}
+
+/** Distances cumulées depuis le premier point. */
+export function cumulativeDistances(points) {
+  const result = [0];
+  for (let i = 1; i < points.length; i++) {
+    result.push(result[i - 1] + distance(points[i - 1], points[i]));
+  }
+  return result;
+}
+
+/** Dénivelés positif et négatif, avec un seuil d'hystérésis pour filtrer le bruit des altitudes. */
+export function elevationGainAndLoss(altitudes, threshold = 3) {
+  if (altitudes.length === 0) return { gain: 0, loss: 0 };
+  let reference = altitudes[0];
+  let gain = 0;
+  let loss = 0;
+  for (const altitude of altitudes.slice(1)) {
+    const delta = altitude - reference;
+    if (delta >= threshold) {
+      gain += delta;
+      reference = altitude;
+    } else if (delta <= -threshold) {
+      loss -= delta;
+      reference = altitude;
+    }
+  }
+  return { gain, loss };
+}
+
+/** Réduit un tableau à `max` éléments au plus, en gardant le premier et le dernier. */
+export function downsample(items, max) {
+  if (items.length <= max) return items;
+  const step = (items.length - 1) / (max - 1);
+  return Array.from({ length: max }, (_, i) => items[Math.round(i * step)]);
+}

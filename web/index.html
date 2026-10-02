@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Plan Itinéraire</title>
+  <meta name="description" content="Générez des boucles de course à pied ou de vélo selon la distance et le dénivelé.">
+  <meta name="theme-color" content="#1d4ed8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Itinéraire">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="layout">
+    <div id="map" class="map" aria-label="Carte : touchez pour choisir le point de départ"></div>
+
+    <section class="panel" aria-label="Critères et résultats">
+      <form id="criteria-form" class="criteria">
+        <fieldset class="chips" id="activity" aria-label="Activité"></fieldset>
+
+        <div class="field">
+          <label for="distance">Distance</label>
+          <output id="distance-output" for="distance"></output>
+          <input type="range" id="distance" step="1">
+        </div>
+
+        <fieldset class="segmented" id="shape" aria-label="Type de parcours"></fieldset>
+
+        <div class="row">
+          <label class="field compact">
+            <span>Dénivelé</span>
+            <select id="elevation"></select>
+          </label>
+          <label class="field compact">
+            <span>Propositions</span>
+            <select id="proposals">
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row max-gain">
+          <label class="checkbox"><input type="checkbox" id="limit-gain"> D+ max</label>
+          <input type="number" id="max-gain" min="0" step="50" inputmode="numeric" aria-label="Dénivelé positif maximal en mètres">
+          <span>m</span>
+        </div>
+
+        <div class="actions">
+          <button type="button" id="locate" class="secondary">📍 Ma position</button>
+          <button type="submit" id="generate" class="primary">Générer</button>
+        </div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </form>
+
+      <div id="results" class="results" hidden>
+        <div id="cards" class="cards" role="listbox" aria-label="Propositions"></div>
+        <div id="details" class="details"></div>
+      </div>
+    </section>
+  </main>
+
+  <button type="button" id="open-settings" class="settings-button" aria-label="Réglages">⚙️</button>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings-form">
+      <h2>Réglages</h2>
+      <p id="settings-message" class="settings-message" hidden></p>
+      <label class="field">
+        <span>Clé API OpenRouteService</span>
+        <input type="text" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez votre clé ici">
+      </label>
+      <p class="hint">
+        Gratuite : créez un compte sur
+        <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">openrouteservice.org</a>,
+        puis copiez la clé affichée dans votre tableau de bord. Elle reste enregistrée sur cet appareil uniquement.
+      </p>
+      <div class="actions">
+        <button value="cancel" class="secondary" formnovalidate>Annuler</button>
+        <button value="save" class="primary">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

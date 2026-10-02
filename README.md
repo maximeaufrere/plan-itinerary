@@ -1,9 +1,63 @@
 # Plan Itinéraire
 
-Application iPhone (SwiftUI + MapKit / Apple Plans) qui génère des itinéraires de **course à pied** ou de **vélo**
-à partir de critères : distance, type de parcours (boucle / aller-retour), profil de dénivelé, D+ maximal.
+Génère des itinéraires de **course à pied** ou de **vélo** à partir de critères : distance, type de parcours
+(boucle / aller-retour), profil de dénivelé, D+ maximal.
 
-## Fonctionnalités (v0.1)
+Le dépôt contient deux versions :
+
+- **`web/` — app web multiplateforme** (iPhone, Android, ordinateur), basée sur OpenStreetMap et OpenRouteService.
+  Aucun compte développeur ni Mac nécessaire.
+- **`PlanItinerary/` — app iPhone native** (SwiftUI + MapKit / Apple Plans), décrite plus bas.
+
+# App web (`web/`)
+
+HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](https://leafletjs.com) (copié dans
+`web/vendor/`), les fonds de carte OpenStreetMap et l'API [OpenRouteService](https://openrouteservice.org).
+
+## Fonctionnalités
+
+- Départ depuis votre position (GPS du navigateur) ou un point touché sur la carte
+- Activités : course (piéton), trail (randonnée), vélo de route, vélo, VTT — chacune avec son profil de calcul ORS
+- Boucle (option `round_trip` d'ORS, longueur corrigée si l'écart dépasse 5 %) ou aller-retour
+- Profil de dénivelé souhaité et D+ maximal ; propositions classées selon ces critères
+- Statistiques, profil altimétrique, export GPX (feuille de partage sur mobile → Strava, Komoot, Fichiers…)
+- Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »), mode sombre
+
+## Clé OpenRouteService
+
+L'app demande une clé API gratuite au premier calcul (bouton ⚙️) : créez un compte sur
+[openrouteservice.org](https://openrouteservice.org/dev/#/signup) et copiez la clé de votre tableau de bord.
+La clé est enregistrée **uniquement dans le navigateur** de l'appareil (jamais dans le dépôt). Offre gratuite :
+environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme jusqu'à 2 par proposition.
+
+## Lancer en local
+
+```bash
+cd web
+python3 -m http.server 8080   # ou : npm start
+# puis http://localhost:8080
+```
+
+La géolocalisation du navigateur exige HTTPS (ou `localhost`) : pour tester le GPS sur un téléphone, il faut
+passer par la version hébergée.
+
+## Tests
+
+```bash
+cd web && npm test   # Node 20+, aucune dépendance à installer
+```
+
+## Hébergement
+
+Site statique : il suffit de publier le dossier `web/`.
+
+- **Netlify** : « Add new site ▸ Import from Git », choisir ce dépôt ; `netlify.toml` configure déjà le dossier.
+- **Cloudflare Pages** : connecter le dépôt, commande de build vide, dossier de sortie `web`.
+- **GitHub Pages** : gratuit uniquement pour un dépôt public (ou avec un abonnement GitHub payant).
+
+# App iPhone native (`PlanItinerary/`)
+
+## Fonctionnalités de l'app native (v0.1)
 
 - Départ depuis votre position ou n'importe quel point touché sur la carte
 - Choix de l'activité : course à pied (itinéraires piétons) ou vélo (itinéraires cyclables, iOS 26+)
@@ -65,7 +119,7 @@ un seuil de 3 m pour filtrer le bruit.
 - Sauvegarde des itinéraires favoris (SwiftData) et envoi vers l'Apple Watch
 - Surfaces (route / chemin) et préférences type « éviter les grands axes »
 
-## Structure
+## Structure de l'app native
 
 ```
 PlanItinerary/

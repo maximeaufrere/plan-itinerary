@@ -1,0 +1,4 @@
+# Hébergement de l'app web (Netlify) : le site est le dossier web/, sans étape de build.
+[build]
+  publish = "web"
+  command = ""
