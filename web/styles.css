@@ -1392,3 +1392,81 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
 
   .floating-buttons { transition: opacity 0.2s; }
 }
+
+/* ==========================================================================
+   Barre d'onglets fixe (remplace les boutons flottants)
+   ========================================================================== */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1200;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-top: 1px solid var(--border);
+}
+.tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 50px;
+  padding: 6px 0 4px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--muted);
+  font: 600 0.7rem/1.1 var(--font-body);
+  cursor: pointer;
+  transition: color 0.2s, background-color 0.2s, transform 0.12s var(--ease);
+}
+.tab .icon { width: 24px; height: 24px; }
+.tab:hover { color: var(--accent); }
+.tab:active { transform: scale(0.94); }
+.tab.active { color: var(--accent); }
+.tab.active .icon { stroke-width: 2.4; }
+
+/* Point orange : connecté au compte */
+#open-account.signed-in::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: calc(50% - 17px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--route);
+  border: 2px solid var(--bg);
+}
+
+/* Téléphone : la feuille glisse juste au-dessus de la barre */
+@media (max-width: 899px) {
+  .panel { bottom: calc(57px + env(safe-area-inset-bottom)); border-radius: 28px 28px 0 0; }
+  .panel-scroll { padding-bottom: 20px; }
+  .layout.map-full .panel-handle { padding-bottom: 12px; }
+}
+
+/* Ordinateur : barre en bas de la colonne de droite ; pastille flottante quand le panneau est replié */
+@media (min-width: 900px) {
+  .tabbar {
+    left: auto;
+    width: 440px;
+    padding: 8px 16px 10px;
+    transition: width 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), border-radius 0.3s;
+  }
+  .panel-scroll { padding-bottom: 96px; }
+  .layout.map-full ~ .tabbar {
+    right: calc(50% - 180px);
+    bottom: 16px;
+    width: 360px;
+    border: 0;
+    border-radius: 20px;
+    box-shadow: var(--float-shadow);
+  }
+}

@@ -405,11 +405,10 @@ function fitToRoute(id, { animate = false } = {}) {
   if (!layer) return;
   map.invalidateSize();
   // Sur téléphone, la carte passe sous la feuille : on garde le parcours dans la partie visible.
-  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight(), window.innerHeight * 0.6) + 24 : 30;
-  // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (compte, réglages, favoris, zoom).
+  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + 24 : 30;
   map.fitBounds(layer.getBounds(), {
-    paddingTopLeft: [30, 30 + (mobileQuery.matches ? safeArea.top : 0)],
-    paddingBottomRight: [70, bottom],
+    paddingTopLeft: [30, 40 + (mobileQuery.matches ? safeArea.top : 0)],
+    paddingBottomRight: [30, bottom],
     animate,
   });
 }
@@ -622,13 +621,15 @@ const safeArea = (() => {
   return { top: parseFloat(paddingTop) || 0, bottom: parseFloat(paddingBottom) || 0 };
 })();
 
-/** Hauteurs (px) des trois positions de la feuille. */
+const tabbarHeight = () => $('tabbar').offsetHeight;
+
+/** Hauteurs (px) des trois positions de la feuille, posée sur la barre d'onglets. */
 function sheetHeights() {
-  const vh = window.innerHeight;
+  const available = window.innerHeight - tabbarHeight();
   return {
-    peek: 84 + safeArea.bottom,
-    mid: Math.round(vh * 0.52),
-    full: Math.round(vh - safeArea.top - 64), // laisse visibles les crédits de la carte
+    peek: 78,
+    mid: Math.round(available * 0.55),
+    full: Math.round(available - safeArea.top - 48), // laisse visibles les crédits de la carte
   };
 }
 
@@ -640,12 +641,9 @@ function currentSheetHeight() {
 function setSheetHeight(height, { animate = true } = {}) {
   panel.classList.toggle('dragging', !animate);
   panel.style.setProperty('--sheet-h', `${Math.round(height)}px`);
+  // La feuille repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
+  panel.style.bottom = `${tabbarHeight()}px`;
   document.querySelector('.layout').classList.toggle('map-full', height <= sheetHeights().peek + 12);
-  // Les boutons de la carte s'effacent quand la feuille monte jusqu'à eux.
-  const opacity = Math.max(0, Math.min(1, (window.innerHeight - height - 150) / 60));
-  const floating = document.querySelector('.floating-buttons');
-  floating.style.opacity = String(opacity);
-  floating.style.pointerEvents = opacity < 0.5 ? 'none' : '';
 }
 
 /** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
@@ -662,11 +660,9 @@ function snapTo(state, { save = true, fit = true } = {}) {
     setSheetHeight(sheetHeights()[state]);
   } else {
     panel.style.removeProperty('--sheet-h');
+    panel.style.bottom = '';
     panel.classList.remove('dragging');
     document.querySelector('.layout').classList.toggle('map-full', collapsed);
-    const floating = document.querySelector('.floating-buttons');
-    floating.style.opacity = '';
-    floating.style.pointerEvents = '';
   }
   updatePeek();
   if (save) storage.set(KEYS.panelCollapsed, state);
@@ -787,6 +783,12 @@ const account = initAccount({
   },
   setStatus,
 });
+
+// MARK: - Barre d'onglets
+
+// « Parcours » réduit ou rouvre le panneau ; « Sorties » ouvre l'historique du compte.
+$('tab-route').addEventListener('click', () => snapTo(sheetState === 'peek' ? 'mid' : 'peek'));
+$('tab-outings').addEventListener('click', () => account.openOutings());
 
 // MARK: - Bienvenue
 

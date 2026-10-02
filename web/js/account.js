@@ -489,8 +489,16 @@ export function initAccount(hooks) {
   syncAuthMode();
   openSharedLink();
 
+  /** Onglet « Sorties » : historique si connecté, sinon invitation à se connecter. */
+  function openOutings() {
+    if (cloud.cloudEnabled && !user) return open('Connectez-vous pour retrouver l\'historique de vos sorties et vos statistiques.');
+    open();
+    if (user) $('outings-title').scrollIntoView({ block: 'start' });
+  }
+
   return {
     open,
+    openOutings,
     shareRoute,
     logOuting,
     get signedIn() {
