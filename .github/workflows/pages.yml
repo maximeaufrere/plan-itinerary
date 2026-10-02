@@ -4,7 +4,7 @@ name: Publier l'app web
 on:
   push:
     branches: [claude/ios-route-planner]
-    paths: ['web/**', '.github/workflows/pages.yml']
+    paths: ['web/**', 'scripts/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -35,9 +35,16 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # Numéro de version dans les adresses des fichiers : après chaque publication, les navigateurs
+      # (Safari notamment) rechargent tout ensemble au lieu de mélanger ancien et nouveau code.
+      - name: Versionner les fichiers
+        run: |
+          cp -r web _site
+          bash scripts/version-assets.sh _site "${GITHUB_SHA::8}"
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: _site
 
       - id: deployment
         uses: actions/deploy-pages@v4
