@@ -24,4 +24,4 @@ export const BASE_LAYERS = {
   },
 };
 
-export const DEFAULT_BASE_LAYER = 'standard';
+export const DEFAULT_BASE_LAYER = 'topo';

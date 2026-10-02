@@ -1,10 +1,10 @@
 // `profile` : profil de calcul OpenRouteService. `speedKmh` : vitesse par défaut sur le plat.
 export const ACTIVITIES = {
-  running: { label: 'Course', icon: '🏃', kind: 'foot', profile: 'foot-walking', speedKmh: 10, range: [1, 50], defaultKm: 10 },
-  trail: { label: 'Trail', icon: '⛰️', kind: 'foot', profile: 'foot-hiking', speedKmh: 8, range: [1, 60], defaultKm: 15 },
-  road: { label: 'Vélo route', icon: '🚴', kind: 'bike', profile: 'cycling-road', speedKmh: 25, range: [5, 200], defaultKm: 50 },
-  bike: { label: 'Vélo', icon: '🚲', kind: 'bike', profile: 'cycling-regular', speedKmh: 18, range: [5, 150], defaultKm: 30 },
-  mtb: { label: 'VTT', icon: '🚵', kind: 'bike', profile: 'cycling-mountain', speedKmh: 14, range: [5, 120], defaultKm: 30 },
+  running: { label: 'Course', kind: 'foot', profile: 'foot-walking', speedKmh: 10, range: [1, 50], defaultKm: 10 },
+  trail: { label: 'Trail', kind: 'foot', profile: 'foot-hiking', speedKmh: 8, range: [1, 60], defaultKm: 15 },
+  road: { label: 'Vélo route', kind: 'bike', profile: 'cycling-road', speedKmh: 25, range: [5, 200], defaultKm: 50 },
+  bike: { label: 'Vélo', kind: 'bike', profile: 'cycling-regular', speedKmh: 18, range: [5, 150], defaultKm: 30 },
+  mtb: { label: 'VTT', kind: 'bike', profile: 'cycling-mountain', speedKmh: 14, range: [5, 120], defaultKm: 30 },
 };
 
 /** Bornes des vitesses réglables (km/h) : allure de 10'00 à 3'00/km à pied. */

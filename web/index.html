@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Plan Itinéraire</title>
   <meta name="description" content="Générez des boucles de course à pied ou de vélo selon la distance et le dénivelé.">
-  <meta name="theme-color" content="#1d4ed8">
+  <meta name="theme-color" content="#1e4d3a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -24,14 +24,20 @@
 
     <section class="panel" aria-label="Critères et résultats">
       <div id="welcome" class="welcome" hidden>
-        <p><strong>👋 Bienvenue !</strong> Découvrez en 2 minutes comment générer vos parcours.</p>
+        <p><strong>Bienvenue !</strong> Découvrez en 2 minutes comment générer vos parcours.</p>
         <div class="welcome-actions">
-          <a href="aide.html" class="button primary small">📖 Voir le tutoriel</a>
+          <a href="aide.html" class="button primary small">Voir le tutoriel</a>
           <button type="button" id="dismiss-welcome" class="link-button">Plus tard</button>
         </div>
       </div>
 
       <form id="criteria-form" class="criteria">
+        <button type="button" id="criteria-summary" class="criteria-summary" aria-controls="criteria-fields" aria-expanded="false">
+          <span><small>Critères</small><strong id="criteria-summary-text"></strong></span>
+          <em>Modifier</em>
+        </button>
+
+        <div id="criteria-fields" class="criteria-fields">
         <fieldset class="chips" id="activity" aria-label="Activité"></fieldset>
 
         <fieldset class="segmented" id="shape" aria-label="Type de parcours"></fieldset>
@@ -39,8 +45,8 @@
         <div id="placing-field" class="field" hidden>
           <span>Touchez la carte pour placer</span>
           <fieldset class="segmented" id="placing" aria-label="Point à placer">
-            <label><input type="radio" name="placing" value="start" checked><span>🟢 Départ</span></label>
-            <label><input type="radio" name="placing" value="end"><span>🔴 Arrivée</span></label>
+            <label><input type="radio" name="placing" value="start" checked><span><i class="pin start"></i>Départ</span></label>
+            <label><input type="radio" name="placing" value="end"><span><i class="pin end"></i>Arrivée</span></label>
           </fieldset>
         </div>
 
@@ -84,8 +90,12 @@
         </div>
 
         <div class="actions">
-          <button type="button" id="locate" class="secondary">📍 Ma position</button>
+          <button type="button" id="locate" class="secondary">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            Ma position
+          </button>
           <button type="submit" id="generate" class="primary">Générer</button>
+        </div>
         </div>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </form>
@@ -98,8 +108,8 @@
   </main>
 
   <div class="floating-buttons">
-    <button type="button" id="open-settings" aria-label="Réglages">⚙️</button>
-    <button type="button" id="open-favorites" aria-label="Favoris">★</button>
+    <button type="button" id="open-settings" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+    <button type="button" id="open-favorites" aria-label="Favoris"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></button>
   </div>
 
   <dialog id="settings" class="sheet" aria-labelledby="settings-title">
@@ -115,7 +125,7 @@
         <div class="key-row">
           <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false"
                  placeholder="Collez votre clé ici" aria-label="Clé API OpenRouteService">
-          <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false">👁</button>
+          <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
         <div class="key-row">
           <button type="button" id="test-key" class="secondary small">Tester la clé</button>
@@ -170,8 +180,8 @@
     <section class="settings-section" aria-labelledby="settings-help">
       <h3 id="settings-help">Aide</h3>
       <div class="settings-card">
-        <a href="aide.html" class="settings-link">📖 Tutoriel : comment ça marche <span aria-hidden="true">›</span></a>
-        <a href="aide.html#faq" class="settings-link">❓ Questions fréquentes <span aria-hidden="true">›</span></a>
+        <a href="aide.html" class="settings-link">Tutoriel : comment ça marche <span aria-hidden="true">›</span></a>
+        <a href="aide.html#faq" class="settings-link">Questions fréquentes <span aria-hidden="true">›</span></a>
         <p class="hint about">
           Plan Itinéraire <span id="app-version"></span> · Cartes © OpenStreetMap ·
           Itinéraires <a href="https://openrouteservice.org" target="_blank" rel="noopener">openrouteservice</a> ·

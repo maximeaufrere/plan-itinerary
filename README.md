@@ -32,7 +32,7 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
   profil altimétrique
 - **Favoris** enregistrés sur l'appareil (bouton ★), export GPX (feuille de partage sur mobile → Strava, Komoot…)
 - **Réglages** (⚙️) : clé OpenRouteService avec test, thème clair / sombre / auto, fond de carte
-  (standard, topographique, vélo), export / import des favoris, réinitialisation
+  (topographique par défaut, standard, vélo), export / import des favoris, réinitialisation
 - **Tutoriel** intégré (`web/aide.html`), proposé à la première visite
 - Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »)
 

@@ -12,6 +12,7 @@ import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPace, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
 import { toGpx } from './gpx.js';
+import { icons } from './icons.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
@@ -123,7 +124,7 @@ function buildForm() {
   $('activity').innerHTML = Object.entries(ACTIVITIES)
     .map(
       ([key, activity]) =>
-        `<label class="chip"><input type="radio" name="activity" value="${key}"><span>${activity.icon} ${activity.label}</span></label>`,
+        `<label class="chip"><input type="radio" name="activity" value="${key}"><span>${activity.label}</span></label>`,
     )
     .join('');
   $('shape').innerHTML = Object.entries(SHAPES)
@@ -185,7 +186,30 @@ function syncForm() {
   $('limit-gain').checked = criteria.maxGain != null;
   $('max-gain').disabled = criteria.maxGain == null;
   $('max-gain').value = criteria.maxGain ?? 200;
+  $('criteria-summary-text').textContent = criteriaSummary();
 }
+
+function criteriaSummary() {
+  const { criteria } = state;
+  return [
+    ACTIVITIES[criteria.activity].label,
+    SHAPES[criteria.shape],
+    `${criteria.distanceKm} km`,
+    speedSlider(criteria.activity).format(criteria.speeds[criteria.activity]),
+  ].join(' · ');
+}
+
+/** Après un calcul, les critères se replient pour laisser la place au parcours. */
+function setCriteriaCollapsed(collapsed) {
+  $('criteria-form').classList.toggle('collapsed', collapsed);
+  $('criteria-summary').setAttribute('aria-expanded', String(!collapsed));
+  $('criteria-summary-text').textContent = criteriaSummary();
+}
+
+$('criteria-summary').addEventListener('click', () => {
+  setCriteriaCollapsed(false);
+  $('criteria-form').scrollIntoView({ block: 'start', behavior: 'smooth' });
+});
 
 function updateCriteria(changes) {
   state.criteria = sanitizeCriteria({ ...state.criteria, ...changes });
@@ -292,8 +316,13 @@ $('criteria-form').addEventListener('submit', async (event) => {
 function showRoutes(routes, activity) {
   state.routes = routes;
   state.routesActivity = activity;
+  state.routesShape = state.criteria.shape;
   renderRoutes();
   selectRoute(routes[0].id);
+  setCriteriaCollapsed(true);
+  // Le premier parcours est généré : le message de bienvenue a fait son office.
+  dismissWelcome();
+  document.querySelector('.panel').scrollTo({ top: 0 });
 }
 
 const routeDuration = (route) => formatDuration(estimatedDuration(route, state.routesActivity, state.criteria.speeds));
@@ -317,8 +346,7 @@ function renderRoutes() {
       <button type="button" class="card" role="option" data-id="${route.id}">
         <small>${state.routes.length > 1 ? `Proposition ${index + 1}` : escapeHtml(route.name ?? 'Itinéraire')}</small>
         <strong>${formatDistance(route.distance)}</strong>
-        <span>↗ ${formatElevation(route.ascent)}</span>
-        <span class="card-duration">⏱ ${routeDuration(route)}</span>
+        <span>↗ ${formatElevation(route.ascent)} · <span class="card-duration">${routeDuration(route)}</span></span>
       </button>`,
     )
     .join('');
@@ -330,7 +358,7 @@ function refreshDurations() {
   if (state.routesActivity !== state.criteria.activity) return;
   for (const card of $('cards').children) {
     const route = state.routes.find((r) => r.id === card.dataset.id);
-    card.querySelector('.card-duration').textContent = `⏱ ${routeDuration(route)}`;
+    card.querySelector('.card-duration').textContent = routeDuration(route);
   }
   const duration = $('detail-duration');
   const selected = state.routes.find((r) => r.id === state.selectedId);
@@ -349,7 +377,7 @@ function selectRoute(id) {
 
   styleRoutes();
   map.invalidateSize();
-  // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (⚙️ ★ et zoom).
+  // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (réglages, favoris, zoom).
   map.fitBounds(routeLayers.get(id).getBounds(), { paddingTopLeft: [30, 30], paddingBottomRight: [70, 30], animate: false });
 
   for (const card of $('cards').children) {
@@ -364,7 +392,7 @@ function styleRoutes() {
   for (const [routeId, layer] of routeLayers) {
     const selected = routeId === state.selectedId;
     layer.setStyle({
-      color: styles.getPropertyValue(selected ? '--accent' : '--route-other').trim(),
+      color: styles.getPropertyValue(selected ? '--route' : '--route-other').trim(),
       weight: selected ? 6 : 4,
       opacity: selected ? 0.95 : 0.7,
     });
@@ -393,22 +421,37 @@ function surfaceBreakdown(surface) {
 function renderDetails(route) {
   const stat = (label, value, id = '') => `<div class="stat"><small>${label}</small><strong${id ? ` id="${id}"` : ''}>${value}</strong></div>`;
   const isFavorite = state.favorites.some((f) => f.id === route.id);
+  const index = state.routes.findIndex((r) => r.id === route.id);
+  const subtitle = route.name
+    ? escapeHtml(route.name)
+    : `${ACTIVITIES[state.routesActivity].label} · ${SHAPES[state.routesShape]}`;
+  const badge = state.routes.length > 1 ? `<span class="badge">Prop. ${index + 1} sur ${state.routes.length}</span>` : '';
+  const chart = elevationChart(route.profile);
   $('details').innerHTML = `
+    <div class="detail-header">
+      <div><small>${subtitle}</small><strong>${formatDistance(route.distance)}</strong></div>
+      ${badge}
+    </div>
+    ${
+      chart
+        ? `<div class="profile-card">
+            <header><span>Profil</span><span>↗ ${formatElevation(route.ascent)} · ↘ ${formatElevation(route.descent)}</span></header>
+            ${chart}
+          </div>`
+        : ''
+    }
     <div class="stats">
-      ${stat('Distance', formatDistance(route.distance))}
-      ${stat('D+', formatElevation(route.ascent))}
-      ${stat('D−', formatElevation(route.descent))}
+      ${stat('Durée', routeDuration(route), 'detail-duration')}
       ${stat('Alt. min', formatElevation(route.minAltitude))}
       ${stat('Alt. max', formatElevation(route.maxAltitude))}
-      ${stat('Durée', routeDuration(route), 'detail-duration')}
       ${stat('Repassages', route.overlap == null ? '–' : formatPercent(route.overlap))}
       ${stat('Grands axes', route.majorRoads == null ? '–' : formatPercent(route.majorRoads))}
+      ${stat('Chemins', route.surface ? formatPercent(route.surface.unpaved) : '–')}
     </div>
     ${surfaceBreakdown(route.surface)}
-    ${elevationChart(route.profile)}
     <div class="actions">
-      <button type="button" id="save-favorite" class="secondary" ${isFavorite ? 'disabled' : ''}>${isFavorite ? '★ Enregistré' : '☆ Enregistrer'}</button>
-      <button type="button" id="export-gpx" class="secondary">⬇︎ GPX</button>
+      <button type="button" id="save-favorite" class="secondary" ${isFavorite ? 'disabled' : ''}>${isFavorite ? `${icons.starFilled} Enregistré` : `${icons.star} Enregistrer`}</button>
+      <button type="button" id="export-gpx" class="secondary">${icons.download} GPX</button>
     </div>`;
   $('export-gpx').addEventListener('click', () => exportGpx(route));
   $('save-favorite').addEventListener('click', () => saveFavorite(route));
@@ -441,7 +484,7 @@ function saveFavorite(route) {
   state.routes = state.routes.map((r) => (r.id === route.id ? saved : r));
   renderRoutes();
   selectRoute(saved.id);
-  setStatus(`« ${favorite.name} » ajouté aux favoris ★`);
+  setStatus(`« ${favorite.name} » ajouté aux favoris.`);
 }
 
 function renderFavorites() {
@@ -452,14 +495,14 @@ function renderFavorites() {
           (favorite) => `
         <li>
           <button type="button" class="favorite-open" data-id="${favorite.id}">
-            <strong>${ACTIVITIES[favorite.activity]?.icon ?? ''} ${escapeHtml(favorite.name)}</strong>
-            <small>${formatDistance(favorite.route.distance)} · ↗ ${formatElevation(favorite.route.ascent)} · ${dateFormat.format(new Date(favorite.savedAt))}</small>
+            <strong>${escapeHtml(favorite.name)}</strong>
+            <small>${ACTIVITIES[favorite.activity]?.label ?? ''} · ${formatDistance(favorite.route.distance)} · ↗ ${formatElevation(favorite.route.ascent)} · ${dateFormat.format(new Date(favorite.savedAt))}</small>
           </button>
-          <button type="button" class="favorite-delete" data-id="${favorite.id}" aria-label="Supprimer ${escapeHtml(favorite.name)}">🗑</button>
+          <button type="button" class="favorite-delete" data-id="${favorite.id}" aria-label="Supprimer ${escapeHtml(favorite.name)}">${icons.trash}</button>
         </li>`,
         )
         .join('')
-    : '<li class="favorites-empty">Aucun favori pour l\'instant. Utilisez « ☆ Enregistrer » sous un itinéraire.</li>';
+    : '<li class="favorites-empty">Aucun favori pour l\'instant. Utilisez « Enregistrer » sous un itinéraire.</li>';
 }
 
 $('open-favorites').addEventListener('click', () => {
@@ -511,10 +554,10 @@ $('open-settings').addEventListener('click', () => settings.open());
 // MARK: - Bienvenue
 
 if (!storage.get(KEYS.welcomeDismissed, false)) $('welcome').hidden = false;
-const dismissWelcome = () => {
+function dismissWelcome() {
   storage.set(KEYS.welcomeDismissed, true);
   $('welcome').hidden = true;
-};
+}
 $('dismiss-welcome').addEventListener('click', dismissWelcome);
 $('welcome').querySelector('a').addEventListener('click', dismissWelcome);
 

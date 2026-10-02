@@ -75,11 +75,11 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
     keyStatus('Test en cours…');
     try {
       await fetchRoute({ apiKey, profile: 'foot-walking', points: TEST_POINTS });
-      keyStatus('✅ Clé valide, tout est prêt.', 'ok');
+      keyStatus('Clé valide, tout est prêt.', 'ok');
     } catch (error) {
-      if (error.status === 401 || error.status === 403) keyStatus('❌ Clé refusée : vérifiez qu\'elle a été copiée en entier.', 'error');
-      else if (error.status === 429) keyStatus('⚠️ Clé valide, mais le quota est atteint pour le moment.', 'warning');
-      else keyStatus(`❌ ${error.message}`, 'error');
+      if (error.status === 401 || error.status === 403) keyStatus('Clé refusée : vérifiez qu\'elle a été copiée en entier.', 'error');
+      else if (error.status === 429) keyStatus('Clé valide, mais le quota est atteint pour le moment.', 'warning');
+      else keyStatus(error.message, 'error');
     } finally {
       button.disabled = false;
     }
@@ -134,17 +134,17 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
     try {
       const { favorites, added } = mergeFavorites(getFavorites(), parseFavoritesFile(await file.text()));
       if (!setFavorites(favorites)) throw new Error('Le stockage de ce navigateur est plein ou désactivé.');
-      dataStatus(added ? `✅ ${added} favori${added > 1 ? 's' : ''} importé${added > 1 ? 's' : ''}.` : 'Aucun nouveau favori dans ce fichier.');
+      dataStatus(added ? `${added} favori${added > 1 ? 's' : ''} importé${added > 1 ? 's' : ''}.` : 'Aucun nouveau favori dans ce fichier.');
       refreshCount();
     } catch (error) {
-      dataStatus(`❌ Import impossible : ${error instanceof SyntaxError ? 'fichier illisible.' : error.message}`, 'error');
+      dataStatus(`Import impossible : ${error instanceof SyntaxError ? 'fichier illisible.' : error.message}`, 'error');
     }
   });
 
   $('reset-criteria').addEventListener('click', () => {
     if (!window.confirm('Revenir aux critères par défaut (activité, distance, allures…) ?')) return;
     onResetCriteria();
-    dataStatus('✅ Critères réinitialisés.');
+    dataStatus('Critères réinitialisés.');
   });
 
   $('clear-all').addEventListener('click', () => {

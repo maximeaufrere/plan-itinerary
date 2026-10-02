@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Tutoriel · Plan Itinéraire</title>
   <meta name="description" content="Comment générer des parcours de course à pied et de vélo avec Plan Itinéraire.">
-  <meta name="theme-color" content="#1d4ed8">
+  <meta name="theme-color" content="#1e4d3a">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="stylesheet" href="styles.css">
@@ -26,7 +26,7 @@
     <section class="guide-quick" aria-labelledby="quick">
       <h2 id="quick">En bref</h2>
       <ol class="guide-steps">
-        <li><strong>Une seule fois :</strong> ajoutez votre clé gratuite OpenRouteService dans les réglages ⚙️.</li>
+        <li><strong>Une seule fois :</strong> ajoutez votre clé gratuite OpenRouteService dans les réglages <span class="ui-button" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>.</li>
         <li><strong>Choisissez le départ :</strong> votre position, ou touchez la carte.</li>
         <li><strong>Réglez vos critères :</strong> activité, distance, dénivelé…</li>
         <li><strong>Touchez « Générer »</strong> et comparez les propositions.</li>
@@ -58,10 +58,10 @@
         <li>Ouvrez <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">openrouteservice.org</a> et créez un compte gratuit (e-mail + mot de passe).</li>
         <li>Confirmez votre adresse e-mail grâce au message reçu.</li>
         <li>Connectez-vous : votre tableau de bord affiche une clé (une longue suite de lettres et de chiffres). <strong>Copiez-la en entier.</strong></li>
-        <li>Dans Plan Itinéraire, touchez <span class="ui-button">⚙️</span>, collez la clé dans « Clé OpenRouteService », puis touchez <span class="ui-button">Tester la clé</span>.</li>
+        <li>Dans Plan Itinéraire, touchez <span class="ui-button" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>, collez la clé dans « Clé OpenRouteService », puis touchez <span class="ui-button">Tester la clé</span>.</li>
       </ol>
       <p class="guide-tip">
-        🔒 La clé reste enregistrée <strong>uniquement sur votre appareil</strong>. L'offre gratuite permet environ
+        La clé reste enregistrée <strong>uniquement sur votre appareil</strong>. L'offre gratuite permet environ
         2 000 itinéraires par jour : largement de quoi faire (une génération en utilise au plus 13, souvent moins de 8).
       </p>
     </section>
@@ -69,8 +69,8 @@
     <section id="depart" aria-labelledby="depart-title">
       <h2 id="depart-title"><span class="guide-num">2</span> Choisir le départ (et l'arrivée)</h2>
       <ul class="guide-list">
-        <li><span class="ui-pin start"></span> <strong>Départ :</strong> l'app utilise votre position (acceptez la demande de localisation), ou touchez <span class="ui-button">📍 Ma position</span>. Vous pouvez aussi <strong>toucher n'importe où sur la carte</strong> pour partir d'ailleurs.</li>
-        <li><span class="ui-pin end"></span> <strong>Arrivée</strong> (mode <span class="ui-chip">A&nbsp;→&nbsp;B</span> uniquement) : après le départ, touchez la carte une seconde fois pour placer l'arrivée. Le sélecteur <span class="ui-chip">🟢 Départ</span> <span class="ui-chip">🔴 Arrivée</span> permet de déplacer l'un ou l'autre.</li>
+        <li><span class="ui-pin start"></span> <strong>Départ :</strong> l'app utilise votre position (acceptez la demande de localisation), ou touchez <span class="ui-button">Ma position</span>. Vous pouvez aussi <strong>toucher n'importe où sur la carte</strong> pour partir d'ailleurs.</li>
+        <li><span class="ui-pin end"></span> <strong>Arrivée</strong> (mode <span class="ui-chip">A&nbsp;→&nbsp;B</span> uniquement) : après le départ, touchez la carte une seconde fois pour placer l'arrivée. Le sélecteur <span class="ui-chip"><i class="pin start"></i> Départ</span> <span class="ui-chip"><i class="pin end"></i> Arrivée</span> permet de déplacer l'un ou l'autre.</li>
       </ul>
     </section>
 
@@ -81,7 +81,7 @@
       <dl class="guide-defs">
         <dt>Activité</dt>
         <dd>
-          <div class="ui-row"><span class="ui-chip on">🏃 Course</span><span class="ui-chip">⛰️ Trail</span><span class="ui-chip">🚴 Vélo route</span><span class="ui-chip">🚲 Vélo</span><span class="ui-chip">🚵 VTT</span></div>
+          <div class="ui-row"><span class="ui-chip on">Course</span><span class="ui-chip">Trail</span><span class="ui-chip">Vélo route</span><span class="ui-chip">Vélo</span><span class="ui-chip">VTT</span></div>
           Chaque activité utilise des chemins adaptés : la course passe par les trottoirs et parcs, le trail privilégie
           les sentiers, le vélo de route évite les chemins de terre, le VTT les recherche.
         </dd>
@@ -119,7 +119,7 @@
         <dd>Le nombre de parcours proposés (1 à 5). Chacun part dans une direction différente.</dd>
       </dl>
       <p class="guide-tip">
-        💡 Ces critères servent à <strong>classer</strong> les parcours trouvés : le premier proposé est celui qui
+        Ces critères servent à <strong>classer</strong> les parcours trouvés : le premier proposé est celui qui
         respecte le mieux l'ensemble. Si aucun ne vous convient, générez à nouveau : les directions changent à chaque fois.
       </p>
     </section>
@@ -144,11 +144,11 @@
     <section id="favoris" aria-labelledby="favoris-title">
       <h2 id="favoris-title"><span class="guide-num">5</span> Favoris et export GPX</h2>
       <ul class="guide-list">
-        <li><span class="ui-button">☆ Enregistrer</span> garde le parcours affiché dans vos favoris, avec le nom de votre choix. Retrouvez-les avec le bouton <span class="ui-button">★</span> en haut à droite de la carte.</li>
-        <li><span class="ui-button">⬇︎ GPX</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers.</li>
+        <li><span class="ui-button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Enregistrer</span> garde le parcours affiché dans vos favoris, avec le nom de votre choix. Retrouvez-les avec le bouton <span class="ui-button" aria-label="Favoris"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span> en haut à droite de la carte.</li>
+        <li><span class="ui-button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg> GPX</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers.</li>
       </ul>
       <p class="guide-tip">
-        ⚠️ Les favoris sont enregistrés dans le navigateur de cet appareil. Pour les retrouver sur un autre appareil,
+        Les favoris sont enregistrés dans le navigateur de cet appareil. Pour les retrouver sur un autre appareil,
         utilisez <strong>Réglages ▸ Mes données ▸ Exporter</strong>, puis <strong>Importer</strong> sur l'autre appareil.
       </p>
     </section>
@@ -177,7 +177,7 @@
 
     <section id="reglages" aria-labelledby="reglages-title">
       <h2 id="reglages-title"><span class="guide-num">7</span> Les réglages</h2>
-      <p>Le bouton <span class="ui-button">⚙️</span> ouvre les réglages :</p>
+      <p>Le bouton <span class="ui-button" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span> ouvre les réglages :</p>
       <dl class="guide-defs compact">
         <dt>Clé OpenRouteService</dt><dd>Votre clé, avec un bouton pour vérifier qu'elle fonctionne.</dd>
         <dt>Thème</dt><dd>Clair, sombre, ou automatique (suit le réglage de votre téléphone).</dd>
