@@ -106,7 +106,7 @@ function locate({ silent = false } = {}) {
       $('locate').classList.remove('locating');
       const point = [position.coords.latitude, position.coords.longitude];
       setPoint('start', point);
-      map.setView(point, 14);
+      centerOnVisible(point, 14);
       setStatus('');
     },
     (error) => {
@@ -405,6 +405,27 @@ function selectRoute(id) {
   updatePeek();
 }
 
+/** Hauteur (px) du bas de la carte masquée par le panneau et la barre d'onglets (téléphone uniquement). */
+function hiddenMapBottom() {
+  return mobileQuery.matches ? currentSheetHeight() + tabbarHeight() : 0;
+}
+
+/** Centre la carte sur un point dans la partie visible, au-dessus du panneau. */
+function centerOnVisible(point, zoom = map.getZoom(), options = {}) {
+  const offset = hiddenMapBottom() / 2;
+  const target = map.project(point, zoom).add([0, offset]);
+  map.setView(map.unproject(target, zoom), zoom, options);
+}
+
+/** Si le point est caché sous le panneau (ou trop près des bords), le ramène dans la partie visible. */
+function revealPoint(point) {
+  const position = map.latLngToContainerPoint(point);
+  const visibleBottom = map.getSize().y - hiddenMapBottom();
+  if (position.y > visibleBottom - 48 || position.y < 48 || position.x < 24 || position.x > map.getSize().x - 24) {
+    centerOnVisible(point, map.getZoom(), { animate: true });
+  }
+}
+
 function fitToRoute(id, { animate = false } = {}) {
   const layer = routeLayers.get(id);
   if (!layer) return;
@@ -663,9 +684,9 @@ function setSheetHeight(height, { animate = true } = {}) {
 }
 
 /** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
-function snapTo(state, { save = true, fit = true } = {}) {
-  sheetState = state;
-  const collapsed = state === 'peek';
+function snapTo(position, { save = true, fit = true } = {}) {
+  sheetState = position;
+  const collapsed = position === 'peek';
   const toggle = $('panel-toggle');
   toggle.setAttribute('aria-expanded', String(!collapsed));
   toggle.setAttribute(
@@ -673,7 +694,7 @@ function snapTo(state, { save = true, fit = true } = {}) {
     collapsed ? 'Afficher le panneau des critères et résultats' : 'Réduire le panneau pour voir la carte en plein écran',
   );
   if (mobileQuery.matches) {
-    setSheetHeight(sheetHeights()[state]);
+    setSheetHeight(sheetHeights()[position]);
   } else {
     panel.style.removeProperty('--sheet-h');
     panel.style.bottom = '';
@@ -683,13 +704,14 @@ function snapTo(state, { save = true, fit = true } = {}) {
     document.querySelector('.layout').classList.toggle('map-full', collapsed);
   }
   updatePeek();
-  if (save) storage.set(KEYS.panelCollapsed, state);
+  if (save) storage.set(KEYS.panelCollapsed, position);
   // Une fois l'animation terminée, la carte se recadre sur le parcours, au-dessus de la feuille.
-  if (fit && state !== 'full') {
+  if (fit && position !== 'full') {
     setTimeout(() => {
-      if (sheetState !== state) return; // un autre geste a eu lieu entre-temps
+      if (sheetState !== position) return; // un autre geste a eu lieu entre-temps
       map.invalidateSize();
       if (selectedRouteId()) fitToRoute(selectedRouteId(), { animate: mobileQuery.matches });
+      else if (state.start) revealPoint(state.start);
     }, 340);
   }
 }
