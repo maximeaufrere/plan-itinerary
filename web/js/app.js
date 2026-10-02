@@ -14,6 +14,7 @@ import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPace, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
 import { reverse as reverseGeocode } from './geocode.js';
+import { distance } from './geo.js';
 import { toGpx } from './gpx.js';
 import { icons } from './icons.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
@@ -89,6 +90,7 @@ function setPoint(kind, point, { label } = {}) {
       keyboard: false,
     }).addTo(map);
   }
+  if (kind === 'start') syncStartRing();
 }
 
 const isPointToPoint = () => state.criteria.shape === 'point_to_point';
@@ -131,31 +133,112 @@ map.on('click', (event) => {
   setStatus('');
 });
 
-function locate({ silent = false } = {}) {
-  if (!('geolocation' in navigator)) {
-    if (!silent) setStatus('Géolocalisation indisponible : touchez la carte pour choisir un départ.');
-    return;
+// MARK: - Ma position (point bleu, indépendant du départ et de l'arrivée)
+
+/** Dernière position connue de l'utilisateur, [lat, lon], ou null. */
+let myPosition = null;
+let myMarker = null;
+let myAccuracy = null;
+let positionWatch = null;
+let firstFixHandled = false;
+
+const myIcon = L.divIcon({ className: '', html: '<div class="me-marker"><span></span></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+
+function showMyPosition(point, accuracy) {
+  myPosition = point;
+  if (!myMarker) {
+    myAccuracy = L.circle(point, { radius: accuracy, className: 'me-accuracy', interactive: false }).addTo(map);
+    myMarker = L.marker(point, { icon: myIcon, title: 'Ma position', keyboard: false, interactive: false, zIndexOffset: 500 }).addTo(map);
+  } else {
+    myMarker.setLatLng(point);
+    myAccuracy.setLatLng(point).setRadius(accuracy);
   }
-  if (!silent) setStatus('Recherche de votre position…');
-  $('locate').classList.add('locating');
-  navigator.geolocation.getCurrentPosition(
+  syncStartRing();
+}
+
+/** Quand le départ est ma position, il s'affiche en anneau autour du point bleu (les deux restent visibles). */
+function syncStartRing() {
+  const element = markers.start?.getElement()?.querySelector('.start-marker');
+  if (!element) return;
+  const atMe = Boolean(myPosition && state.start && distance(myPosition, state.start) < 20);
+  element.classList.toggle('at-me', atMe);
+}
+
+const positionErrorMessage = (error) =>
+  error.code === error.PERMISSION_DENIED
+    ? 'Localisation refusée : touchez la carte ou tapez une adresse pour choisir un départ.'
+    : 'Position introuvable : touchez la carte ou tapez une adresse pour choisir un départ.';
+
+/** Suit la position en continu pour garder le point bleu à jour. */
+function watchMyPosition() {
+  if (!('geolocation' in navigator) || positionWatch !== null) return;
+  positionWatch = navigator.geolocation.watchPosition(
     (position) => {
-      $('locate').classList.remove('locating');
       const point = [position.coords.latitude, position.coords.longitude];
-      setPoint('start', point, { label: 'Ma position' });
-      centerOnVisible(point, 14);
-      setStatus('');
+      showMyPosition(point, position.coords.accuracy);
+      // Au premier repérage, la position sert de départ si aucun n'a été choisi.
+      if (!firstFixHandled) {
+        firstFixHandled = true;
+        if (!state.start) {
+          setPoint('start', point, { label: 'Ma position' });
+          centerOnVisible(point, 14);
+        }
+      }
     },
-    (error) => {
-      $('locate').classList.remove('locating');
-      setStatus(
-        error.code === error.PERMISSION_DENIED
-          ? 'Localisation refusée : touchez la carte pour choisir un départ.'
-          : 'Position introuvable : touchez la carte pour choisir un départ.',
-      );
+    () => {
+      // Erreurs signalées par les actions explicites (bouton, raccourci « Ma position »).
     },
-    { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
   );
+}
+
+/** Position actuelle : la dernière connue si elle est récente, sinon une nouvelle mesure. */
+function getMyPosition() {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) {
+      reject(new Error('Géolocalisation indisponible : touchez la carte ou tapez une adresse pour choisir un départ.'));
+      return;
+    }
+    if (myPosition) {
+      resolve(myPosition);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const point = [position.coords.latitude, position.coords.longitude];
+        showMyPosition(point, position.coords.accuracy);
+        resolve(point);
+      },
+      (error) => reject(new Error(positionErrorMessage(error))),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+    );
+  });
+}
+
+/** Bouton de localisation : recentre la carte sur ma position, sans toucher au départ ni à l'arrivée. */
+async function centerOnMe() {
+  $('locate').classList.add('locating');
+  try {
+    const point = await getMyPosition();
+    centerOnVisible(point, Math.max(map.getZoom(), 15), { animate: true });
+    watchMyPosition();
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    $('locate').classList.remove('locating');
+  }
+}
+
+/** Raccourci « Ma position » du champ Départ : le départ devient ma position. */
+async function useMyPositionAsStart() {
+  try {
+    const point = await getMyPosition();
+    setPoint('start', point, { label: 'Ma position' });
+    setStatus('');
+    showPoints(isPointToPoint() ? [state.start, state.end] : [state.start]);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
 }
 
 // MARK: - Formulaire
@@ -297,7 +380,8 @@ $('limit-gain').addEventListener('change', (event) =>
   updateCriteria({ maxGain: event.target.checked ? Number($('max-gain').value) || 200 : null }),
 );
 $('max-gain').addEventListener('change', (event) => updateCriteria({ maxGain: Number(event.target.value) }));
-$('locate').addEventListener('click', () => locate());
+$('locate').addEventListener('click', () => centerOnMe());
+$('quick-generate').addEventListener('click', () => $('criteria-form').requestSubmit());
 
 function setStatus(message, isError = false) {
   // Une erreur ne doit pas rester cachée derrière le panneau réduit.
@@ -310,9 +394,12 @@ function setStatus(message, isError = false) {
 // MARK: - Génération
 
 function setGenerating(isGenerating) {
-  $('generate').classList.toggle('loading', isGenerating);
-  $('generate').setAttribute('aria-busy', String(isGenerating));
+  for (const id of ['generate', 'quick-generate']) {
+    $(id).classList.toggle('loading', isGenerating);
+    $(id).setAttribute('aria-busy', String(isGenerating));
+  }
   $('generate-label').textContent = isGenerating ? 'Annuler' : 'Générer';
+  $('quick-generate-label').textContent = isGenerating ? 'Annuler' : 'Générer';
 }
 
 $('criteria-form').addEventListener('submit', async (event) => {
@@ -714,11 +801,14 @@ function setSheetHeight(height, { animate = true } = {}) {
   // La feuille repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
   panel.style.bottom = `${tabbarHeight()}px`;
   document.querySelector('.layout').classList.toggle('map-full', height <= sheetHeights().peek + 12);
-  // Le bouton de localisation s'efface quand la feuille monte jusqu'à lui.
-  const locateButton = $('locate');
-  const opacity = Math.max(0, Math.min(1, (window.innerHeight - tabbarHeight() - height - 70) / 50));
-  locateButton.style.opacity = String(opacity);
-  locateButton.style.pointerEvents = opacity < 0.5 ? 'none' : '';
+  // Les boutons « Générer » et de localisation suivent le haut de la feuille…
+  const actions = $('sheet-actions');
+  actions.classList.toggle('dragging', !animate);
+  actions.style.bottom = `${Math.round(height + tabbarHeight() + 12)}px`;
+  // … et s'effacent quand elle monte jusqu'en haut de l'écran.
+  const opacity = Math.max(0, Math.min(1, (window.innerHeight - tabbarHeight() - height - 90 - safeArea.top) / 50));
+  actions.style.opacity = String(opacity);
+  actions.style.pointerEvents = opacity < 0.5 ? 'none' : '';
 }
 
 /** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
@@ -736,8 +826,7 @@ function snapTo(position, { save = true, fit = true } = {}) {
   } else {
     panel.style.removeProperty('--sheet-h');
     panel.style.bottom = '';
-    $('locate').style.opacity = '';
-    $('locate').style.pointerEvents = '';
+    for (const prop of ['opacity', 'pointerEvents', 'bottom']) $('sheet-actions').style[prop] = '';
     panel.classList.remove('dragging');
     document.querySelector('.layout').classList.toggle('map-full', collapsed);
   }
@@ -834,7 +923,7 @@ addressFields.start = initAddressField({
   kind: 'start',
   getApiKey: () => storage.get(KEYS.apiKey, ''),
   getFocus: () => state.start ?? [map.getCenter().lat, map.getCenter().lng],
-  shortcuts: [{ label: 'Ma position', action: () => locate() }],
+  shortcuts: [{ label: 'Ma position', action: () => useMyPositionAsStart() }],
   onSelect: ({ label, point }) => {
     setPoint('start', point, { label });
     setStatus('');
@@ -902,7 +991,9 @@ $('tab-route').addEventListener('click', () => {
 });
 
 // Changer de vue rouvre la feuille si elle était réduite et revient en haut de son contenu.
-onViewChange(() => {
+onViewChange((view) => {
+  // « Générer » n'a de sens que dans la vue Parcours.
+  $('quick-generate').hidden = view !== 'route';
   $('panel-scroll').scrollTo({ top: 0 });
   if (sheetState === 'peek') snapTo('mid', { fit: false });
   updatePeek();
@@ -924,4 +1015,4 @@ $('welcome').querySelector('a').addEventListener('click', dismissWelcome);
 buildForm();
 syncForm();
 snapTo(sheetState, { save: false, fit: false });
-locate({ silent: true });
+watchMyPosition();

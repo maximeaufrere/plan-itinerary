@@ -21,9 +21,16 @@
 <body>
   <main class="layout">
     <div id="map" class="map" aria-label="Carte : touchez pour choisir le point de départ"></div>
-    <button type="button" id="locate" class="map-button locate-button" aria-label="Partir de ma position">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7.5 3 3 7.5z"/></svg>
-    </button>
+    <div id="sheet-actions" class="sheet-actions">
+      <button type="button" id="quick-generate" class="quick-generate">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="quick-generate-label">Générer</span>
+        <svg class="icon arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <button type="button" id="locate" class="map-button locate-button" aria-label="Centrer la carte sur ma position">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7.5 3 3 7.5z"/></svg>
+      </button>
+    </div>
 
     <section id="panel" class="panel" aria-label="Critères et résultats">
       <button type="button" id="panel-toggle" class="panel-handle" aria-controls="panel-scroll" aria-expanded="true" aria-label="Réduire le panneau pour voir la carte en plein écran">

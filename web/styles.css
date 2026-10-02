@@ -1499,11 +1499,7 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
 .locate-button.locating .icon { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
-.locate-button { top: calc(12px + env(safe-area-inset-top)); right: 12px; }
-@media (min-width: 900px) {
-  .locate-button { top: 16px; right: 456px; }
-  .layout.map-full .locate-button { right: 16px; }
-}
+
 
 /* ==========================================================================
    Vues du panneau (Réglages, Compte, Favoris) : même feuille que Parcours
@@ -1600,3 +1596,103 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
 .suggestion.shortcut .icon { color: var(--accent); }
 .suggestion[aria-selected="true"], .suggestion:not(.disabled):hover { background: var(--accent-soft); }
 .suggestion.disabled { color: var(--muted); cursor: default; font-size: 0.9rem; }
+
+/* ==========================================================================
+   Actions au-dessus du panneau : « Générer » et localisation
+   ========================================================================== */
+.sheet-actions {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 120px;
+  z-index: 1150;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  transition: bottom 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s;
+}
+.sheet-actions.dragging { transition: opacity 0.2s; }
+.sheet-actions > * { pointer-events: auto; }
+.sheet-actions .locate-button { position: static; margin-left: auto; }
+
+.quick-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: 700 1rem var(--font-body);
+  box-shadow: 0 8px 22px -6px color-mix(in srgb, var(--accent) 80%, transparent), var(--float-shadow);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), background-color 0.2s;
+}
+.quick-generate[hidden] { display: none; }
+.quick-generate:active { transform: scale(0.96); }
+.quick-generate .icon { width: 20px; height: 20px; }
+.quick-generate .spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.quick-generate.loading .spinner { display: inline-block; }
+.quick-generate.loading .arrow { display: none; }
+
+/* Ordinateur : en bas de la carte, à gauche du panneau */
+@media (min-width: 900px) {
+  .sheet-actions { left: 16px; right: 456px; bottom: 24px; transition: right 0.3s var(--ease); }
+  .layout.map-full .sheet-actions { right: 16px; }
+  .sheet-actions .locate-button { margin-right: 56px; } /* laisse la place au zoom */
+}
+
+/* ==========================================================================
+   Ma position : point bleu (indépendant du départ et de l'arrivée)
+   ========================================================================== */
+.me-marker {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2f7cf6;
+  border: 3px solid #ffffff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+}
+.me-marker span {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: rgb(47 124 246 / 0.35);
+  animation: me-pulse 2s ease-out infinite;
+  z-index: -1;
+}
+@keyframes me-pulse {
+  from { transform: scale(1); opacity: 0.8; }
+  to { transform: scale(2.6); opacity: 0; }
+}
+.leaflet-interactive.me-accuracy, path.me-accuracy {
+  fill: #2f7cf6;
+  fill-opacity: 0.1;
+  stroke: #2f7cf6;
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+/* Départ = ma position : anneau vert autour du point bleu */
+.start-marker.at-me {
+  width: 40px;
+  height: 40px;
+  margin: -9px;
+  background: transparent;
+  border: 4px solid #1e4d3a;
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 8px rgb(0 0 0 / 0.3);
+}
+.ui-pin.me { background: #2f7cf6; }
