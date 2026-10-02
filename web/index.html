@@ -32,6 +32,7 @@
         <span class="tab-chevron" aria-hidden="true"><svg class="icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></span>
       </button>
       <div id="panel-scroll" class="panel-scroll">
+      <div id="route-view" class="view" data-view="route">
       <div id="welcome" class="welcome" hidden>
         <p><strong>Bienvenue !</strong> Découvrez en 2 minutes comment générer vos parcours.</p>
         <div class="welcome-actions">
@@ -133,201 +134,210 @@
         <div id="details" class="details"></div>
       </div>
       </div>
+
+      <section id="settings" class="view" data-view="settings" aria-labelledby="settings-title" hidden>
+        <div class="view-header">
+          <h2 id="settings-title">Réglages</h2>
+        </div>
+        <p id="settings-message" class="settings-message" hidden></p>
+
+        <section class="settings-section" aria-labelledby="settings-key">
+          <h3 id="settings-key">Clé OpenRouteService</h3>
+          <div class="settings-card">
+            <div class="key-row">
+              <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false"
+                     placeholder="Collez votre clé ici" aria-label="Clé API OpenRouteService">
+              <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+            <div class="key-row">
+              <button type="button" id="test-key" class="secondary small">Tester la clé</button>
+              <span id="key-status" class="key-status" role="status" aria-live="polite"></span>
+            </div>
+            <p class="hint">
+              Gratuite, elle sert à calculer les itinéraires. Elle reste enregistrée sur cet appareil uniquement.
+              <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">Créer un compte</a> ·
+              <a href="aide.html#cle">Comment l'obtenir ?</a>
+            </p>
+          </div>
+        </section>
+
+        <section class="settings-section" aria-labelledby="settings-display">
+          <h3 id="settings-display">Affichage</h3>
+          <div class="settings-card">
+            <div class="settings-row">
+              <span>Thème</span>
+              <fieldset class="segmented compact" id="theme" aria-label="Thème">
+                <label><input type="radio" name="theme" value="auto"><span>Auto</span></label>
+                <label><input type="radio" name="theme" value="light"><span>Clair</span></label>
+                <label><input type="radio" name="theme" value="dark"><span>Sombre</span></label>
+              </fieldset>
+            </div>
+            <div class="settings-row stacked">
+              <span>Fond de carte</span>
+              <fieldset id="base-layer" class="layer-options" aria-label="Fond de carte"></fieldset>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-section" aria-labelledby="settings-data">
+          <h3 id="settings-data">Mes données</h3>
+          <div class="settings-card">
+            <div class="settings-row">
+              <span>Favoris <small id="favorites-count" class="muted"></small></span>
+              <div class="button-group">
+                <button type="button" id="export-favorites" class="secondary small">Exporter</button>
+                <button type="button" id="import-favorites" class="secondary small">Importer</button>
+                <input type="file" id="import-file" accept="application/json,.json" hidden>
+              </div>
+            </div>
+            <p class="hint">Pour transférer vos favoris vers un autre appareil : exportez, puis importez le fichier.</p>
+            <div class="settings-row">
+              <button type="button" id="reset-criteria" class="secondary small">Réinitialiser les critères</button>
+              <button type="button" id="clear-all" class="secondary small danger">Tout effacer</button>
+            </div>
+            <p id="data-status" class="key-status" role="status" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section class="settings-section" aria-labelledby="settings-help">
+          <h3 id="settings-help">Aide</h3>
+          <div class="settings-card">
+            <a href="aide.html" class="settings-link">Tutoriel : comment ça marche <span aria-hidden="true">›</span></a>
+            <a href="aide.html#faq" class="settings-link">Questions fréquentes <span aria-hidden="true">›</span></a>
+            <p class="hint about">
+              Plan Itinéraire <span id="app-version"></span> · Cartes © OpenStreetMap ·
+              Itinéraires <a href="https://openrouteservice.org" target="_blank" rel="noopener">openrouteservice</a> ·
+              <a href="https://github.com/maximeaufrere/plan-itinerary" target="_blank" rel="noopener">Code source</a>
+            </p>
+          </div>
+        </section>
+      </section>
+
+      <section id="account" class="view" data-view="account" aria-labelledby="account-title" hidden>
+        <div class="view-header">
+          <h2 id="account-title">Mon compte</h2>
+        </div>
+        <p id="account-message" class="settings-message" hidden></p>
+
+        <section id="account-disabled" class="settings-section" hidden>
+          <div class="settings-card">
+            <p class="hint">
+              Les comptes ne sont pas encore activés sur cette installation de l'app. Le propriétaire doit relier un projet
+              Supabase gratuit (voir le README du projet). En attendant, tout fonctionne sur cet appareil sans compte.
+            </p>
+          </div>
+        </section>
+
+        <section id="account-signed-out" class="settings-section" hidden>
+          <div class="settings-card">
+            <ul class="benefits">
+              <li>Favoris et réglages synchronisés sur tous vos appareils</li>
+              <li>Partage de parcours par lien</li>
+              <li>Historique de vos sorties et statistiques</li>
+            </ul>
+            <fieldset class="segmented" id="auth-mode" aria-label="Connexion ou création de compte">
+              <label><input type="radio" name="auth-mode" value="signin" checked><span>Se connecter</span></label>
+              <label><input type="radio" name="auth-mode" value="signup"><span>Créer un compte</span></label>
+            </fieldset>
+            <form id="auth-form" class="auth-form" novalidate>
+              <label class="field"><span>E-mail</span>
+                <input type="email" id="auth-email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
+              </label>
+              <label class="field"><span>Mot de passe</span>
+                <input type="password" id="auth-password" autocomplete="current-password" required>
+              </label>
+              <label class="field" id="auth-confirm-field" hidden><span>Confirmer le mot de passe</span>
+                <input type="password" id="auth-confirm" autocomplete="new-password">
+              </label>
+              <button type="submit" id="auth-submit" class="primary"><span id="auth-submit-label">Se connecter</span></button>
+              <button type="button" id="forgot-password" class="link-button">Mot de passe oublié ?</button>
+              <p id="auth-status" class="key-status" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+        </section>
+
+        <section id="account-recovery" class="settings-section" hidden>
+          <form id="recovery-form" class="settings-card auth-form">
+            <label class="field"><span>Nouveau mot de passe</span>
+              <input type="password" id="recovery-password" autocomplete="new-password" required>
+            </label>
+            <label class="field"><span>Confirmer</span>
+              <input type="password" id="recovery-confirm" autocomplete="new-password" required>
+            </label>
+            <button type="submit" class="primary">Enregistrer le mot de passe</button>
+            <p id="recovery-status" class="key-status" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <div id="account-signed-in" hidden>
+          <section class="settings-section">
+            <div class="settings-card account-card">
+              <span id="account-avatar" class="avatar" aria-hidden="true"></span>
+              <div class="account-identity">
+                <strong id="account-email"></strong>
+                <span id="sync-status" class="key-status" role="status" aria-live="polite"></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" aria-labelledby="outings-title">
+            <h3 id="outings-title">Mes sorties</h3>
+            <div class="settings-card">
+              <fieldset class="segmented compact" id="outing-period" aria-label="Période">
+                <label><input type="radio" name="outing-period" value="30" checked><span>30 jours</span></label>
+                <label><input type="radio" name="outing-period" value="year"><span>Année</span></label>
+                <label><input type="radio" name="outing-period" value="all"><span>Tout</span></label>
+              </fieldset>
+              <div id="outing-stats" class="stats stats-4"></div>
+              <ul id="outings-list" class="item-list"></ul>
+            </div>
+          </section>
+
+          <section class="settings-section" aria-labelledby="shares-title">
+            <h3 id="shares-title">Mes parcours partagés</h3>
+            <div class="settings-card">
+              <ul id="shares-list" class="item-list"></ul>
+            </div>
+          </section>
+
+          <section class="settings-section" aria-labelledby="security-title">
+            <h3 id="security-title">Compte</h3>
+            <div class="settings-card">
+              <form id="change-password-form" class="key-row">
+                <input type="password" id="new-password" autocomplete="new-password" placeholder="Nouveau mot de passe" aria-label="Nouveau mot de passe">
+                <button type="submit" class="secondary small">Changer</button>
+              </form>
+              <p id="password-status" class="key-status" role="status" aria-live="polite"></p>
+              <div class="settings-row">
+                <button type="button" id="sign-out" class="secondary small">Se déconnecter</button>
+                <button type="button" id="delete-account" class="secondary small danger">Supprimer mon compte</button>
+              </div>
+              <p id="account-status" class="key-status" role="status" aria-live="polite"></p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="favorites" class="view" data-view="favorites" aria-labelledby="favorites-title" hidden>
+        <div class="view-header">
+          <h2 id="favorites-title">Favoris</h2>
+        </div>
+        <p class="hint">Vos parcours enregistrés. Touchez-en un pour l'afficher sur la carte.</p>
+        <ul id="favorites-list" class="favorites-list"></ul>
+      </section>
+      </div>
     </section>
   </main>
 
   <nav id="tabbar" class="tabbar" aria-label="Navigation principale">
-    <button type="button" id="tab-route" class="tab active" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5"/></svg><span>Parcours</span></button>
-    <button type="button" id="open-favorites" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>Favoris</span></button>
-    <button type="button" id="tab-outings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Sorties</span></button>
-    <button type="button" id="open-account" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg><span>Compte</span></button>
-    <button type="button" id="open-settings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Réglages</span></button>
+    <button type="button" id="tab-route" data-tab="route" class="tab active" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5"/></svg><span>Parcours</span></button>
+    <button type="button" id="open-favorites" data-tab="favorites" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>Favoris</span></button>
+    <button type="button" id="tab-outings" data-tab="outings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Sorties</span></button>
+    <button type="button" id="open-account" data-tab="account" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg><span>Compte</span></button>
+    <button type="button" id="open-settings" data-tab="settings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Réglages</span></button>
   </nav>
 
-  <dialog id="settings" class="sheet" aria-labelledby="settings-title">
-    <div class="sheet-header">
-      <h2 id="settings-title">Réglages</h2>
-      <button type="button" class="link-button" data-close>OK</button>
-    </div>
-    <p id="settings-message" class="settings-message" hidden></p>
 
-    <section class="settings-section" aria-labelledby="settings-key">
-      <h3 id="settings-key">Clé OpenRouteService</h3>
-      <div class="settings-card">
-        <div class="key-row">
-          <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false"
-                 placeholder="Collez votre clé ici" aria-label="Clé API OpenRouteService">
-          <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-        </div>
-        <div class="key-row">
-          <button type="button" id="test-key" class="secondary small">Tester la clé</button>
-          <span id="key-status" class="key-status" role="status" aria-live="polite"></span>
-        </div>
-        <p class="hint">
-          Gratuite, elle sert à calculer les itinéraires. Elle reste enregistrée sur cet appareil uniquement.
-          <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">Créer un compte</a> ·
-          <a href="aide.html#cle">Comment l'obtenir ?</a>
-        </p>
-      </div>
-    </section>
-
-    <section class="settings-section" aria-labelledby="settings-display">
-      <h3 id="settings-display">Affichage</h3>
-      <div class="settings-card">
-        <div class="settings-row">
-          <span>Thème</span>
-          <fieldset class="segmented compact" id="theme" aria-label="Thème">
-            <label><input type="radio" name="theme" value="auto"><span>Auto</span></label>
-            <label><input type="radio" name="theme" value="light"><span>Clair</span></label>
-            <label><input type="radio" name="theme" value="dark"><span>Sombre</span></label>
-          </fieldset>
-        </div>
-        <div class="settings-row stacked">
-          <span>Fond de carte</span>
-          <fieldset id="base-layer" class="layer-options" aria-label="Fond de carte"></fieldset>
-        </div>
-      </div>
-    </section>
-
-    <section class="settings-section" aria-labelledby="settings-data">
-      <h3 id="settings-data">Mes données</h3>
-      <div class="settings-card">
-        <div class="settings-row">
-          <span>Favoris <small id="favorites-count" class="muted"></small></span>
-          <div class="button-group">
-            <button type="button" id="export-favorites" class="secondary small">Exporter</button>
-            <button type="button" id="import-favorites" class="secondary small">Importer</button>
-            <input type="file" id="import-file" accept="application/json,.json" hidden>
-          </div>
-        </div>
-        <p class="hint">Pour transférer vos favoris vers un autre appareil : exportez, puis importez le fichier.</p>
-        <div class="settings-row">
-          <button type="button" id="reset-criteria" class="secondary small">Réinitialiser les critères</button>
-          <button type="button" id="clear-all" class="secondary small danger">Tout effacer</button>
-        </div>
-        <p id="data-status" class="key-status" role="status" aria-live="polite"></p>
-      </div>
-    </section>
-
-    <section class="settings-section" aria-labelledby="settings-help">
-      <h3 id="settings-help">Aide</h3>
-      <div class="settings-card">
-        <a href="aide.html" class="settings-link">Tutoriel : comment ça marche <span aria-hidden="true">›</span></a>
-        <a href="aide.html#faq" class="settings-link">Questions fréquentes <span aria-hidden="true">›</span></a>
-        <p class="hint about">
-          Plan Itinéraire <span id="app-version"></span> · Cartes © OpenStreetMap ·
-          Itinéraires <a href="https://openrouteservice.org" target="_blank" rel="noopener">openrouteservice</a> ·
-          <a href="https://github.com/maximeaufrere/plan-itinerary" target="_blank" rel="noopener">Code source</a>
-        </p>
-      </div>
-    </section>
-  </dialog>
-
-  <dialog id="account" class="sheet" aria-labelledby="account-title">
-    <div class="sheet-header">
-      <h2 id="account-title">Mon compte</h2>
-      <button type="button" class="link-button" data-close>OK</button>
-    </div>
-    <p id="account-message" class="settings-message" hidden></p>
-
-    <section id="account-disabled" class="settings-section" hidden>
-      <div class="settings-card">
-        <p class="hint">
-          Les comptes ne sont pas encore activés sur cette installation de l'app. Le propriétaire doit relier un projet
-          Supabase gratuit (voir le README du projet). En attendant, tout fonctionne sur cet appareil sans compte.
-        </p>
-      </div>
-    </section>
-
-    <section id="account-signed-out" class="settings-section" hidden>
-      <div class="settings-card">
-        <ul class="benefits">
-          <li>Favoris et réglages synchronisés sur tous vos appareils</li>
-          <li>Partage de parcours par lien</li>
-          <li>Historique de vos sorties et statistiques</li>
-        </ul>
-        <fieldset class="segmented" id="auth-mode" aria-label="Connexion ou création de compte">
-          <label><input type="radio" name="auth-mode" value="signin" checked><span>Se connecter</span></label>
-          <label><input type="radio" name="auth-mode" value="signup"><span>Créer un compte</span></label>
-        </fieldset>
-        <form id="auth-form" class="auth-form" novalidate>
-          <label class="field"><span>E-mail</span>
-            <input type="email" id="auth-email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
-          </label>
-          <label class="field"><span>Mot de passe</span>
-            <input type="password" id="auth-password" autocomplete="current-password" required>
-          </label>
-          <label class="field" id="auth-confirm-field" hidden><span>Confirmer le mot de passe</span>
-            <input type="password" id="auth-confirm" autocomplete="new-password">
-          </label>
-          <button type="submit" id="auth-submit" class="primary"><span id="auth-submit-label">Se connecter</span></button>
-          <button type="button" id="forgot-password" class="link-button">Mot de passe oublié ?</button>
-          <p id="auth-status" class="key-status" role="status" aria-live="polite"></p>
-        </form>
-      </div>
-    </section>
-
-    <section id="account-recovery" class="settings-section" hidden>
-      <form id="recovery-form" class="settings-card auth-form">
-        <label class="field"><span>Nouveau mot de passe</span>
-          <input type="password" id="recovery-password" autocomplete="new-password" required>
-        </label>
-        <label class="field"><span>Confirmer</span>
-          <input type="password" id="recovery-confirm" autocomplete="new-password" required>
-        </label>
-        <button type="submit" class="primary">Enregistrer le mot de passe</button>
-        <p id="recovery-status" class="key-status" role="status" aria-live="polite"></p>
-      </form>
-    </section>
-
-    <div id="account-signed-in" hidden>
-      <section class="settings-section">
-        <div class="settings-card account-card">
-          <span id="account-avatar" class="avatar" aria-hidden="true"></span>
-          <div class="account-identity">
-            <strong id="account-email"></strong>
-            <span id="sync-status" class="key-status" role="status" aria-live="polite"></span>
-          </div>
-        </div>
-      </section>
-
-      <section class="settings-section" aria-labelledby="outings-title">
-        <h3 id="outings-title">Mes sorties</h3>
-        <div class="settings-card">
-          <fieldset class="segmented compact" id="outing-period" aria-label="Période">
-            <label><input type="radio" name="outing-period" value="30" checked><span>30 jours</span></label>
-            <label><input type="radio" name="outing-period" value="year"><span>Année</span></label>
-            <label><input type="radio" name="outing-period" value="all"><span>Tout</span></label>
-          </fieldset>
-          <div id="outing-stats" class="stats stats-4"></div>
-          <ul id="outings-list" class="item-list"></ul>
-        </div>
-      </section>
-
-      <section class="settings-section" aria-labelledby="shares-title">
-        <h3 id="shares-title">Mes parcours partagés</h3>
-        <div class="settings-card">
-          <ul id="shares-list" class="item-list"></ul>
-        </div>
-      </section>
-
-      <section class="settings-section" aria-labelledby="security-title">
-        <h3 id="security-title">Compte</h3>
-        <div class="settings-card">
-          <form id="change-password-form" class="key-row">
-            <input type="password" id="new-password" autocomplete="new-password" placeholder="Nouveau mot de passe" aria-label="Nouveau mot de passe">
-            <button type="submit" class="secondary small">Changer</button>
-          </form>
-          <p id="password-status" class="key-status" role="status" aria-live="polite"></p>
-          <div class="settings-row">
-            <button type="button" id="sign-out" class="secondary small">Se déconnecter</button>
-            <button type="button" id="delete-account" class="secondary small danger">Supprimer mon compte</button>
-          </div>
-          <p id="account-status" class="key-status" role="status" aria-live="polite"></p>
-        </div>
-      </section>
-    </div>
-  </dialog>
 
   <dialog id="outing-dialog" aria-labelledby="outing-title">
     <form id="outing-form" class="settings-form">
@@ -349,16 +359,6 @@
     </form>
   </dialog>
 
-  <dialog id="favorites">
-    <form method="dialog" class="settings-form">
-      <h2>Favoris</h2>
-      <p class="hint">Enregistrés sur cet appareil uniquement.</p>
-      <ul id="favorites-list" class="favorites-list"></ul>
-      <div class="actions">
-        <button value="close" class="secondary">Fermer</button>
-      </div>
-    </form>
-  </dialog>
 
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/supabase/supabase.js"></script>

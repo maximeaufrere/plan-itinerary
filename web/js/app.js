@@ -18,6 +18,7 @@ import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
 import { KEYS, applyTheme, storage } from './storage.js';
+import { currentView, onViewChange, showView } from './views.js';
 
 /* global L */
 
@@ -330,6 +331,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
 // MARK: - Résultats
 
 function showRoutes(routes, activity) {
+  showView('route');
   state.routes = routes;
   state.routesActivity = activity;
   state.routesShape = state.criteria.shape;
@@ -548,7 +550,7 @@ function renderFavorites() {
 
 $('open-favorites').addEventListener('click', () => {
   renderFavorites();
-  $('favorites').showModal();
+  showView('favorites');
 });
 
 $('favorites-list').addEventListener('click', (event) => {
@@ -557,7 +559,6 @@ $('favorites-list').addEventListener('click', (event) => {
   if (open) {
     const favorite = state.favorites.find((f) => f.id === open.dataset.id);
     if (!favorite) return;
-    $('favorites').close();
     if (ACTIVITIES[favorite.activity]) updateCriteria({ activity: favorite.activity });
     showRoutes([{ ...fromFavorite(favorite), name: favorite.name }], favorite.activity);
     setStatus('');
@@ -594,9 +595,16 @@ $('open-settings').addEventListener('click', () => settings.open());
 
 // MARK: - Panneau : feuille glissable (téléphone), volet repliable (ordinateur)
 
+const VIEW_TITLES = { favorites: 'Favoris', account: 'Mon compte', settings: 'Réglages' };
+
 /** Texte de la barre d'aperçu affichée quand le panneau est réduit. */
 function updatePeek() {
   const route = state.routes.find((r) => r.id === state.selectedId);
+  const view = currentView();
+  if (view !== 'route') {
+    $('panel-peek-text').textContent = VIEW_TITLES[view] ?? '';
+    return;
+  }
   $('panel-peek-text').textContent = route
     ? `${formatDistance(route.distance)} · ↗ ${formatElevation(route.ascent)} · ${routeDuration(route)}`
     : criteriaSummary();
@@ -797,7 +805,18 @@ const account = initAccount({
 // MARK: - Barre d'onglets
 
 // « Parcours » réduit ou rouvre le panneau ; « Sorties » ouvre l'historique du compte.
-$('tab-route').addEventListener('click', () => snapTo(sheetState === 'peek' ? 'mid' : 'peek'));
+// « Parcours » affiche la vue Parcours ; si elle est déjà affichée, réduit ou rouvre le panneau.
+$('tab-route').addEventListener('click', () => {
+  if (currentView() !== 'route') showView('route');
+  else snapTo(sheetState === 'peek' ? 'mid' : 'peek');
+});
+
+// Changer de vue rouvre la feuille si elle était réduite et revient en haut de son contenu.
+onViewChange(() => {
+  $('panel-scroll').scrollTo({ top: 0 });
+  if (sheetState === 'peek') snapTo('mid', { fit: false });
+  updatePeek();
+});
 $('tab-outings').addEventListener('click', () => account.openOutings());
 
 // MARK: - Bienvenue

@@ -6,6 +6,7 @@ import { formatDistance, formatDuration, formatElevation } from './format.js';
 import { icons } from './icons.js';
 import { KEYS, storage } from './storage.js';
 import { diffFavorites, filterOutings, mergeFavoriteLists, newerSettings, outingStats } from './sync.js';
+import { currentView, showView } from './views.js';
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (text) => String(text).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
@@ -59,20 +60,14 @@ export function initAccount(hooks) {
     refreshShares();
   }
 
-  function open(text) {
+  const isShown = () => currentView() === 'account';
+
+  function open(text, { tab = 'account' } = {}) {
     message(text);
     render();
-    if (!dialog.open) dialog.showModal();
-    if (!user && cloud.cloudEnabled) $('auth-email').focus();
+    showView('account', { tab });
   }
 
-  dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target !== dialog) return;
-    const box = dialog.getBoundingClientRect();
-    const inside = event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
-    if (!inside) dialog.close();
-  });
   $('open-account').addEventListener('click', () => open());
 
   // MARK: Connexion et création de compte
@@ -309,7 +304,6 @@ export function initAccount(hooks) {
     if (openId) {
       const outing = outings.find((o) => o.id === openId);
       if (!outing?.route) return;
-      dialog.close();
       hooks.openRoute({ ...fromFavorite({ id: `outing-${outing.id}`, route: outing.route }), name: outing.name }, outing.activity);
     } else if (deleteId) {
       const outing = outings.find((o) => o.id === deleteId);
@@ -463,6 +457,7 @@ export function initAccount(hooks) {
   function requireUser(text) {
     if (user) return true;
     open(text);
+    if (cloud.cloudEnabled) $('auth-email').focus({ preventScroll: true });
     return false;
   }
 
@@ -472,7 +467,7 @@ export function initAccount(hooks) {
         user = sessionUser;
         message('Choisissez votre nouveau mot de passe.');
         show('account-recovery');
-        if (!dialog.open) dialog.showModal();
+        showView('account');
         return;
       }
       const wasSignedIn = Boolean(user);
@@ -480,10 +475,10 @@ export function initAccount(hooks) {
       $('open-account').classList.toggle('signed-in', Boolean(user));
       if (user && (!wasSignedIn || event === 'SIGNED_IN')) {
         fullSync();
-        if (dialog.open && event === 'SIGNED_IN') message('Vous êtes connecté. Vos favoris et réglages sont synchronisés.');
+        if (isShown() && event === 'SIGNED_IN') message('Vous êtes connecté. Vos favoris et réglages sont synchronisés.');
       }
       if (!user && wasSignedIn) message('Vous êtes déconnecté. Vos données restent sur cet appareil.');
-      if (dialog.open) render();
+      if (isShown()) render();
     });
   }
   syncAuthMode();
@@ -491,9 +486,11 @@ export function initAccount(hooks) {
 
   /** Onglet « Sorties » : historique si connecté, sinon invitation à se connecter. */
   function openOutings() {
-    if (cloud.cloudEnabled && !user) return open('Connectez-vous pour retrouver l\'historique de vos sorties et vos statistiques.');
-    open();
-    if (user) $('outings-title').scrollIntoView({ block: 'start' });
+    if (cloud.cloudEnabled && !user) {
+      return open('Connectez-vous pour retrouver l\'historique de vos sorties et vos statistiques.', { tab: 'outings' });
+    }
+    open('', { tab: 'outings' });
+    if (user) requestAnimationFrame(() => $('outings-title').scrollIntoView({ block: 'start' }));
   }
 
   return {

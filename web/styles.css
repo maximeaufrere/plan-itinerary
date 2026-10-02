@@ -1504,3 +1504,26 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
   .locate-button { top: 16px; right: 456px; }
   .layout.map-full .locate-button { right: 16px; }
 }
+
+/* ==========================================================================
+   Vues du panneau (Réglages, Compte, Favoris) : même feuille que Parcours
+   ========================================================================== */
+.view[hidden] { display: none; }
+.view-header { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 6px; }
+.view-header h2 { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; color: var(--accent); }
+.view > .hint { margin: 0 0 14px; }
+.view .settings-section:first-of-type { margin-top: 8px; }
+
+/* Sur le fond blanc du panneau, les cartes passent en « pierre » et leurs champs en blanc. */
+.view .settings-card { background: var(--surface); }
+.view .settings-card :is(input[type="text"], input[type="password"], input[type="email"], input[type="date"], select),
+.view .settings-card .unit-input,
+.view .settings-card .item-list li,
+.view .settings-card .stat { background: var(--bg); }
+.view .settings-card .segmented { background: color-mix(in srgb, var(--border) 70%, transparent); }
+.view .settings-card .layer-options label { background: var(--bg); }
+.view .settings-card .layer-options label:has(input:checked) { background: var(--accent-soft); }
+.view .settings-message { margin: 0 0 4px; }
+
+.favorites-list li { padding: 10px 8px 10px 14px; border-radius: 16px; }
+.favorites-list .favorite-delete .icon { width: 20px; height: 20px; color: var(--muted); }

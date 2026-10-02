@@ -3,6 +3,7 @@ import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
 import { fetchRoute } from './ors.js';
 import { shareOrDownload } from './share.js';
 import { KEYS, applyTheme, storage } from './storage.js';
+import { showView } from './views.js';
 
 export const APP_VERSION = '1.2';
 
@@ -36,15 +37,6 @@ export function parseFavoritesFile(text) {
 export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, onThemeChange, onResetCriteria }) {
   const dialog = $('settings');
   const keyInput = $('api-key');
-
-  // Fermeture : bouton OK, ou toucher le fond grisé autour du panneau.
-  dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target !== dialog) return;
-    const box = dialog.getBoundingClientRect();
-    const inside = event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
-    if (!inside) dialog.close();
-  });
 
   // MARK: Clé
   const keyStatus = (message, kind = '') => {
@@ -167,8 +159,8 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
       const layer = storage.get(KEYS.baseLayer, DEFAULT_BASE_LAYER);
       dialog.querySelector(`input[name="base-layer"][value="${BASE_LAYERS[layer] ? layer : DEFAULT_BASE_LAYER}"]`).checked = true;
       refreshCount();
-      dialog.showModal();
-      if (message) keyInput.focus();
+      showView('settings');
+      if (message) keyInput.focus({ preventScroll: true });
     },
   };
 }
