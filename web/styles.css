@@ -120,12 +120,13 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .field { display: grid; gap: 6px; }
 .field > label, .field > span { font-size: 0.85rem; color: var(--muted); }
 
-.field:has(#distance) {
+.field.slider {
   grid-template-columns: 1fr auto;
   align-items: baseline;
 }
-.field:has(#distance) input { grid-column: 1 / -1; }
-#distance-output { font-weight: 600; font-variant-numeric: tabular-nums; }
+.field.slider input { grid-column: 1 / -1; }
+.field.slider output { font-weight: 600; font-variant-numeric: tabular-nums; }
+.field[hidden] { display: none; }
 
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 
@@ -167,6 +168,8 @@ select, input[type="number"], input[type="text"] {
 .max-gain input[type="number"]:disabled { opacity: 0.5; }
 
 .checkbox { display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+.checkbox.grow { flex: 1; white-space: normal; }
+.row .field.proposals { flex: 0 0 110px; }
 .checkbox input { width: 20px; height: 20px; accent-color: var(--accent); }
 
 .actions { display: flex; gap: 10px; }
@@ -260,7 +263,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .details { display: grid; gap: 14px; }
 
 /* Carte */
-.start-marker {
+.start-marker, .end-marker {
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -269,13 +272,20 @@ button:disabled { opacity: 0.5; cursor: default; }
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
 
+.end-marker { background: #ef4444; }
+
 .leaflet-container { font: inherit; }
 
-.settings-button {
+.floating-buttons {
   position: fixed;
   top: calc(10px + env(safe-area-inset-top));
   right: 10px;
   z-index: 1100;
+  display: grid;
+  gap: 10px;
+}
+
+.floating-buttons button {
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -303,3 +313,69 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .settings-message { margin: 0; color: var(--accent); font-weight: 600; }
 .hint { margin: 0; font-size: 0.85rem; color: var(--muted); }
 .hint a { color: var(--accent); }
+
+/* Revêtement */
+.surface-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.surface-bar span { display: block; height: 100%; }
+.surface-paved { background: #64748b; }
+.surface-unpaved { background: #a16207; }
+.surface-unknown { background: var(--border); }
+.surface-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.surface-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
+/* Favoris */
+.favorites-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 55dvh;
+  overflow-y: auto;
+}
+.favorites-list li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.favorites-list .favorite-open {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+}
+.favorites-list small { color: var(--muted); }
+.favorites-list .favorite-delete {
+  background: none;
+  border: 0;
+  font-size: 1.1rem;
+  padding: 6px;
+  cursor: pointer;
+}
+.favorites-empty { color: var(--muted); font-size: 0.9rem; }

@@ -28,13 +28,15 @@ function describeError(status, apiMessage) {
  * @param {Array<[number, number]>} options.points points [lat, lon] à relier dans l'ordre
  * @param {{length: number, points: number, seed: number}} [options.roundTrip] boucle générée par ORS à partir d'un seul point
  * @param {AbortSignal} [options.signal]
- * @returns {Promise<{coordinates: Array<[number, number]>, elevations: number[] | null, distance: number, ascent: number | null, descent: number | null}>}
+ * @returns {Promise<{coordinates: Array<[number, number]>, elevations: number[] | null, distance: number,
+ *   ascent: number | null, descent: number | null, extras: {surface?: object[], waytype?: object[]}}>}
  */
 export async function fetchRoute({ apiKey, profile, points, roundTrip, signal }) {
   const body = {
     coordinates: points.map(([lat, lon]) => [lon, lat]),
     elevation: true,
     instructions: false,
+    extra_info: ['surface', 'waytype'],
     options: { avoid_features: ['ferries'] },
   };
   if (roundTrip) body.options.round_trip = roundTrip;
@@ -79,5 +81,10 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal })
     distance: feature.properties.summary.distance,
     ascent: feature.properties.ascent ?? null,
     descent: feature.properties.descent ?? null,
+    // Résumés « part du parcours par valeur » : [{ value, distance, amount (en %) }].
+    extras: {
+      surface: feature.properties.extras?.surface?.summary,
+      waytype: feature.properties.extras?.waytype?.summary,
+    },
   };
 }

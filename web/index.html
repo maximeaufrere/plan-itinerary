@@ -24,13 +24,27 @@
       <form id="criteria-form" class="criteria">
         <fieldset class="chips" id="activity" aria-label="Activité"></fieldset>
 
-        <div class="field">
+        <fieldset class="segmented" id="shape" aria-label="Type de parcours"></fieldset>
+
+        <div id="placing-field" class="field" hidden>
+          <span>Touchez la carte pour placer</span>
+          <fieldset class="segmented" id="placing" aria-label="Point à placer">
+            <label><input type="radio" name="placing" value="start" checked><span>🟢 Départ</span></label>
+            <label><input type="radio" name="placing" value="end"><span>🔴 Arrivée</span></label>
+          </fieldset>
+        </div>
+
+        <div class="field slider">
           <label for="distance">Distance</label>
           <output id="distance-output" for="distance"></output>
           <input type="range" id="distance" step="1">
         </div>
 
-        <fieldset class="segmented" id="shape" aria-label="Type de parcours"></fieldset>
+        <div class="field slider">
+          <label for="speed" id="speed-label">Allure</label>
+          <output id="speed-output" for="speed"></output>
+          <input type="range" id="speed">
+        </div>
 
         <div class="row">
           <label class="field compact">
@@ -38,10 +52,8 @@
             <select id="elevation"></select>
           </label>
           <label class="field compact">
-            <span>Propositions</span>
-            <select id="proposals">
-              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-            </select>
+            <span>Revêtement</span>
+            <select id="surface"></select>
           </label>
         </div>
 
@@ -49,6 +61,16 @@
           <label class="checkbox"><input type="checkbox" id="limit-gain"> D+ max</label>
           <input type="number" id="max-gain" min="0" step="50" inputmode="numeric" aria-label="Dénivelé positif maximal en mètres">
           <span>m</span>
+        </div>
+
+        <div class="row">
+          <label class="checkbox grow"><input type="checkbox" id="avoid-major-roads"> Éviter les grands axes</label>
+          <label class="field compact proposals">
+            <span>Propositions</span>
+            <select id="proposals">
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
         </div>
 
         <div class="actions">
@@ -65,7 +87,10 @@
     </section>
   </main>
 
-  <button type="button" id="open-settings" class="settings-button" aria-label="Réglages">⚙️</button>
+  <div class="floating-buttons">
+    <button type="button" id="open-settings" aria-label="Réglages">⚙️</button>
+    <button type="button" id="open-favorites" aria-label="Favoris">★</button>
+  </div>
 
   <dialog id="settings">
     <form method="dialog" class="settings-form">
@@ -83,6 +108,17 @@
       <div class="actions">
         <button value="cancel" class="secondary" formnovalidate>Annuler</button>
         <button value="save" class="primary">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="favorites">
+    <form method="dialog" class="settings-form">
+      <h2>Favoris</h2>
+      <p class="hint">Enregistrés sur cet appareil uniquement.</p>
+      <ul id="favorites-list" class="favorites-list"></ul>
+      <div class="actions">
+        <button value="close" class="secondary">Fermer</button>
       </div>
     </form>
   </dialog>

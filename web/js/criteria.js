@@ -1,15 +1,22 @@
-// `profile` : profil de calcul OpenRouteService.
+// `profile` : profil de calcul OpenRouteService. `speedKmh` : vitesse par défaut sur le plat.
 export const ACTIVITIES = {
-  running: { label: 'Course', icon: '🏃', profile: 'foot-walking', speedKmh: 10, range: [1, 50], defaultKm: 10 },
-  trail: { label: 'Trail', icon: '⛰️', profile: 'foot-hiking', speedKmh: 8, range: [1, 60], defaultKm: 15 },
-  road: { label: 'Vélo route', icon: '🚴', profile: 'cycling-road', speedKmh: 25, range: [5, 200], defaultKm: 50 },
-  bike: { label: 'Vélo', icon: '🚲', profile: 'cycling-regular', speedKmh: 18, range: [5, 150], defaultKm: 30 },
-  mtb: { label: 'VTT', icon: '🚵', profile: 'cycling-mountain', speedKmh: 14, range: [5, 120], defaultKm: 30 },
+  running: { label: 'Course', icon: '🏃', kind: 'foot', profile: 'foot-walking', speedKmh: 10, range: [1, 50], defaultKm: 10 },
+  trail: { label: 'Trail', icon: '⛰️', kind: 'foot', profile: 'foot-hiking', speedKmh: 8, range: [1, 60], defaultKm: 15 },
+  road: { label: 'Vélo route', icon: '🚴', kind: 'bike', profile: 'cycling-road', speedKmh: 25, range: [5, 200], defaultKm: 50 },
+  bike: { label: 'Vélo', icon: '🚲', kind: 'bike', profile: 'cycling-regular', speedKmh: 18, range: [5, 150], defaultKm: 30 },
+  mtb: { label: 'VTT', icon: '🚵', kind: 'bike', profile: 'cycling-mountain', speedKmh: 14, range: [5, 120], defaultKm: 30 },
+};
+
+/** Bornes des vitesses réglables (km/h) : allure de 10'00 à 3'00/km à pied. */
+export const SPEED_RANGES = {
+  foot: [6, 20],
+  bike: [8, 45],
 };
 
 export const SHAPES = {
   loop: 'Boucle',
   out_and_back: 'Aller-retour',
+  point_to_point: 'A → B',
 };
 
 // Dénivelé positif visé, en mètres par kilomètre (null = pas de préférence).
@@ -20,6 +27,12 @@ export const ELEVATION_PREFERENCES = {
   hilly: { label: 'Montagneux', gainPerKm: 25 },
 };
 
+export const SURFACES = {
+  any: 'Peu importe',
+  paved: 'Bitume',
+  unpaved: 'Chemins',
+};
+
 export function defaultCriteria() {
   return {
     activity: 'running',
@@ -27,20 +40,31 @@ export function defaultCriteria() {
     shape: 'loop',
     elevation: 'any',
     maxGain: null,
+    surface: 'any',
+    avoidMajorRoads: false,
     proposals: 3,
+    speeds: Object.fromEntries(Object.entries(ACTIVITIES).map(([key, activity]) => [key, activity.speedKmh])),
   };
 }
 
+const clamp = (value, [min, max]) => Math.min(max, Math.max(min, value));
+
 /** Complète et corrige des critères (ex. relus depuis le stockage local). */
 export function sanitizeCriteria(input) {
-  const criteria = { ...defaultCriteria(), ...input };
+  const defaults = defaultCriteria();
+  const criteria = { ...defaults, ...input, speeds: { ...defaults.speeds, ...input?.speeds } };
   if (!ACTIVITIES[criteria.activity]) criteria.activity = 'running';
   if (!SHAPES[criteria.shape]) criteria.shape = 'loop';
   if (!ELEVATION_PREFERENCES[criteria.elevation]) criteria.elevation = 'any';
-  const [min, max] = ACTIVITIES[criteria.activity].range;
-  criteria.distanceKm = Math.min(max, Math.max(min, Number(criteria.distanceKm) || ACTIVITIES[criteria.activity].defaultKm));
-  criteria.proposals = Math.min(5, Math.max(1, Math.round(Number(criteria.proposals) || 3)));
+  if (!SURFACES[criteria.surface]) criteria.surface = 'any';
+  criteria.avoidMajorRoads = Boolean(criteria.avoidMajorRoads);
+  const activity = ACTIVITIES[criteria.activity];
+  criteria.distanceKm = clamp(Number(criteria.distanceKm) || activity.defaultKm, activity.range);
+  criteria.proposals = clamp(Math.round(Number(criteria.proposals) || 3), [1, 5]);
   criteria.maxGain = criteria.maxGain == null || Number.isNaN(Number(criteria.maxGain)) ? null : Math.max(0, Number(criteria.maxGain));
+  for (const [key, { kind, speedKmh }] of Object.entries(ACTIVITIES)) {
+    criteria.speeds[key] = clamp(Number(criteria.speeds[key]) || speedKmh, SPEED_RANGES[kind]);
+  }
   return criteria;
 }
 
@@ -60,9 +84,31 @@ export function score(route, criteria) {
       result += 50 + (route.ascent - criteria.maxGain) / 10;
     }
   }
+
+  // Repasser par les mêmes rues : normal pour un aller-retour, à éviter sinon (50 % de repassage = +30).
+  if (criteria.shape !== 'out_and_back' && route.overlap != null) {
+    result += route.overlap * 60;
+  }
+
+  if (route.surface) {
+    if (criteria.surface === 'paved') result += route.surface.unpaved * 40;
+    if (criteria.surface === 'unpaved') result += route.surface.paved * 40;
+  }
+
+  if (criteria.avoidMajorRoads && route.majorRoads != null) {
+    result += route.majorRoads * 60;
+  }
   return result;
 }
 
-export function estimatedDuration(route, activityKey) {
-  return route.distance / (ACTIVITIES[activityKey].speedKmh / 3.6);
+/**
+ * Durée estimée en secondes.
+ * À pied, on utilise le « kilomètre-effort » des traileurs : chaque 100 m de D+ compte comme 1 km de plus.
+ * À vélo, la vitesse réglée est une moyenne qui inclut déjà le relief.
+ */
+export function estimatedDuration(route, activityKey, speeds) {
+  const activity = ACTIVITIES[activityKey];
+  const speed = speeds?.[activityKey] ?? activity.speedKmh;
+  const effortKm = route.distance / 1000 + (activity.kind === 'foot' ? (route.ascent ?? 0) / 100 : 0);
+  return (effortKm / speed) * 3600;
 }

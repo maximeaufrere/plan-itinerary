@@ -18,9 +18,19 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 
 - Départ depuis votre position (GPS du navigateur) ou un point touché sur la carte
 - Activités : course (piéton), trail (randonnée), vélo de route, vélo, VTT — chacune avec son profil de calcul ORS
-- Boucle (option `round_trip` d'ORS, longueur corrigée si l'écart dépasse 5 %) ou aller-retour
-- Profil de dénivelé souhaité et D+ maximal ; propositions classées selon ces critères
-- Statistiques, profil altimétrique, export GPX (feuille de partage sur mobile → Strava, Komoot, Fichiers…)
+- Types de parcours :
+  - **Boucle** (option `round_trip` d'ORS, longueur corrigée si l'écart dépasse 5 %)
+  - **Aller-retour**
+  - **A → B avec détour** : si le trajet direct est trop court, passage par un point placé sur une ellipse
+    dont A et B sont les foyers (toutes ses positions donnent la même distance à vol d'oiseau)
+- Critères : profil de dénivelé, D+ maximal, revêtement (bitume / chemins), éviter les grands axes
+- Classement des propositions selon ces critères, avec une **pénalité pour les rues empruntées deux fois**
+  (sauf en aller-retour)
+- **Allure personnalisée** (min/km à pied, km/h à vélo) ; à pied, la durée utilise le kilomètre-effort
+  (+1 km par 100 m de D+)
+- Statistiques (distance, D+/D−, altitudes, durée, % de repassages, % de grands axes), répartition du revêtement,
+  profil altimétrique
+- **Favoris** enregistrés sur l'appareil (bouton ★), export GPX (feuille de partage sur mobile → Strava, Komoot…)
 - Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »), mode sombre
 
 ## Clé OpenRouteService
@@ -28,7 +38,8 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 L'app demande une clé API gratuite au premier calcul (bouton ⚙️) : créez un compte sur
 [openrouteservice.org](https://openrouteservice.org/dev/#/signup) et copiez la clé de votre tableau de bord.
 La clé est enregistrée **uniquement dans le navigateur** de l'appareil (jamais dans le dépôt). Offre gratuite :
-environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme jusqu'à 2 par proposition.
+environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme jusqu'à 2 par proposition
+(+1 pour le trajet direct en mode A → B).
 
 ## Lancer en local
 

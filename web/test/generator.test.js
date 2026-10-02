@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defaultCriteria, sanitizeCriteria, score } from '../js/criteria.js';
+import { defaultCriteria, estimatedDuration, sanitizeCriteria, score } from '../js/criteria.js';
 import { generateRoutes } from '../js/generator.js';
-import { destination } from '../js/geo.js';
+import { distance, destination } from '../js/geo.js';
 import { toGpx } from '../js/gpx.js';
 import { OrsError } from '../js/ors.js';
 
@@ -31,7 +31,7 @@ test('boucle : corrige la longueur demandée quand ORS s\'écarte de la cible', 
   // ORS rend 30 % de plus que demandé.
   const { calls, fetchRoute } = fakeFetch({ distanceFor: (r) => r.roundTrip.length * 1.3 });
 
-  const routes = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
 
   assert.equal(routes.length, 1);
   assert.equal(calls[0].roundTrip.length, 10_000);
@@ -62,7 +62,7 @@ test('classe les propositions selon le dénivelé souhaité', async () => {
     return { coordinates: [start, start], elevations: [100, 100 + climb], distance: 10_000, ascent: null, descent: null };
   };
 
-  const routes = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
 
   assert.equal(routes.length, 2);
   assert.ok(routes[0].ascent < routes[1].ascent);
@@ -85,7 +85,7 @@ test('un candidat impossible est ignoré', async () => {
     if (n === 1) throw new OrsError('Point non routable', 404);
     return { coordinates: [start, start], elevations: null, distance: 10_000, ascent: 12, descent: 12 };
   };
-  const routes = await generateRoutes({ start, criteria: { ...defaultCriteria(), proposals: 2 }, apiKey: 'k', fetchRoute });
+  const { routes } = await generateRoutes({ start, criteria: { ...defaultCriteria(), proposals: 2 }, apiKey: 'k', fetchRoute });
   assert.equal(routes.length, 2);
   assert.equal(routes[0].ascent, 12);
 });
@@ -112,6 +112,10 @@ test('sanitizeCriteria corrige les valeurs invalides', () => {
   assert.equal(criteria.distanceKm, 50);
   assert.equal(criteria.proposals, 5);
   assert.equal(criteria.maxGain, null);
+  assert.equal(criteria.surface, 'any');
+  assert.equal(criteria.speeds.running, 10);
+  // Allure trop rapide ramenée à 3'00/km (20 km/h).
+  assert.equal(sanitizeCriteria({ speeds: { running: 99 } }).speeds.running, 20);
 });
 
 test('GPX valide avec altitudes et nom échappé', () => {
@@ -121,4 +125,64 @@ test('GPX valide avec altitudes et nom échappé', () => {
   );
   assert.match(gpx, /<trkpt lat="45.000000" lon="4.000000"><ele>200.0<\/ele><\/trkpt>/);
   assert.match(gpx, /<name>Course &lt;test&gt; &amp; co<\/name>/);
+});
+
+test('A → B : propose le trajet direct s\'il est déjà plus long que la distance visée', async () => {
+  const end = destination(start, 8000, 45);
+  const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 5, proposals: 3 };
+  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 9_000 });
+
+  const result = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute });
+
+  assert.equal(calls.length, 1);
+  assert.equal(result.directIsLonger, true);
+  assert.equal(result.routes.length, 1);
+});
+
+test('A → B : les points de détour sont sur une ellipse de foyers A et B, des deux côtés', async () => {
+  const end = destination(start, 4000, 90);
+  const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 10, proposals: 2 };
+  // 1er appel : trajet direct de 5 km ; ensuite les détours font pile 10 km.
+  const { calls, fetchRoute } = fakeFetch({ distanceFor: (_, n) => (n === 1 ? 5_000 : 10_000) });
+
+  const { routes, directIsLonger } = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute });
+
+  assert.equal(directIsLonger, undefined);
+  assert.equal(routes.length, 2);
+  const detours = calls.slice(1).map((c) => c.points[1]);
+  const expectedSum = 10_000 / 1.25;
+  for (const waypoint of detours) {
+    assert.ok(Math.abs(distance(start, waypoint) + distance(waypoint, end) - expectedSum) < 20);
+  }
+  // Angles 90° puis 270° : un détour de chaque côté de l'axe A → B (orienté est-ouest ici).
+  assert.ok((detours[0][0] - start[0]) * (detours[1][0] - start[0]) < 0);
+  for (const call of calls.slice(1)) assert.deepEqual(call.points.at(-1), end);
+});
+
+test('score : pénalise les repassages, sauf en aller-retour', () => {
+  const base = { distance: 10_000, ascent: null };
+  const loop = { ...defaultCriteria(), shape: 'loop' };
+  assert.ok(score({ ...base, overlap: 0.5 }, loop) > score({ ...base, overlap: 0 }, loop));
+  const outAndBack = { ...defaultCriteria(), shape: 'out_and_back' };
+  assert.equal(score({ ...base, overlap: 0.9 }, outAndBack), score({ ...base, overlap: 0 }, outAndBack));
+});
+
+test('score : revêtement et grands axes', () => {
+  const base = { distance: 10_000, ascent: null };
+  const trails = { ...defaultCriteria(), surface: 'unpaved' };
+  const asphalt = { ...base, surface: { paved: 0.9, unpaved: 0.1, unknown: 0 } };
+  const dirt = { ...base, surface: { paved: 0.1, unpaved: 0.9, unknown: 0 } };
+  assert.ok(score(dirt, trails) < score(asphalt, trails));
+
+  const quiet = { ...defaultCriteria(), avoidMajorRoads: true };
+  assert.ok(score({ ...base, majorRoads: 0 }, quiet) < score({ ...base, majorRoads: 0.4 }, quiet));
+  assert.equal(score({ ...base, majorRoads: 0.4 }, defaultCriteria()), score({ ...base, majorRoads: 0 }, defaultCriteria()));
+});
+
+test('durée : kilomètre-effort à pied, vitesse moyenne à vélo', () => {
+  const route = { distance: 10_000, ascent: 200 };
+  // 10 km + 200 m D+ = 12 km-effort, à 12 km/h = 1 h.
+  assert.equal(estimatedDuration(route, 'running', { running: 12 }), 3600);
+  // À vélo, le D+ ne s'ajoute pas : 10 km à 20 km/h = 30 min.
+  assert.equal(estimatedDuration(route, 'bike', { bike: 20 }), 1800);
 });
