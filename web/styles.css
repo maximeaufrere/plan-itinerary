@@ -1351,3 +1351,44 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
   .floating-buttons { transition: right 0.3s var(--ease); }
   .layout.map-full ~ .floating-buttons { right: 12px; }
 }
+
+/* ==========================================================================
+   Téléphone : feuille glissable au-dessus de la carte en plein écran
+   ========================================================================== */
+@media (max-width: 899px) {
+  .layout { display: block; position: relative; height: 100dvh; }
+  .map { position: absolute; inset: 0; height: 100%; min-height: 0; }
+
+  .panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--sheet-h, 52dvh);
+    max-height: none;
+    margin: 0;
+    border-radius: 28px 28px 0 0;
+    transition: height 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: height;
+  }
+  /* Pendant le glissement, la feuille suit le doigt sans délai. */
+  .panel.dragging { transition: none; }
+  .panel.dragging .panel-scroll { overflow: hidden; }
+
+  /* Toute la largeur de la barre sert de poignée. */
+  .panel-handle { padding-top: 12px; cursor: grab; }
+  .panel.dragging .panel-handle { cursor: grabbing; }
+  .grabber { width: 44px; height: 5px; }
+
+  /* La carte passe sous la feuille : crédits en haut à gauche, zoom au pincement. */
+  .map .leaflet-bottom.leaflet-right {
+    top: calc(env(safe-area-inset-top) + 4px);
+    bottom: auto;
+    left: 0;
+    right: auto;
+  }
+  .map .leaflet-control-attribution { border-radius: 0 10px 10px 0; }
+  .map .leaflet-control-zoom { display: none; }
+
+  .floating-buttons { transition: opacity 0.2s; }
+}

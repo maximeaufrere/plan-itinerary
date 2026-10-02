@@ -259,7 +259,7 @@ $('locate').addEventListener('click', () => locate());
 
 function setStatus(message, isError = false) {
   // Une erreur ne doit pas rester cachée derrière le panneau réduit.
-  if (isError && message) setPanelCollapsed(false);
+  if (isError && message && sheetState === 'peek') snapTo('mid');
   const status = $('status');
   status.textContent = message;
   status.classList.toggle('error', isError);
@@ -400,12 +400,18 @@ function selectRoute(id) {
   updatePeek();
 }
 
-function fitToRoute(id) {
+function fitToRoute(id, { animate = false } = {}) {
   const layer = routeLayers.get(id);
   if (!layer) return;
   map.invalidateSize();
+  // Sur téléphone, la carte passe sous la feuille : on garde le parcours dans la partie visible.
+  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight(), window.innerHeight * 0.6) + 24 : 30;
   // Marge à droite pour ne pas cacher le tracé sous les boutons flottants (compte, réglages, favoris, zoom).
-  map.fitBounds(layer.getBounds(), { paddingTopLeft: [30, 30], paddingBottomRight: [70, 30], animate: false });
+  map.fitBounds(layer.getBounds(), {
+    paddingTopLeft: [30, 30 + (mobileQuery.matches ? safeArea.top : 0)],
+    paddingBottomRight: [70, bottom],
+    animate,
+  });
 }
 
 /** Couleurs des tracés (dépendent du thème). */
@@ -584,7 +590,7 @@ const settings = initSettings({
 
 $('open-settings').addEventListener('click', () => settings.open());
 
-// MARK: - Panneau repliable (carte en plein écran)
+// MARK: - Panneau : feuille glissable (téléphone), volet repliable (ordinateur)
 
 /** Texte de la barre d'aperçu affichée quand le panneau est réduit. */
 function updatePeek() {
@@ -594,57 +600,160 @@ function updatePeek() {
     : criteriaSummary();
 }
 
-function isPanelCollapsed() {
-  return document.querySelector('.layout').classList.contains('map-full');
+const mobileQuery = matchMedia('(max-width: 899px)');
+const panel = $('panel');
+const SHEET_STATES = ['peek', 'mid', 'full'];
+/** Position du panneau : « peek » (réduit à une barre), « mid » (mi-hauteur) ou « full » (presque plein écran). */
+let sheetState = normalizeSheetState(storage.get(KEYS.panelCollapsed, 'mid'));
+
+function normalizeSheetState(value) {
+  if (value === true) return 'peek'; // ancienne valeur enregistrée
+  if (value === false) return 'mid';
+  return SHEET_STATES.includes(value) ? value : 'mid';
 }
 
-function setPanelCollapsed(collapsed, { save = true } = {}) {
-  if (collapsed === isPanelCollapsed()) return;
-  document.querySelector('.layout').classList.toggle('map-full', collapsed);
+/** Marges de sécurité de l'écran (encoche, barre d'accueil), mesurées une fois. */
+const safeArea = (() => {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+  document.body.append(probe);
+  const { paddingTop, paddingBottom } = getComputedStyle(probe);
+  probe.remove();
+  return { top: parseFloat(paddingTop) || 0, bottom: parseFloat(paddingBottom) || 0 };
+})();
+
+/** Hauteurs (px) des trois positions de la feuille. */
+function sheetHeights() {
+  const vh = window.innerHeight;
+  return {
+    peek: 84 + safeArea.bottom,
+    mid: Math.round(vh * 0.52),
+    full: Math.round(vh - safeArea.top - 64), // laisse visibles les crédits de la carte
+  };
+}
+
+function currentSheetHeight() {
+  return parseFloat(panel.style.getPropertyValue('--sheet-h')) || sheetHeights()[sheetState];
+}
+
+/** Applique une hauteur de feuille ; sans animation pendant que le doigt la déplace. */
+function setSheetHeight(height, { animate = true } = {}) {
+  panel.classList.toggle('dragging', !animate);
+  panel.style.setProperty('--sheet-h', `${Math.round(height)}px`);
+  document.querySelector('.layout').classList.toggle('map-full', height <= sheetHeights().peek + 12);
+  // Les boutons de la carte s'effacent quand la feuille monte jusqu'à eux.
+  const opacity = Math.max(0, Math.min(1, (window.innerHeight - height - 150) / 60));
+  const floating = document.querySelector('.floating-buttons');
+  floating.style.opacity = String(opacity);
+  floating.style.pointerEvents = opacity < 0.5 ? 'none' : '';
+}
+
+/** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
+function snapTo(state, { save = true, fit = true } = {}) {
+  sheetState = state;
+  const collapsed = state === 'peek';
   const toggle = $('panel-toggle');
   toggle.setAttribute('aria-expanded', String(!collapsed));
   toggle.setAttribute(
     'aria-label',
     collapsed ? 'Afficher le panneau des critères et résultats' : 'Réduire le panneau pour voir la carte en plein écran',
   );
+  if (mobileQuery.matches) {
+    setSheetHeight(sheetHeights()[state]);
+  } else {
+    panel.style.removeProperty('--sheet-h');
+    panel.classList.remove('dragging');
+    document.querySelector('.layout').classList.toggle('map-full', collapsed);
+    const floating = document.querySelector('.floating-buttons');
+    floating.style.opacity = '';
+    floating.style.pointerEvents = '';
+  }
   updatePeek();
-  if (save) storage.set(KEYS.panelCollapsed, collapsed);
-  // Une fois l'animation terminée, la carte occupe la nouvelle place et se recadre sur le parcours.
-  setTimeout(() => {
-    map.invalidateSize();
-    if (state.selectedId) fitToRoute(state.selectedId);
-  }, 330);
+  if (save) storage.set(KEYS.panelCollapsed, state);
+  // Une fois l'animation terminée, la carte se recadre sur le parcours, au-dessus de la feuille.
+  if (fit && state !== 'full') {
+    setTimeout(() => {
+      if (sheetState !== state) return; // un autre geste a eu lieu entre-temps
+      map.invalidateSize();
+      if (selectedRouteId()) fitToRoute(selectedRouteId(), { animate: mobileQuery.matches });
+    }, 340);
+  }
 }
 
-// Toucher la poignée bascule le panneau ; la glisser vers le bas le réduit, vers le haut le rouvre.
+const selectedRouteId = () => (state.routes.some((r) => r.id === state.selectedId) ? state.selectedId : null);
+
+// Glisser la poignée : la feuille suit le doigt, puis se cale sur la position la plus proche
+// en tenant compte de l'élan (un petit coup rapide suffit à changer de position).
 {
   const toggle = $('panel-toggle');
-  let startY = null;
-  let swiped = false;
+  let drag = null;
+  let suppressClick = false;
+
+  const nearestState = (height) => {
+    const heights = sheetHeights();
+    return SHEET_STATES.reduce((best, s) => (Math.abs(heights[s] - height) < Math.abs(heights[best] - height) ? s : best), 'mid');
+  };
+
   toggle.addEventListener('pointerdown', (event) => {
-    startY = event.clientY;
-    swiped = false;
-    // Le geste continue d'être suivi même si le doigt sort de la poignée.
+    if (!mobileQuery.matches) return;
     toggle.setPointerCapture(event.pointerId);
+    drag = {
+      startY: event.clientY,
+      startHeight: currentSheetHeight(),
+      startState: sheetState,
+      moved: false,
+      samples: [{ y: event.clientY, t: event.timeStamp }],
+    };
   });
-  toggle.addEventListener('pointerup', (event) => {
-    if (startY === null) return;
-    const dy = event.clientY - startY;
-    startY = null;
-    if (Math.abs(dy) > 30) {
-      swiped = true;
-      setPanelCollapsed(dy > 0);
+
+  toggle.addEventListener('pointermove', (event) => {
+    if (!drag) return;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dy) < 4) return;
+    drag.moved = true;
+    const { peek, full } = sheetHeights();
+    let height = drag.startHeight - dy;
+    // Résistance élastique au-delà des limites.
+    if (height > full) height = full + (height - full) * 0.25;
+    if (height < peek) height = peek - (peek - height) * 0.25;
+    setSheetHeight(height, { animate: false });
+    drag.samples.push({ y: event.clientY, t: event.timeStamp });
+    if (drag.samples.length > 6) drag.samples.shift();
+  });
+
+  const endDrag = (event) => {
+    if (!drag) return;
+    const { moved, samples, startState } = drag;
+    drag = null;
+    if (!moved) return; // simple toucher : géré par « click »
+    suppressClick = true;
+    const first = samples[0];
+    const last = { y: event.clientY, t: event.timeStamp };
+    const velocity = last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0; // px/ms, positif vers le bas
+    if (Math.abs(velocity) > 0.45) {
+      // Geste vif : position suivante dans le sens du geste.
+      const index = SHEET_STATES.indexOf(startState) + (velocity > 0 ? -1 : 1);
+      snapTo(SHEET_STATES[Math.max(0, Math.min(SHEET_STATES.length - 1, index))]);
+    } else {
+      // Geste lent : position la plus proche de l'endroit où la feuille a été lâchée.
+      snapTo(nearestState(currentSheetHeight()));
     }
-  });
+  };
+  toggle.addEventListener('pointerup', endDrag);
+  toggle.addEventListener('pointercancel', endDrag);
+
   toggle.addEventListener('click', () => {
-    if (swiped) {
-      swiped = false;
+    if (suppressClick) {
+      suppressClick = false;
       return;
     }
-    setPanelCollapsed(!isPanelCollapsed());
+    snapTo(sheetState === 'peek' ? 'mid' : 'peek');
   });
-}
 
+  // Rotation de l'écran, clavier virtuel, passage téléphone ↔ ordinateur : on recale le panneau.
+  window.addEventListener('resize', () => snapTo(sheetState, { save: false, fit: false }));
+  mobileQuery.addEventListener('change', () => snapTo(sheetState, { save: false }));
+}
 // MARK: - Compte
 
 const account = initAccount({
@@ -693,5 +802,5 @@ $('welcome').querySelector('a').addEventListener('click', dismissWelcome);
 
 buildForm();
 syncForm();
-setPanelCollapsed(storage.get(KEYS.panelCollapsed, false), { save: false });
+snapTo(sheetState, { save: false, fit: false });
 locate({ silent: true });
