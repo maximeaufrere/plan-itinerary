@@ -2301,3 +2301,65 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
     :root:not([data-theme="light"]) .tabbar { box-shadow: 0 14px 30px rgb(0 0 0 / 0.55); }
   }
 }
+
+/* ==========================================================================
+   Arrondis harmonisés : une seule échelle, emboîtée comme sur iOS
+   (un élément placé dans un autre a un arrondi plus petit).
+   ========================================================================== */
+:root {
+  --radius-sheet: 30px;   /* carte flottante : feuille + barre, mise en route, fenêtres */
+  --radius-card: 20px;    /* cartes dans la feuille */
+  --radius-control: 14px; /* champs, sélecteurs, tuiles */
+  --radius-inner: 10px;   /* élément dans un contrôle (segment actif, suggestion) */
+  --radius-small: 6px;    /* étiquettes */
+  --radius-pill: 999px;   /* boutons, pastilles, barres */
+}
+
+/* Cartes flottantes */
+dialog, dialog.sheet { border-radius: var(--radius-sheet); }
+.onboarding-sheet { border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; }
+@media (min-width: 600px) { .onboarding-sheet { border-radius: var(--radius-sheet); } }
+@media (max-width: 899px) {
+  .panel { border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; }
+  .tabbar { border-radius: 0 0 var(--radius-sheet) var(--radius-sheet); }
+}
+@media (min-width: 900px) {
+  .layout.map-full ~ .tabbar { border-radius: var(--radius-card); }
+  .panel-handle { border-radius: var(--radius-control) 0 0 var(--radius-control); }
+}
+
+/* Cartes */
+.card, .profile-card, .settings-card, .list, .group.sliders, .limit-card, .more-button, .month-summary,
+.route-item, .account-row, .skeleton-card, .toast, .welcome, .status.error,
+.guide-quick, .guide-toc, .guide-tip, .guide-card, .guide details {
+  border-radius: var(--radius-card);
+}
+
+/* Contrôles et tuiles */
+input[type="number"], input[type="text"], input[type="password"], input[type="email"], input[type="date"], select,
+.auth-form input[type="email"], .auth-form input[type="password"], #change-password-form input,
+#outing-form input[type="text"], #outing-form input[type="date"], .onboarding-field input,
+.address-input, .suggestions, .segmented, .activity-option span, .stat, .tile-actions button,
+.layer-options label, .item-list li, .favorites-list li, .unit-input, .icon-button, .item-action,
+.thumbnail-empty, .leaflet-bar, .leaflet-touch .leaflet-bar, .map .leaflet-control-attribution,
+.leaflet-container .leaflet-control-attribution {
+  border-radius: var(--radius-control);
+}
+.unit-input input[type="number"] { border-radius: 0; }
+
+/* Éléments dans un contrôle */
+.segmented span, .suggestion { border-radius: var(--radius-inner); }
+.segmented.compact span { border-radius: var(--radius-inner); }
+
+/* Étiquettes */
+.chart-label, .chart-tip { border-radius: var(--radius-small); }
+
+/* Capsules : boutons, pastilles, compteurs, interrupteurs, barres */
+button.primary, button.secondary, button.tonal, a.button, .chip span, .ui-chip, .ui-button, .tag, .card-tag,
+.badge, .over-limit, .stepper, .switch, .quick-generate, .map-pill, .criteria-summary em, .tab,
+.surface-bar, .quota-bar, .quota-bar span, .skeleton-card b, .grabber, .onboarding-dots i {
+  border-radius: var(--radius-pill);
+}
+input[type="range"]::-webkit-slider-runnable-track { border-radius: var(--radius-pill); }
+input[type="range"]::-moz-range-track { border-radius: var(--radius-pill); }
+.surface-legend i { border-radius: 3px; }

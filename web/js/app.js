@@ -861,7 +861,7 @@ function renderDetails(route) {
     <div class="stats stats-4">
       ${stat('D+', formatElevation(route.ascent))}
       ${stat('D−', formatElevation(route.descent))}
-      ${stat('Point haut', formatElevation(route.maxAltitude))}
+      ${stat('Sommet', formatElevation(route.maxAltitude))}
       ${stat('Repassage', route.overlap == null ? '–' : formatPercent(route.overlap))}
     </div>
     ${
