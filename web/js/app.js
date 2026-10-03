@@ -290,8 +290,6 @@ function advancedTags() {
   return tags;
 }
 
-const proposalsLabel = (n) => `Générer ${n} parcours`;
-
 function syncForm() {
   const { criteria } = state;
   const activity = ACTIVITIES[criteria.activity];
@@ -323,7 +321,6 @@ function syncForm() {
   $('more-summary').innerHTML = tags.length
     ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')
     : '<span class="muted">Dénivelé, revêtement, options</span>';
-  $('more-generate-label').textContent = proposalsLabel(criteria.proposals);
   $('criteria-summary-text').textContent = criteriaSummary();
   updatePeek();
 }
@@ -342,7 +339,6 @@ function setMoreOpen(open) {
   $('criteria-main').hidden = open;
   $('open-more').setAttribute('aria-expanded', String(open));
   $('panel-scroll').scrollTo({ top: 0 });
-  if (open && sheetState !== 'full') snapTo('full', { fit: false });
 }
 
 /** Après un calcul, les critères se replient pour laisser la place aux propositions. */
