@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { defaultCriteria, estimatedDuration, sanitizeCriteria, score } from '../js/criteria.js';
-import { generateRoutes } from '../js/generator.js';
+import { generateRoutes, selectRoutes } from '../js/generator.js';
 import { distance, destination } from '../js/geo.js';
 import { toGpx } from '../js/gpx.js';
 import { OrsError } from '../js/ors.js';
@@ -185,4 +185,35 @@ test('durée : kilomètre-effort à pied, vitesse moyenne à vélo', () => {
   assert.equal(estimatedDuration(route, 'running', { running: 12 }), 3600);
   // À vélo, le D+ ne s'ajoute pas : 10 km à 20 km/h = 30 min.
   assert.equal(estimatedDuration(route, 'bike', { bike: 20 }), 1800);
+});
+
+test('D+ max : les parcours au-dessus de la limite sont écartés', async () => {
+  const climbs = [400, 120, 260, 90, 300, 180];
+  let n = 0;
+  const fetchRoute = async () => {
+    const climb = climbs[n++ % climbs.length];
+    return { coordinates: [start, start], elevations: [100, 100 + climb], distance: 10_000, ascent: null, descent: null };
+  };
+  const criteria = { ...defaultCriteria(), proposals: 3, maxGain: 200 };
+  const { routes, maxGainUnmet } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+
+  assert.equal(maxGainUnmet, undefined);
+  assert.ok(routes.length > 0);
+  assert.ok(routes.every((r) => r.ascent <= 200), routes.map((r) => r.ascent).join(','));
+  // Davantage de directions explorées quand une limite de D+ est fixée.
+  assert.ok(n >= criteria.proposals + 3);
+});
+
+test('D+ max impossible à respecter : les moins vallonnés, signalés', () => {
+  const route = (id, ascent) => ({ id, ascent, score: 0, distance: 10_000 });
+  const { routes, maxGainUnmet } = selectRoutes([route('a', 500), route('b', 250), route('c', 380)], { ...defaultCriteria(), proposals: 2, maxGain: 100 });
+  assert.equal(maxGainUnmet, true);
+  assert.deepEqual(routes.map((r) => r.id), ['b', 'c']);
+  assert.ok(routes.every((r) => r.overMaxGain));
+});
+
+test('sans limite de D+, rien n\'est écarté', () => {
+  const route = (id, ascent, score) => ({ id, ascent, score, distance: 10_000 });
+  const { routes } = selectRoutes([route('a', 900, 2), route('b', 50, 1)], { ...defaultCriteria(), proposals: 3 });
+  assert.deepEqual(routes.map((r) => r.id), ['b', 'a']);
 });

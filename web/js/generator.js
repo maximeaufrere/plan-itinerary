@@ -34,8 +34,9 @@ export async function generateRoutes({ start, end, criteria, apiKey, signal, onP
   };
 
   let buildCandidate;
-  // On explore un peu plus de candidats que le nombre de propositions demandées.
-  let candidateCount = criteria.proposals + 1;
+  // On explore un peu plus de candidats que le nombre de propositions demandées,
+  // et davantage encore quand une limite de D+ risque d'en écarter.
+  let candidateCount = criteria.proposals + 1 + (criteria.maxGain != null ? 2 : 0);
 
   if (criteria.shape === 'point_to_point') {
     onProgress?.(0, candidateCount + 1);
@@ -77,7 +78,25 @@ export async function generateRoutes({ start, end, criteria, apiKey, signal, onP
   if (candidates.length === 0) {
     throw lastError ?? new Error('Aucun itinéraire trouvé autour de ce point. Essayez une autre distance ou un autre départ.');
   }
-  return { routes: candidates.sort((a, b) => a.score - b.score).slice(0, criteria.proposals) };
+  return selectRoutes(candidates, criteria);
+}
+
+/**
+ * Garde les meilleurs candidats. Avec une limite de D+, ceux qui la dépassent sont écartés ;
+ * si aucun ne la respecte, on garde les moins vallonnés et on le signale.
+ * @returns {{ routes: object[], maxGainUnmet?: boolean, overMaxGain?: number }}
+ */
+export function selectRoutes(candidates, criteria) {
+  const sorted = [...candidates].sort((a, b) => a.score - b.score);
+  if (criteria.maxGain == null) return { routes: sorted.slice(0, criteria.proposals) };
+
+  for (const route of sorted) route.overMaxGain = route.ascent != null && route.ascent > criteria.maxGain;
+  const within = sorted.filter((route) => !route.overMaxGain);
+  if (within.length) {
+    return { routes: within.slice(0, criteria.proposals), overMaxGain: sorted.length - within.length };
+  }
+  const leastHilly = [...sorted].sort((a, b) => a.ascent - b.ascent);
+  return { routes: leastHilly.slice(0, criteria.proposals), maxGainUnmet: true };
 }
 
 /** Répète `attempt(scale)` en corrigeant l'échelle selon l'écart à la distance visée ; garde le meilleur essai. */

@@ -385,7 +385,10 @@ $('proposals-plus').addEventListener('click', () => updateCriteria({ proposals: 
 $('limit-gain').addEventListener('change', (event) =>
   updateCriteria({ maxGain: event.target.checked ? Number($('max-gain').value) || 200 : null }),
 );
-$('max-gain').addEventListener('change', (event) => updateCriteria({ maxGain: Number(event.target.value) }));
+// La limite est prise en compte dès la saisie (pas seulement en quittant le champ).
+$('max-gain').addEventListener('input', (event) => {
+  if (event.target.value !== '') updateCriteria({ maxGain: Number(event.target.value) });
+});
 $('locate').addEventListener('click', () => centerOnMe());
 $('quick-generate').addEventListener('click', () => $('criteria-form').requestSubmit());
 
@@ -433,7 +436,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
   setStatus('Calcul des itinéraires…');
 
   try {
-    const { routes, directIsLonger } = await generateRoutes({
+    const { routes, directIsLonger, maxGainUnmet } = await generateRoutes({
       start: state.start,
       end: isPointToPoint() ? state.end : null,
       criteria: state.criteria,
@@ -442,11 +445,17 @@ $('criteria-form').addEventListener('submit', async (event) => {
       onProgress: (index, total) => setStatus(`Calcul de l'itinéraire ${index + 1} sur ${total}…`),
     });
     showRoutes(routes, state.criteria.activity);
-    setStatus(
-      directIsLonger
-        ? `Le trajet direct (${formatDistance(routes[0].distance)}) est déjà plus long que la distance visée : c'est lui qui est proposé.`
-        : '',
-    );
+    const messages = [];
+    if (directIsLonger) {
+      messages.push(`Le trajet direct (${formatDistance(routes[0].distance)}) est déjà plus long que la distance visée : c'est lui qui est proposé.`);
+    }
+    if (maxGainUnmet) {
+      messages.push(
+        `Aucun parcours trouvé sous ${formatElevation(state.criteria.maxGain)} de D+ : voici les moins vallonnés. ` +
+          'Essayez une distance plus courte, un autre départ, ou générez à nouveau.',
+      );
+    }
+    setStatus(messages.join(' '));
   } catch (error) {
     if (error.name === 'AbortError') setStatus('Génération annulée.');
     else setStatus(error.message, true);
@@ -493,6 +502,7 @@ function renderRoutes() {
         <small>${state.routes.length > 1 ? `Proposition ${index + 1}` : escapeHtml(route.name ?? 'Itinéraire')}</small>
         <strong>${formatDistance(route.distance)}</strong>
         <span>↗ ${formatElevation(route.ascent)} · <span class="card-duration">${routeDuration(route)}</span></span>
+        ${route.overMaxGain ? '<span class="over-limit">D+ &gt; max</span>' : ''}
         ${sparkline(route.profile)}
       </button>`,
     )

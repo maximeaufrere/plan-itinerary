@@ -1688,3 +1688,15 @@ html:has(body.no-page-zoom), body.no-page-zoom { touch-action: pan-x pan-y; }
 
 .quick-generate .arrow { transition: transform 0.2s var(--ease); }
 .quick-generate:hover .arrow { transform: translateX(3px); }
+
+.list-label small { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 500; color: var(--muted); line-height: 1.3; }
+.over-limit {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
