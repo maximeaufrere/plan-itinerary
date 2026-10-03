@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { defaultCriteria, estimatedDuration, sanitizeCriteria, score } from '../js/criteria.js';
 import { generateRoutes, selectRoutes } from '../js/generator.js';
-import { distance, destination } from '../js/geo.js';
+import { cumulativeDistances, distance, destination } from '../js/geo.js';
 import { toGpx } from '../js/gpx.js';
 import { OrsError } from '../js/ors.js';
 
@@ -26,19 +26,60 @@ function fakeFetch({ distanceFor, climb = 50 }) {
   return { calls, fetchRoute };
 }
 
-test('boucle : corrige la longueur demandée quand ORS s\'écarte de la cible', async () => {
+test('boucle : nos points de passage, puis correction de l\'échelle quand ORS s\'écarte de la cible', async () => {
   const criteria = { ...defaultCriteria(), distanceKm: 10, proposals: 1 };
-  // ORS rend 30 % de plus que demandé.
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: (r) => r.roundTrip.length * 1.3 });
+  // Les routes font 1,6 fois la ligne droite, plus que les 1,25 prévus.
+  const { calls, fetchRoute } = fakeFetch({ distanceFor: (r) => cumulativeDistances(r.points).at(-1) * 1.6 });
 
-  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(routes.length, 1);
-  assert.equal(calls[0].roundTrip.length, 10_000);
-  assert.equal(calls[1].roundTrip.length, Math.round(10_000 / 1.3));
-  assert.ok(Math.abs(routes[0].distance - 10_000) < 10);
+  assert.equal(calls[0].roundTrip, undefined);
+  assert.ok(calls[0].points.length >= 5, 'départ + au moins 3 points de passage + retour');
+  assert.deepEqual(calls[0].points[0], start);
+  assert.deepEqual(calls[0].points.at(-1), start);
+  const first = cumulativeDistances(calls[0].points).at(-1);
+  const second = cumulativeDistances(calls[1].points).at(-1);
+  assert.ok(Math.abs(first * 1.25 - 10_000) < 50, 'première forme dimensionnée pour 10 km');
+  assert.ok(Math.abs(second / first - 1.25 / 1.6) < 0.01, 'deuxième essai réduit à l\'échelle');
+  assert.ok(Math.abs(routes[0].distance - 10_000) < 100);
   assert.equal(routes[0].ascent, 50);
   assert.equal(routes[0].maxAltitude, 250);
+});
+
+test('boucle : relief estimé avant le tracé, les formes plates passent en premier', async () => {
+  // Terrain fictif : plat au sud du départ, très pentu au nord.
+  const terrain = {
+    load: async () => {},
+    elevationAt: ([lat]) => (lat > start[0] ? 200 + (lat - start[0]) * 50_000 : 200),
+  };
+  const criteria = { ...defaultCriteria(), elevation: 'flat', proposals: 2 };
+  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 10_000 });
+
+  await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain });
+
+  const centerLat = (call) => call.points.reduce((sum, [lat]) => sum + lat, 0) / call.points.length;
+  assert.ok(centerLat(calls[0]) < start[0] - 0.005, 'la meilleure forme part vers le sud');
+  for (const call of calls) assert.ok(centerLat(call) < start[0] + 0.002, 'aucune forme ne part vers le nord');
+});
+
+test('boucle : formes de rechange, puis boucles ORS en dernier recours', async () => {
+  const criteria = { ...defaultCriteria(), proposals: 1 };
+  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 10_000 });
+  const failing = async (request) => {
+    if (!request.roundTrip) {
+      calls.push(request);
+      throw new OrsError('Point non routable', 404);
+    }
+    return fetchRoute(request);
+  };
+
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute: failing, terrain: null });
+
+  assert.equal(routes.length, 1);
+  const ours = calls.filter((c) => !c.roundTrip);
+  assert.equal(ours.length, 2 + 3, '2 formes voulues + 3 de rechange');
+  assert.ok(calls.at(-1).roundTrip);
 });
 
 test('aller-retour : passe par un point de demi-tour puis revient au départ', async () => {

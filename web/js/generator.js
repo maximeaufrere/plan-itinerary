@@ -1,29 +1,41 @@
 import { majorRoadShare, overlapRatio, surfaceShares } from './analysis.js';
 import { ACTIVITIES, score } from './criteria.js';
-import { bearing, cumulativeDistances, destination, distance, elevationGainAndLoss } from './geo.js';
+import { cumulativeDistances, elevationGainAndLoss } from './geo.js';
 import { fetchRoute as orsFetchRoute } from './ors.js';
+import { detourShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
+import { defaultTerrain } from './terrain.js';
 
 /** Écart relatif à la distance visée considéré comme acceptable. */
 const DISTANCE_TOLERANCE = 0.05;
 /** Nombre maximal de requêtes par candidat (le quota gratuit ORS est d'environ 40 requêtes/minute). */
 const MAX_ADJUSTMENTS = 2;
-/** Rapport moyen entre distance par la route et distance à vol d'oiseau. */
-const DETOUR_FACTOR = 1.25;
-/** Positions (degrés) du point de détour sur l'ellipse A → B, en alternant les deux côtés. */
-const DETOUR_ANGLES = [90, 270, 60, 300, 120, 240];
+/** Formes de rechange essayées quand certaines ne peuvent pas être tracées. */
+const SPARE_SHAPES = 3;
 
 /**
  * Génère plusieurs itinéraires et les classe selon les critères.
  *
- * - Boucle : OpenRouteService sait générer une boucle d'une longueur donnée (option `round_trip`) ;
- *   chaque candidat utilise une graine différente, et on corrige la longueur demandée si l'écart est trop grand.
- * - Aller-retour : on vise un point dans une direction donnée, puis on corrige son éloignement.
- * - A → B : si le trajet direct est plus court que la distance visée, on passe par un point de détour
- *   placé sur une ellipse dont A et B sont les foyers (toutes les positions donnent la même distance à vol d'oiseau).
+ * 1. On dessine de nombreuses formes de parcours (points de passage) autour du départ : voir planner.js.
+ * 2. On estime leur relief avec les dalles d'altitude (sans requête OpenRouteService), et on garde
+ *    les formes les plus proches des critères, dans des directions variées.
+ * 3. OpenRouteService trace chaque forme retenue par les chemins ; on corrige l'échelle si la distance s'écarte.
+ * 4. Les tracés obtenus sont notés précisément (distance, D+, revêtement, repassages…) et triés.
  *
- * @returns {Promise<{routes: object[], directIsLonger?: boolean}>}
+ * Si aucune boucle n'a pu être tracée ainsi, on se rabat sur les boucles générées par OpenRouteService.
+ *
+ * @returns {Promise<{routes: object[], directIsLonger?: boolean, maxGainUnmet?: boolean}>}
  */
-export async function generateRoutes({ start, end, criteria, apiKey, signal, onProgress, fetchRoute = orsFetchRoute }) {
+export async function generateRoutes({
+  start,
+  end,
+  criteria,
+  apiKey,
+  signal,
+  onProgress,
+  fetchRoute = orsFetchRoute,
+  terrain = defaultTerrain(),
+  random = Math.random,
+}) {
   const profile = ACTIVITIES[criteria.activity].profile;
   const target = criteria.distanceKm * 1000;
   const request = (points, roundTrip) => fetchRoute({ apiKey, profile, points, roundTrip, signal });
@@ -33,11 +45,11 @@ export async function generateRoutes({ start, end, criteria, apiKey, signal, onP
     return route;
   };
 
-  let buildCandidate;
   // On explore un peu plus de candidats que le nombre de propositions demandées,
   // et davantage encore quand une limite de D+ risque d'en écarter.
-  let candidateCount = criteria.proposals + 1 + (criteria.maxGain != null ? 2 : 0);
+  const candidateCount = criteria.proposals + 1 + (criteria.maxGain != null ? 2 : 0);
 
+  let shapes;
   if (criteria.shape === 'point_to_point') {
     onProgress?.(0, candidateCount + 1);
     const direct = await request([start, end]);
@@ -45,40 +57,71 @@ export async function generateRoutes({ start, end, criteria, apiKey, signal, onP
       // Impossible de faire plus court que le trajet direct.
       return { routes: [finish(direct, 'route-direct')], directIsLonger: true };
     }
-    const straight = distance(start, end);
-    candidateCount = Math.min(candidateCount, DETOUR_ANGLES.length);
-    buildCandidate = (index) => buildDetour(request, start, end, target, straight, DETOUR_ANGLES[index]);
+    shapes = detourShapes(start, end, target);
   } else if (criteria.shape === 'loop') {
-    const baseSeed = Math.floor(Math.random() * 10_000);
-    buildCandidate = (index) => buildLoop(request, start, target, { points: 3 + (index % 3), seed: baseSeed + index });
+    shapes = loopShapes(start, target, { random });
   } else {
-    const baseBearing = Math.random() * 360;
-    buildCandidate = (index) => buildOutAndBack(request, start, target, baseBearing + (index * 360) / candidateCount);
+    shapes = outAndBackShapes(start, target, { random });
   }
+
+  await rateShapes(shapes, criteria, terrain, signal);
+  const ranked = rankShapes(shapes, candidateCount);
 
   const candidates = [];
   let lastError;
-  for (let index = 0; index < candidateCount; index++) {
-    signal?.throwIfAborted();
-    onProgress?.(index, candidateCount);
-    try {
-      candidates.push(finish(await buildCandidate(index), `route-${index}`));
-    } catch (error) {
-      if (error.name === 'AbortError') throw error;
-      if (error.isFatal) {
-        // Clé invalide ou quota atteint : inutile d'insister, on garde ce qu'on a déjà.
-        if (candidates.length === 0) throw error;
-        break;
+  // Essaie `build(0)`, `build(1)`… jusqu'à obtenir `wanted` candidats ou épuiser `attempts` essais.
+  const tryCandidates = async (wanted, attempts, build) => {
+    for (let index = 0; index < attempts && candidates.length < wanted; index++) {
+      signal?.throwIfAborted();
+      onProgress?.(candidates.length, wanted);
+      try {
+        candidates.push(finish(await build(index), `route-${candidates.length}`));
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        if (error.isFatal) {
+          // Clé invalide ou quota atteint : inutile d'insister, on garde ce qu'on a déjà.
+          if (candidates.length === 0) throw error;
+          return false;
+        }
+        // Forme impossible à suivre (mer, zone sans chemin…) : on passe à la suivante.
+        lastError = error;
       }
-      // Direction impossible (mer, zone sans chemin…) : on passe au candidat suivant.
-      lastError = error;
     }
+    return true;
+  };
+
+  const attempts = Math.min(ranked.length, candidateCount + SPARE_SHAPES);
+  const canContinue = await tryCandidates(candidateCount, attempts, (index) =>
+    adjustToTarget(target, (scale) => request(ranked[index].points(scale))),
+  );
+
+  if (canContinue && candidates.length === 0 && criteria.shape === 'loop') {
+    const baseSeed = Math.floor(random() * 10_000);
+    await tryCandidates(candidateCount, candidateCount, (index) =>
+      buildOrsLoop(request, start, target, { points: 3 + (index % 3), seed: baseSeed + index }),
+    );
   }
 
   if (candidates.length === 0) {
     throw lastError ?? new Error('Aucun itinéraire trouvé autour de ce point. Essayez une autre distance ou un autre départ.');
   }
   return selectRoutes(candidates, criteria);
+}
+
+/** Note chaque forme d'après le relief estimé ; sans modèle de terrain, elles restent à égalité. */
+async function rateShapes(shapes, criteria, terrain, signal) {
+  if (!terrain) return;
+  const outlines = shapes.map((shape) => shape.points(1));
+  try {
+    await terrain.load(outlines.flat(), signal);
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    return;
+  }
+  shapes.forEach((shape, index) => {
+    shape.preview = previewShape(outlines[index], (point) => terrain.elevationAt(point));
+    shape.previewScore = previewScore(shape.preview, criteria);
+  });
 }
 
 /**
@@ -112,28 +155,9 @@ async function adjustToTarget(target, attempt) {
   return best;
 }
 
-function buildLoop(request, start, target, { points, seed }) {
+/** Boucle générée entièrement par OpenRouteService (option `round_trip`), utilisée en secours. */
+function buildOrsLoop(request, start, target, { points, seed }) {
   return adjustToTarget(target, (scale) => request([start], { length: Math.round(target * scale), points, seed }));
-}
-
-function buildOutAndBack(request, start, target, heading) {
-  const radius = target / 2 / DETOUR_FACTOR;
-  return adjustToTarget(target, (scale) => request([start, destination(start, radius * scale, heading), start]));
-}
-
-function buildDetour(request, start, end, target, straight, angle) {
-  const axis = bearing(start, end);
-  const center = destination(start, straight / 2, axis);
-  const minSemiMajor = (straight / 2) * 1.05;
-  return adjustToTarget(target, (scale) => {
-    // Ellipse de foyers A et B : |AW| + |WB| = 2a pour tout point W.
-    const a = Math.max((target / (2 * DETOUR_FACTOR)) * scale, minSemiMajor);
-    const b = Math.sqrt(a * a - (straight / 2) ** 2);
-    const theta = (angle * Math.PI) / 180;
-    const alongAxis = destination(center, a * Math.cos(theta), axis);
-    const waypoint = destination(alongAxis, b * Math.sin(theta), axis + 90);
-    return request([start, waypoint, end]);
-  });
 }
 
 function toRoute(raw, id) {

@@ -21,10 +21,15 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
   si OpenRouteService est injoignable ou si aucune clé n'est configurée)
 - Activités : course (piéton), trail (randonnée), vélo de route, vélo, VTT — chacune avec son profil de calcul ORS
 - Types de parcours :
-  - **Boucle** (option `round_trip` d'ORS, longueur corrigée si l'écart dépasse 5 %)
-  - **Aller-retour**
+  - **Boucle** : notre propre algorithme (`web/js/planner.js`) dessine 24 polygones de 3 à 5 points de passage
+    autour du départ, estime leur relief avec les dalles d'altitude
+    [Terrarium](https://registry.opendata.aws/terrain-tiles/) (AWS Open Data, sans clé), puis fait tracer par ORS
+    les meilleures formes dans des directions variées ; échelle corrigée si l'écart dépasse 5 %, formes de rechange
+    si une forme est impossible, et boucles `round_trip` d'ORS en dernier recours
+  - **Aller-retour** : point de demi-tour choisi parmi 16 directions selon le relief estimé
   - **A → B avec détour** : si le trajet direct est trop court, passage par un point placé sur une ellipse
-    dont A et B sont les foyers (toutes ses positions donnent la même distance à vol d'oiseau)
+    dont A et B sont les foyers (toutes ses positions donnent la même distance à vol d'oiseau), position choisie
+    selon le relief estimé
 - Critères : profil de dénivelé, D+ maximal, revêtement (bitume / chemins), éviter les grands axes
 - Classement des propositions selon ces critères, avec une **pénalité pour les rues empruntées deux fois**
   (sauf en aller-retour)
@@ -82,8 +87,8 @@ du schéma. Ne mettez **jamais** la clé « service_role » dans l'app.
 L'app demande une clé API gratuite au premier calcul (bouton ⚙️) : créez un compte sur
 [openrouteservice.org](https://openrouteservice.org/dev/#/signup) et copiez la clé de votre tableau de bord.
 La clé est enregistrée **uniquement dans le navigateur** de l'appareil (jamais dans le dépôt). Offre gratuite :
-environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme jusqu'à 2 par proposition
-(+1 pour le trajet direct en mode A → B).
+environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme jusqu'à 2 par forme tracée
+(propositions + 1, + 2 avec un D+ maximum, + 3 formes de rechange au besoin ; +1 pour le trajet direct en mode A → B).
 
 ## Lancer en local
 

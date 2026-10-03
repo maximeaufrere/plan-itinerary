@@ -63,7 +63,7 @@
       </ol>
       <p class="guide-tip">
         La clé reste enregistrée <strong>uniquement sur votre appareil</strong>. L'offre gratuite permet environ
-        2 000 itinéraires par jour : largement de quoi faire (une génération en utilise au plus 13, souvent moins de 8).
+        2 000 itinéraires par jour : largement de quoi faire (une génération en utilise souvent moins de 10, rarement plus de 20).
       </p>
     </section>
 
@@ -213,8 +213,9 @@
       <h2 id="fonctionnement-title"><span class="guide-num">9</span> Comment les parcours sont calculés</h2>
       <p>Pour les curieux, voici ce qui se passe quand vous touchez « Générer » :</p>
       <ol class="guide-steps">
-        <li>L'app demande à OpenRouteService plusieurs parcours candidats, chacun dans une direction différente.</li>
-        <li>Si un candidat est trop long ou trop court, elle le recalcule une fois en corrigeant la longueur demandée.</li>
+        <li>L'app dessine une vingtaine de formes de parcours autour du départ (des points de passage), orientées dans toutes les directions.</li>
+        <li>Elle estime le relief de chacune grâce à une carte des altitudes, sans rien demander à OpenRouteService : les formes qui correspondent le mieux à votre profil de dénivelé et à votre D+ maximum passent en premier, tout en restant variées.</li>
+        <li>OpenRouteService trace seulement les meilleures formes par de vrais chemins. Si un tracé est trop long ou trop court, il est recalculé une fois à la bonne échelle ; si une forme est impossible (lac, zone sans chemin), une forme de rechange prend sa place.</li>
         <li>Pour chaque candidat, elle mesure le dénivelé, les repassages, le revêtement et la part de grands axes.</li>
         <li>Elle donne une note à chacun selon vos critères et vous présente les meilleurs.</li>
       </ol>
@@ -253,7 +254,7 @@
       </details>
       <details>
         <summary>Mes données sont-elles envoyées quelque part ?</summary>
-        <p>Sans compte, votre clé, vos favoris et vos réglages restent sur votre appareil. Avec un compte, ils sont aussi enregistrés dans votre espace en ligne (Supabase), accessible à vous seul ; « Supprimer mon compte » efface tout définitivement. Seuls les points de départ/d'arrivée et vos critères de calcul sont envoyés à OpenRouteService pour calculer les itinéraires, et les fonds de carte sont chargés depuis les serveurs OpenStreetMap.</p>
+        <p>Sans compte, votre clé, vos favoris et vos réglages restent sur votre appareil. Avec un compte, ils sont aussi enregistrés dans votre espace en ligne (Supabase), accessible à vous seul ; « Supprimer mon compte » efface tout définitivement. Seuls les points de départ/d'arrivée et vos critères de calcul sont envoyés à OpenRouteService pour calculer les itinéraires, les fonds de carte sont chargés depuis les serveurs OpenStreetMap et la carte des altitudes depuis AWS (données ouvertes, sans compte).</p>
       </details>
     </section>
 
