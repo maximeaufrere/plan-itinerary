@@ -2220,3 +2220,60 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 .toast button .icon { width: 14px; height: 14px; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @media (min-width: 900px) { .toast { right: auto; width: min(420px, 100%); } }
+
+/* ==========================================================================
+   Aspect flottant façon iOS (téléphone) : barre d'onglets en capsule et
+   feuille arrondie détachée des bords, en verre dépoli. Mêmes couleurs.
+   ========================================================================== */
+@media (max-width: 899px) {
+  :root {
+    --glass-edge: inset 0 0 0 1px color-mix(in srgb, #ffffff 45%, transparent);
+    --glass-shadow: 0 14px 40px rgb(27 38 32 / 0.2), 0 2px 8px rgb(27 38 32 / 0.08);
+  }
+  :root[data-theme="dark"] {
+    --glass-edge: inset 0 0 0 1px color-mix(in srgb, var(--border) 90%, transparent);
+    --glass-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --glass-edge: inset 0 0 0 1px color-mix(in srgb, var(--border) 90%, transparent);
+      --glass-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
+    }
+  }
+
+  .tabbar {
+    left: 16px;
+    right: 16px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    padding: 6px;
+    gap: 4px;
+    border: 0;
+    border-radius: 34px;
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    box-shadow: var(--glass-shadow), var(--glass-edge);
+  }
+  .tab { min-height: 52px; padding: 7px 0 5px; border-radius: 28px; }
+  .tab.active { background: color-mix(in srgb, var(--accent-soft) 85%, transparent); }
+
+  .panel {
+    left: 8px;
+    right: 8px;
+    border-radius: 32px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--bg) 95%, transparent);
+    -webkit-backdrop-filter: blur(26px) saturate(170%);
+    backdrop-filter: blur(26px) saturate(170%);
+    box-shadow: var(--glass-shadow), var(--glass-edge);
+  }
+  .panel-scroll { padding-bottom: 16px; }
+  .layout.map-full .panel-handle { padding-bottom: 12px; }
+
+  /* Boutons flottants assortis */
+  .sheet-actions { left: 16px; right: 16px; }
+  .quick-generate, .map-pill, .map-button { box-shadow: var(--glass-shadow), var(--glass-edge); }
+}
+
+.result-actions .primary { padding: 0 16px; white-space: nowrap; }
+.result-actions .secondary { padding: 0 16px; }

@@ -1009,7 +1009,13 @@ const safeArea = (() => {
   return { top: parseFloat(paddingTop) || 0, bottom: parseFloat(paddingBottom) || 0 };
 })();
 
-const tabbarHeight = () => $('tabbar').offsetHeight;
+/**
+ * Place occupée en bas de l'écran par la barre d'onglets. Sur téléphone, elle flotte au-dessus du bord :
+ * on compte de son haut jusqu'au bas de l'écran, plus un petit espace avant la feuille.
+ */
+const SHEET_GAP = 8;
+const tabbarHeight = () =>
+  mobileQuery.matches ? Math.round(window.innerHeight - $('tabbar').getBoundingClientRect().top) + SHEET_GAP : $('tabbar').offsetHeight;
 
 /** Hauteur du contenu affiché dans la feuille (poignée comprise) ; dernière mesure si la feuille est réduite. */
 let contentHeight = Infinity;

@@ -125,9 +125,17 @@ export function pointsAlong(points, length, interval, { offset = interval } = {}
   const cumulative = cumulativeDistances(points);
   const scale = cumulative.at(-1) > 0 ? length / cumulative.at(-1) : 1;
   const result = [];
+  // Le cap est mesuré entre deux points situés de part et d'autre (±60 m) : les petits zigzags du tracé
+  // (angles de rue) ne font pas pointer les flèches de travers.
+  const span = Math.min(60, interval / scale / 4);
   for (let distance = offset; distance < length - interval * 0.25; distance += interval) {
-    const found = pointAtDistance(points, distance / scale, cumulative);
-    if (found) result.push({ distance, point: found.point, bearing: found.bearing });
+    const at = distance / scale;
+    const found = pointAtDistance(points, at, cumulative);
+    if (!found) continue;
+    const before = pointAtDistance(points, at - span, cumulative).point;
+    const after = pointAtDistance(points, at + span, cumulative).point;
+    const smoothed = before[0] === after[0] && before[1] === after[1] ? found.bearing : bearing(before, after);
+    result.push({ distance, point: found.point, bearing: smoothed });
   }
   return result;
 }

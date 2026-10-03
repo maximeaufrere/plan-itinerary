@@ -28,6 +28,18 @@ test('repères réguliers, recalés sur la longueur officielle', () => {
   assert.deepEqual(pointsAlong([start], 1000, 100), []);
 });
 
+test('flèches de sens : un petit zigzag ne fausse pas la direction', () => {
+  // Tracé vers l'est avec un décrochement de 15 m vers le nord puis retour, toutes les 50 m.
+  const zigzag = [start];
+  for (let i = 1; i <= 40; i++) {
+    const base = destination(start, i * 50, 90);
+    zigzag.push(i % 2 ? destination(base, 15, 0) : base);
+  }
+  for (const { bearing } of pointsAlong(zigzag, 2000, 400, { offset: 200 })) {
+    assert.ok(Math.abs(bearing - 90) < 20, `cap ${Math.round(bearing)}°`);
+  }
+});
+
 test('direction générale d\'un parcours', () => {
   const east = [start, destination(start, 2000, 90), start];
   assert.equal(directionLabel(start, east), 'Vers l\'est');
