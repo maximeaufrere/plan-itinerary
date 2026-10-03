@@ -991,13 +991,30 @@ const safeArea = (() => {
 
 const tabbarHeight = () => $('tabbar').offsetHeight;
 
-/** Hauteurs (px) des trois positions de la feuille, posée sur la barre d'onglets. */
+/** Hauteur du contenu affiché dans la feuille (poignée comprise) ; dernière mesure si la feuille est réduite. */
+let contentHeight = Infinity;
+function measureContent() {
+  const scroll = $('panel-scroll');
+  const view = [...scroll.children].find((element) => !element.hidden);
+  if (!view || scroll.offsetParent === null) return contentHeight;
+  const style = getComputedStyle(scroll);
+  contentHeight = Math.ceil(
+    view.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + $('panel-toggle').offsetHeight + 8,
+  );
+  return contentHeight;
+}
+
+/**
+ * Hauteurs (px) des trois positions de la feuille, posée sur la barre d'onglets.
+ * La feuille ne monte jamais plus haut que son contenu : peu de contenu, feuille basse.
+ */
 function sheetHeights() {
   const available = window.innerHeight - tabbarHeight();
+  const fit = Math.max(160, measureContent());
   return {
     peek: 78,
-    mid: Math.round(available * 0.55),
-    full: Math.round(available - safeArea.top - 48), // laisse visibles les crédits de la carte
+    mid: Math.min(Math.round(available * 0.55), fit),
+    full: Math.min(Math.round(available - safeArea.top - 48), fit), // laisse visibles les crédits de la carte
   };
 }
 
@@ -1128,6 +1145,17 @@ const selectedRouteId = () => (state.routes.some((r) => r.id === state.selectedI
   window.addEventListener('resize', () => snapTo(sheetState, { save: false, fit: false }));
   mobileQuery.addEventListener('change', () => snapTo(sheetState, { save: false }));
 }
+// Le contenu change (résultats, sous-écran, autre onglet…) : la feuille suit sa hauteur.
+{
+  const refit = () => {
+    if (!mobileQuery.matches || sheetState === 'peek' || panel.classList.contains('dragging')) return;
+    const target = sheetHeights()[sheetState];
+    if (Math.abs(target - currentSheetHeight()) > 4) setSheetHeight(target);
+  };
+  const observer = new ResizeObserver(() => requestAnimationFrame(refit));
+  for (const view of $('panel-scroll').children) observer.observe(view);
+}
+
 // MARK: - Adresses de départ et d'arrivée
 
 addressFields.start = initAddressField({
