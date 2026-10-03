@@ -1,0 +1,18 @@
+name: Diagnostic ORS (temporaire)
+on:
+  push:
+    branches: [diag-ors]
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Préflight CORS
+        run: curl -sS -i -m 30 -X OPTIONS https://api.openrouteservice.org/v2/directions/foot-walking/geojson -H "Origin: https://maximeaufrere.github.io" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" || true
+      - name: POST clé invalide (2 points)
+        run: curl -sS -i -m 30 -X POST https://api.openrouteservice.org/v2/directions/foot-walking/geojson -H "Origin: https://maximeaufrere.github.io" -H "Authorization: invalide" -H "Content-Type: application/json" -d '{"coordinates":[[5.72,45.18],[5.73,45.19]]}' || true
+      - name: POST sans clé
+        run: curl -sS -i -m 30 -X POST https://api.openrouteservice.org/v2/directions/foot-walking/geojson -H "Origin: https://maximeaufrere.github.io" -H "Content-Type: application/json" -d '{"coordinates":[[5.72,45.18],[5.73,45.19]]}' || true
+      - name: Géocodage sans clé valide
+        run: curl -sS -i -m 30 "https://api.openrouteservice.org/geocode/search?api_key=invalide&text=Grenoble" -H "Origin: https://maximeaufrere.github.io" || true
+      - name: Page d'état
+        run: curl -sS -m 30 https://status.openrouteservice.org/ | sed -e 's/<[^>]*>/ /g' | tr -s ' \n' | head -c 3000 || true
