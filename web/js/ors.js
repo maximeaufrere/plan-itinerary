@@ -74,7 +74,7 @@ export class OrsError extends Error {
 }
 
 function describeError(status, apiMessage) {
-  if (status === 401 || status === 403) return 'Clé OpenRouteService invalide. Vérifiez-la dans les réglages (⚙️).';
+  if (status === 401 || status === 403) return 'Clé OpenRouteService invalide : vérifiez-la dans Réglages ▸ Clé OpenRouteService.';
   if (status === 429) return 'Quota OpenRouteService atteint. Réessayez dans une minute (ou demain si le quota du jour est épuisé).';
   return apiMessage ? `OpenRouteService : ${apiMessage}` : `Erreur OpenRouteService (${status}).`;
 }

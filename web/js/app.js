@@ -404,12 +404,36 @@ $('quick-generate').addEventListener('click', () => {
 });
 $('cancel-generate').addEventListener('click', () => state.controller?.abort());
 
+let toastTimer = null;
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  $('toast').hidden = true;
+}
+
+/** Erreur affichée dans une bulle juste au-dessus du bouton « Générer ». */
+function showToast(message) {
+  $('toast-text').textContent = message;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 10_000);
+}
+$('toast-close').addEventListener('click', hideToast);
+
+/** Messages d'information dans le panneau ; les erreurs, dans la bulle près du bouton « Générer ». */
 function setStatus(message, isError = false) {
-  // Une erreur ne doit pas rester cachée derrière le panneau réduit.
-  if (isError && message && sheetState === 'peek') snapTo('mid');
   const status = $('status');
+  if (isError && message) {
+    // La bulle doit rester visible : la feuille ne doit ni masquer ni pousser hors de l'écran le bouton.
+    if (sheetState !== 'mid') snapTo('mid', { fit: false });
+    showToast(message);
+    status.textContent = '';
+    status.classList.remove('error');
+    return;
+  }
+  if (!message) hideToast();
   status.textContent = message;
-  status.classList.toggle('error', isError);
+  status.classList.remove('error');
 }
 
 // MARK: - Génération
