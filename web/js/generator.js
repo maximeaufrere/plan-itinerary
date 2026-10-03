@@ -51,6 +51,7 @@ export async function generateRoutes({
   apiKey,
   signal,
   onProgress,
+  onPhase,
   onWait,
   fetchRoute = orsFetchRoute,
   terrain = defaultTerrain(),
@@ -84,7 +85,9 @@ export async function generateRoutes({
 
   let pool = [];
   let ranked;
+  let reused = false;
   if (previous && previous.leftovers.length + previous.remaining.length >= criteria.proposals) {
+    reused = true;
     pool = previous.leftovers;
     ranked = previous.remaining;
   } else {
@@ -95,10 +98,13 @@ export async function generateRoutes({
     await rateShapes(shapes, criteria, terrain, signal);
     ranked = rankShapes(shapes, candidateCount);
   }
+  const wanted = Math.max(0, candidateCount - pool.length);
+  onPhase?.('relief', { studied: ranked.length, reused });
+  onPhase?.('trace', { outlines: ranked.slice(0, wanted).map((shape) => shape.points(1)) });
 
   const traced = await traceShapes({
     ranked,
-    wanted: Math.max(0, candidateCount - pool.length),
+    wanted,
     target,
     request,
     ratio: previous?.ratio ?? null,
@@ -122,6 +128,7 @@ export async function generateRoutes({
   if (candidates.length === 0) {
     throw traced.fatal ?? traced.lastError ?? new Error('Aucun itinéraire trouvé autour de ce point. Essayez une autre distance ou un autre départ.');
   }
+  onPhase?.('rank');
   const result = selectRoutes(candidates, criteria);
   session = {
     key,

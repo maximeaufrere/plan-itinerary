@@ -89,3 +89,45 @@ export function resample(points, spacing) {
   }
   return samples;
 }
+
+/**
+ * Point situé à `target` mètres du début d'une polyligne, et cap suivi à cet endroit.
+ * `cumulative` : distances cumulées des points (cumulativeDistances), à passer pour éviter de les recalculer.
+ */
+export function pointAtDistance(points, target, cumulative = cumulativeDistances(points)) {
+  if (points.length === 0) return null;
+  const total = cumulative.at(-1);
+  const goal = Math.max(0, Math.min(target, total));
+  let lo = 0;
+  let hi = cumulative.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (cumulative[mid] <= goal) lo = mid;
+    else hi = mid;
+  }
+  const [a, b] = [points[lo], points[hi] ?? points[lo]];
+  const span = cumulative[hi] - cumulative[lo];
+  const t = span > 0 ? (goal - cumulative[lo]) / span : 0;
+  return {
+    point: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
+    bearing: span > 0 ? bearing(a, b) : 0,
+    index: lo,
+  };
+}
+
+/**
+ * Points régulièrement espacés le long d'un tracé (repères kilométriques, flèches de sens).
+ * `length` : longueur officielle du parcours, les distances du tracé y sont recalées.
+ * @returns {Array<{distance: number, point: [number, number], bearing: number}>}
+ */
+export function pointsAlong(points, length, interval, { offset = interval } = {}) {
+  if (points.length < 2 || !(interval > 0)) return [];
+  const cumulative = cumulativeDistances(points);
+  const scale = cumulative.at(-1) > 0 ? length / cumulative.at(-1) : 1;
+  const result = [];
+  for (let distance = offset; distance < length - interval * 0.25; distance += interval) {
+    const found = pointAtDistance(points, distance / scale, cumulative);
+    if (found) result.push({ distance, point: found.point, bearing: found.bearing });
+  }
+  return result;
+}

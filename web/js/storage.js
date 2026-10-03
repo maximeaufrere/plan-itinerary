@@ -13,6 +13,10 @@ export const KEYS = {
   syncedFavoriteIds: 'syncedFavoriteIds',
   /** Date de la dernière modification locale des réglages synchronisés. */
   settingsUpdatedAt: 'settingsUpdatedAt',
+  /** Requêtes d'itinéraire envoyées aujourd'hui depuis cet appareil : { date, count }. */
+  requestLog: 'requestLog',
+  /** Sorties enregistrées sur cet appareil (sans compte). */
+  outings: 'outings',
 };
 
 const listeners = new Set();

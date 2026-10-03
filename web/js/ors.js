@@ -1,6 +1,7 @@
 // Client minimal de l'API Directions d'OpenRouteService : https://openrouteservice.org/dev/#/api-docs/v2/directions
 
 import { cumulativeDistances } from './geo.js';
+import { KEYS, storage } from './storage.js';
 
 const BASE_URL = 'https://api.openrouteservice.org/v2/directions';
 
@@ -21,6 +22,22 @@ function sleep(ms, signal) {
       reject(signal.reason);
     }, { once: true });
   });
+}
+
+/** Quota quotidien de l'offre gratuite (itinéraires). */
+export const DAILY_QUOTA = 2000;
+
+const localDate = (now = new Date()) =>
+  `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+/** Nombre de requêtes d'itinéraire envoyées aujourd'hui depuis cet appareil (estimation du quota consommé). */
+export function requestsToday(now = new Date()) {
+  const log = storage.get(KEYS.requestLog, null);
+  return log?.date === localDate(now) ? log.count : 0;
+}
+
+function countRequest(now = new Date()) {
+  storage.set(KEYS.requestLog, { date: localDate(now), count: requestsToday(now) + 1 }, { silent: true });
 }
 
 /** Attend qu'une requête puisse partir sans dépasser la limite ; `onWait(secondes)` prévient l'interface. */
@@ -85,6 +102,7 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, o
   if (roundTrip) body.options.round_trip = roundTrip;
 
   await waitForSlot(signal, onWait);
+  countRequest();
   let response;
   try {
     response = await fetch(`${BASE_URL}/${profile}/geojson`, {

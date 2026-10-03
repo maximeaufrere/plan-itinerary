@@ -1,11 +1,13 @@
+import { ACTIVITIES, SPEED_RANGES } from './criteria.js';
 import { isValidFavorite } from './favorites.js';
+import { formatPace } from './format.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
-import { fetchRoute } from './ors.js';
+import { DAILY_QUOTA, fetchRoute, requestsToday } from './ors.js';
 import { shareOrDownload } from './share.js';
 import { KEYS, applyTheme, storage } from './storage.js';
 import { showView } from './views.js';
 
-export const APP_VERSION = '1.2';
+export const APP_VERSION = '2.0';
 
 // Deux points proches à Paris : un itinéraire minuscule suffit pour vérifier la clé.
 const TEST_POINTS = [
@@ -14,6 +16,41 @@ const TEST_POINTS = [
 ];
 
 const $ = (id) => document.getElementById(id);
+
+/**
+ * Vérifie une clé OpenRouteService avec un itinéraire minuscule.
+ * @returns {Promise<{ok: boolean, message: string, kind: 'ok' | 'warning' | 'error'}>}
+ */
+export async function testApiKey(apiKey) {
+  try {
+    await fetchRoute({ apiKey, profile: 'foot-walking', points: TEST_POINTS });
+    return { ok: true, message: 'Clé valide, tout est prêt.', kind: 'ok' };
+  } catch (error) {
+    if (error.status === 401 || error.status === 403) {
+      return { ok: false, message: 'Clé refusée : vérifiez qu\'elle a été copiée en entier.', kind: 'error' };
+    }
+    if (error.status === 429) return { ok: true, message: 'Clé valide, mais le quota est atteint pour le moment.', kind: 'warning' };
+    return { ok: false, message: error.message, kind: 'error' };
+  }
+}
+
+/** Réglage d'allure : à pied en secondes par km (pas de 5 s), à vélo en km/h (pas de 1). */
+export function stepSpeed(activityKey, speedKmh, direction) {
+  const { kind } = ACTIVITIES[activityKey];
+  const [min, max] = SPEED_RANGES[kind];
+  let next;
+  if (kind === 'foot') {
+    // Allure plus rapide = moins de secondes par km.
+    const seconds = Math.round(3600 / speedKmh / 5) * 5 - direction * 5;
+    next = 3600 / seconds;
+  } else {
+    next = Math.round(speedKmh) + direction;
+  }
+  return Math.min(max, Math.max(min, next));
+}
+
+export const formatSpeed = (activityKey, speedKmh) =>
+  ACTIVITIES[activityKey].kind === 'foot' ? formatPace(speedKmh) : `${Math.round(speedKmh)} km/h`;
 
 /** Fusionne des favoris importés avec les existants (sans doublon d'identifiant). */
 export function mergeFavorites(existing, imported) {
@@ -34,7 +71,7 @@ export function parseFavoritesFile(text) {
  * Branche le panneau de réglages.
  * @returns {{ open: (message?: string) => void }}
  */
-export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, onThemeChange, onResetCriteria }) {
+export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, onThemeChange, onResetCriteria, getSpeeds, setSpeed }) {
   const dialog = $('settings');
   const keyInput = $('api-key');
 
@@ -47,6 +84,7 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
   keyInput.addEventListener('input', () => {
     storage.set(KEYS.apiKey, keyInput.value.trim());
     keyStatus('');
+    refreshKeyState();
   });
 
   $('toggle-key').addEventListener('click', (event) => {
@@ -65,16 +103,68 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
     }
     button.disabled = true;
     keyStatus('Test en cours…');
-    try {
-      await fetchRoute({ apiKey, profile: 'foot-walking', points: TEST_POINTS });
-      keyStatus('Clé valide, tout est prêt.', 'ok');
-    } catch (error) {
-      if (error.status === 401 || error.status === 403) keyStatus('Clé refusée : vérifiez qu\'elle a été copiée en entier.', 'error');
-      else if (error.status === 429) keyStatus('Clé valide, mais le quota est atteint pour le moment.', 'warning');
-      else keyStatus(error.message, 'error');
-    } finally {
-      button.disabled = false;
-    }
+    const result = await testApiKey(apiKey);
+    keyStatus(result.message, result.kind);
+    button.disabled = false;
+    refreshKeyState();
+    refreshQuota();
+  });
+
+  /** État de la clé ; l'éditeur s'ouvre d'office s'il n'y en a pas. */
+  function refreshKeyState({ forceEditor = false } = {}) {
+    const hasKey = Boolean(storage.get(KEYS.apiKey, ''));
+    $('key-dot').classList.toggle('on', hasKey);
+    $('key-state-text').textContent = hasKey ? 'Clé enregistrée' : 'Aucune clé';
+    const open = forceEditor || !hasKey || !$('key-editor').hidden;
+    $('key-editor').hidden = !open;
+    $('change-key').hidden = !hasKey;
+    $('change-key').textContent = open ? 'Fermer' : 'Changer';
+    $('change-key').setAttribute('aria-expanded', String(open));
+  }
+
+  $('change-key').addEventListener('click', () => {
+    const open = $('key-editor').hidden;
+    $('key-editor').hidden = !open;
+    refreshKeyState();
+    if (open) keyInput.focus({ preventScroll: true });
+  });
+
+  /** Requêtes envoyées aujourd'hui depuis cet appareil. */
+  function refreshQuota() {
+    const used = requestsToday();
+    const left = Math.max(0, DAILY_QUOTA - used);
+    $('quota-count').textContent = `${used.toLocaleString('fr-FR')} / ${DAILY_QUOTA.toLocaleString('fr-FR')}`;
+    $('quota-bar').style.width = `${Math.min(100, (used / DAILY_QUOTA) * 100).toFixed(1)}%`;
+    $('quota-bar').classList.toggle('high', used > DAILY_QUOTA * 0.8);
+    $('quota-note').textContent = left
+      ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui (comptées sur cet appareil).`
+      : 'Quota du jour probablement atteint : il se renouvelle dans la nuit.';
+  }
+
+  // MARK: Allure
+  function renderPaces() {
+    const speeds = getSpeeds();
+    $('pace-list').innerHTML = Object.entries(ACTIVITIES)
+      .map(
+        ([key, activity]) => `
+        <div class="list-row">
+          <span class="list-label">${activity.label}</span>
+          <div class="stepper" role="group" aria-label="${activity.kind === 'foot' ? 'Allure' : 'Vitesse moyenne'} ${activity.label}">
+            <button type="button" data-pace="${key}" data-step="-1" aria-label="Plus lent"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+            <output class="pace-value">${formatSpeed(key, speeds[key])}</output>
+            <button type="button" data-pace="${key}" data-step="1" aria-label="Plus rapide"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+          </div>
+        </div>`,
+      )
+      .join('');
+  }
+
+  $('pace-list').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-pace]');
+    if (!button) return;
+    const key = button.dataset.pace;
+    setSpeed(key, stepSpeed(key, getSpeeds()[key], Number(button.dataset.step)));
+    renderPaces();
   });
 
   // MARK: Affichage
@@ -107,7 +197,7 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
   };
   const refreshCount = () => {
     const count = getFavorites().length;
-    $('favorites-count').textContent = count ? `(${count})` : '';
+    $('settings-favorites-count').textContent = count ? `(${count})` : '';
     $('export-favorites').disabled = count === 0;
   };
 
@@ -148,7 +238,7 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
   $('app-version').textContent = `v${APP_VERSION}`;
 
   return {
-    open(message) {
+    open(message, { focusPace = false } = {}) {
       $('settings-message').hidden = !message;
       $('settings-message').textContent = message ?? '';
       keyInput.value = storage.get(KEYS.apiKey, '');
@@ -158,9 +248,15 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
       dialog.querySelector(`input[name="theme"][value="${['light', 'dark'].includes(theme) ? theme : 'auto'}"]`).checked = true;
       const layer = storage.get(KEYS.baseLayer, DEFAULT_BASE_LAYER);
       dialog.querySelector(`input[name="base-layer"][value="${BASE_LAYERS[layer] ? layer : DEFAULT_BASE_LAYER}"]`).checked = true;
+      $('key-editor').hidden = true;
+      refreshKeyState({ forceEditor: Boolean(message) });
+      refreshQuota();
+      renderPaces();
       refreshCount();
       showView('settings');
       if (message) keyInput.focus({ preventScroll: true });
+      if (focusPace) requestAnimationFrame(() => $('pace-section').scrollIntoView({ block: 'start', behavior: 'smooth' }));
     },
+    refreshQuota,
   };
 }

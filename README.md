@@ -33,25 +33,32 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
   - **A → B avec détour** : si le trajet direct est trop court, passage par un point placé sur une ellipse
     dont A et B sont les foyers (toutes ses positions donnent la même distance à vol d'oiseau), position choisie
     selon le relief estimé
-- Critères : profil de dénivelé, D+ maximal, revêtement (bitume / chemins), éviter les grands axes
+- Interface en 3 onglets : **Parcours**, **Mes parcours**, **Réglages**
+- Écran principal réduit à l'essentiel (activité en pictogrammes, type, départ, distance) ; **Plus de critères** :
+  profil de dénivelé + limite de D+ (pas de 50 m), revêtement (bitume / chemins), éviter les grands axes,
+  nombre de propositions, résumés en pastilles
 - Classement des propositions selon ces critères, avec une **pénalité pour les rues empruntées deux fois**
-  (sauf en aller-retour)
-- **Allure personnalisée** (min/km à pied, km/h à vélo) ; à pied, la durée utilise le kilomètre-effort
-  (+1 km par 100 m de D+)
-- Statistiques (distance, D+/D−, altitudes, durée, % de repassages, % de grands axes), répartition du revêtement,
-  profil altimétrique
-- **Favoris** enregistrés sur l'appareil (bouton ★), export GPX (feuille de partage sur mobile → Strava, Komoot…)
-- **Réglages** (⚙️) : clé OpenRouteService avec test, thème clair / sombre / auto, fond de carte
-  (topographique par défaut, standard, vélo), export / import des favoris, réinitialisation
-- **Comptes** (facultatifs) : synchronisation, partage de parcours par lien, historique des sorties — voir plus bas
-- **Tutoriel** intégré (`web/aide.html`), proposé à la première visite
+  (sauf en aller-retour) ; chaque proposition reçoit une **étiquette** (« La plus plate », « La plus nature »,
+  « Au plus près », direction…) (`web/js/labels.js`)
+- Pendant le calcul : étapes, formes étudiées en pointillés sur la carte, bouton Annuler, nombre de requêtes
+- Sur la carte : **flèches de sens** et **repères kilométriques** ; profil altimétrique avec **curseur relié à la
+  carte** ; statistiques compactes (D+/D−, point haut, repassages), revêtement, grands axes
+- Actions rapides sous les propositions (« Vers ma montre » = GPX, enregistrer, détail) ; « Générer » devient
+  « Autres parcours » tant que les critères n'ont pas changé
+- **Mes parcours** : favoris avec miniature du tracé et nombre de sorties, **historique des sorties** (gardé sur
+  l'appareil sans compte), statistiques par période et résumé du mois
+- **Réglages** : compte, **allure par activité** (min/km à pied, km/h à vélo ; à pied, la durée utilise le
+  kilomètre-effort, +1 km par 100 m de D+), clé OpenRouteService avec test et **compteur des requêtes du jour**,
+  thème clair / sombre / auto, fond de carte, export / import des favoris, réinitialisation
+- **Mise en route** en 2 étapes à la première visite (position, puis clé) ; tutoriel intégré (`web/aide.html`)
+- **Comptes** (facultatifs) : synchronisation, partage de parcours par lien, historique en ligne — voir plus bas
 - Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »)
 
 ## Comptes utilisateurs (facultatif)
 
 Avec un compte (e-mail + mot de passe), l'utilisateur retrouve ses **favoris et réglages sur tous ses appareils**,
 peut **partager un parcours par lien** et tient un **historique de ses sorties** avec statistiques.
-Sans configuration, l'app fonctionne sans comptes (bouton « Mon compte » ▸ message d'explication).
+Sans configuration, l'app fonctionne sans comptes (Réglages ▸ Compte ▸ message d'explication).
 
 Les comptes reposent sur [Supabase](https://supabase.com) (offre gratuite : authentification + base Postgres),
 appelé directement depuis le navigateur : aucun serveur à héberger.

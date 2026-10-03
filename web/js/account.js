@@ -2,17 +2,15 @@
 import * as cloud from './cloud.js';
 import { ACTIVITIES } from './criteria.js';
 import { fromFavorite, toFavorite } from './favorites.js';
-import { formatDistance, formatDuration, formatElevation } from './format.js';
 import { icons } from './icons.js';
 import { KEYS, storage } from './storage.js';
-import { diffFavorites, filterOutings, mergeFavoriteLists, newerSettings, outingStats } from './sync.js';
+import { diffFavorites, mergeFavoriteLists, newerSettings } from './sync.js';
 import { currentView, showView } from './views.js';
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (text) => String(text).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 const SETTINGS_KEYS = [KEYS.criteria, KEYS.apiKey, KEYS.theme, KEYS.baseLayer];
 const MIN_PASSWORD_LENGTH = 8;
-const today = () => new Date().toISOString().slice(0, 10);
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const formatDate = (iso) => dateFormat.format(new Date(`${String(iso).slice(0, 10)}T12:00:00`));
 
@@ -23,14 +21,13 @@ const formatDate = (iso) => dateFormat.format(new Date(`${String(iso).slice(0, 1
  * @param {(row: object) => void} hooks.applySettings  applique des réglages venus du compte
  * @param {(route: object, activity: string) => void} hooks.openRoute
  * @param {(message: string, isError?: boolean) => void} hooks.setStatus
+ * @param {() => void} [hooks.onUserChange]  connexion ou déconnexion (l'historique change de source)
  */
 export function initAccount(hooks) {
   const dialog = $('account');
   let user = null;
   let lastFavorites = hooks.getFavorites();
   let pushTimer = null;
-  let period = '30';
-  let outings = [];
 
   // MARK: Affichage du panneau
 
@@ -56,19 +53,29 @@ export function initAccount(hooks) {
     show('account-signed-in');
     $('account-email').textContent = user.email;
     $('account-avatar').textContent = (user.email ?? '?').slice(0, 1).toUpperCase();
-    refreshOutings();
     refreshShares();
+  }
+
+  /** Sous-titre de la ligne « Compte » des réglages. */
+  function renderRow() {
+    $('account-row-text').textContent = !cloud.cloudEnabled
+      ? 'Synchronisation entre appareils : bientôt disponible'
+      : user
+        ? user.email
+        : 'Synchronisez vos parcours sur tous vos appareils';
+    $('open-account').classList.toggle('signed-in', Boolean(user));
   }
 
   const isShown = () => currentView() === 'account';
 
-  function open(text, { tab = 'account' } = {}) {
+  function open(text) {
     message(text);
     render();
-    showView('account', { tab });
+    showView('account', { tab: 'settings' });
   }
 
   $('open-account').addEventListener('click', () => open());
+  $('account-back').addEventListener('click', () => showView('settings'));
 
   // MARK: Connexion et création de compte
 
@@ -255,108 +262,6 @@ export function initAccount(hooks) {
     }
   });
 
-  // MARK: Sorties
-
-  async function refreshOutings() {
-    try {
-      outings = await cloud.fetchOutings();
-      renderOutings();
-    } catch (error) {
-      $('outings-list').innerHTML = `<li class="list-empty">${escapeHtml(error.message)}</li>`;
-    }
-  }
-
-  function renderOutings() {
-    const shown = filterOutings(outings, period);
-    const stats = outingStats(shown);
-    $('outing-stats').innerHTML = [
-      ['Sorties', String(stats.count)],
-      ['Distance', formatDistance(stats.distance)],
-      ['D+', formatElevation(stats.ascent)],
-      ['Temps', stats.duration ? formatDuration(stats.duration) : '–'],
-    ]
-      .map(([label, value]) => `<div class="stat"><small>${label}</small><strong>${value}</strong></div>`)
-      .join('');
-    $('outings-list').innerHTML = shown.length
-      ? shown
-          .map(
-            (o) => `
-        <li>
-          <button type="button" class="item-main" data-open-outing="${o.id}" ${o.route ? '' : 'disabled'}>
-            <strong>${escapeHtml(o.name)}</strong>
-            <small>${formatDate(o.done_on)} · ${ACTIVITIES[o.activity]?.label ?? ''} · ${formatDistance(o.distance_m)} · ↗ ${formatElevation(o.ascent_m)}${o.duration_s ? ` · ${formatDuration(o.duration_s)}` : ''}</small>
-          </button>
-          <button type="button" class="item-action" data-delete-outing="${o.id}" aria-label="Supprimer la sortie ${escapeHtml(o.name)}">${icons.trash}</button>
-        </li>`,
-          )
-          .join('')
-      : '<li class="list-empty">Aucune sortie sur cette période. Utilisez « Réalisé » sous un itinéraire.</li>';
-  }
-
-  $('outing-period').addEventListener('change', (event) => {
-    period = event.target.value;
-    renderOutings();
-  });
-
-  $('outings-list').addEventListener('click', async (event) => {
-    const openId = event.target.closest('[data-open-outing]')?.dataset.openOuting;
-    const deleteId = event.target.closest('[data-delete-outing]')?.dataset.deleteOuting;
-    if (openId) {
-      const outing = outings.find((o) => o.id === openId);
-      if (!outing?.route) return;
-      hooks.openRoute({ ...fromFavorite({ id: `outing-${outing.id}`, route: outing.route }), name: outing.name }, outing.activity);
-    } else if (deleteId) {
-      const outing = outings.find((o) => o.id === deleteId);
-      if (!outing || !window.confirm(`Supprimer la sortie « ${outing.name} » ?`)) return;
-      try {
-        await cloud.deleteOuting(deleteId);
-        outings = outings.filter((o) => o.id !== deleteId);
-        renderOutings();
-      } catch (error) {
-        status('account-status', error.message, 'error');
-      }
-    }
-  });
-
-  // Fenêtre « J'ai fait ce parcours »
-  const outingDialog = $('outing-dialog');
-  let pendingOuting = null;
-
-  function logOuting(route, { activity, name, duration }) {
-    if (!requireUser('Connectez-vous pour enregistrer vos sorties et suivre vos statistiques.')) return;
-    pendingOuting = { route, activity };
-    $('outing-name').value = name;
-    $('outing-date').value = today();
-    $('outing-date').max = today();
-    const minutes = Math.round(duration / 60);
-    $('outing-hours').value = Math.floor(minutes / 60);
-    $('outing-minutes').value = minutes % 60;
-    status('outing-status', '');
-    outingDialog.showModal();
-  }
-
-  $('outing-cancel').addEventListener('click', () => outingDialog.close());
-  $('outing-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const { route, activity } = pendingOuting;
-    const duration = (Number($('outing-hours').value) || 0) * 3600 + (Number($('outing-minutes').value) || 0) * 60;
-    try {
-      await cloud.addOuting({
-        name: $('outing-name').value.trim().slice(0, 120) || 'Sortie',
-        activity,
-        done_on: $('outing-date').value || today(),
-        distance_m: Math.round(route.distance),
-        ascent_m: route.ascent == null ? null : Math.round(route.ascent),
-        duration_s: duration || null,
-        route: toFavorite(route, { name: 'sortie', activity }).route,
-      });
-      outingDialog.close();
-      hooks.setStatus('Sortie ajoutée à votre historique (Mon compte ▸ Mes sorties).');
-    } catch (error) {
-      status('outing-status', error.message, 'error');
-    }
-  });
-
   // MARK: Partages
 
   async function refreshShares() {
@@ -472,7 +377,8 @@ export function initAccount(hooks) {
       }
       const wasSignedIn = Boolean(user);
       user = sessionUser;
-      $('open-account').classList.toggle('signed-in', Boolean(user));
+      renderRow();
+      if (wasSignedIn !== Boolean(user)) hooks.onUserChange?.();
       if (user && (!wasSignedIn || event === 'SIGNED_IN')) {
         fullSync();
         if (isShown() && event === 'SIGNED_IN') message('Vous êtes connecté. Vos favoris et réglages sont synchronisés.');
@@ -484,20 +390,11 @@ export function initAccount(hooks) {
   syncAuthMode();
   openSharedLink();
 
-  /** Onglet « Sorties » : historique si connecté, sinon invitation à se connecter. */
-  function openOutings() {
-    if (cloud.cloudEnabled && !user) {
-      return open('Connectez-vous pour retrouver l\'historique de vos sorties et vos statistiques.', { tab: 'outings' });
-    }
-    open('', { tab: 'outings' });
-    if (user) requestAnimationFrame(() => $('outings-title').scrollIntoView({ block: 'start' }));
-  }
+  renderRow();
 
   return {
     open,
-    openOutings,
     shareRoute,
-    logOuting,
     get signedIn() {
       return Boolean(user);
     },

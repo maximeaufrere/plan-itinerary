@@ -30,6 +30,7 @@ export function elevationChart(profile) {
         </svg>
         <span class="chart-label chart-max">${Math.round(max)} m</span>
         <span class="chart-label chart-min">${Math.round(min)} m</span>
+        <div class="chart-cursor" hidden><span class="chart-tip"></span></div>
       </div>
       <figcaption class="chart-axis"><span>0 km</span><span>${(totalDistance / 1000).toFixed(1).replace('.', ',')} km</span></figcaption>
     </figure>`;

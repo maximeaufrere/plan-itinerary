@@ -26,10 +26,9 @@
     <section class="guide-quick" aria-labelledby="quick">
       <h2 id="quick">En bref</h2>
       <ol class="guide-steps">
-        <li><strong>Une seule fois :</strong> ajoutez votre clé gratuite OpenRouteService dans les réglages <span class="ui-button" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>.</li>
-        <li><strong>Choisissez le départ :</strong> votre position, ou touchez la carte.</li>
-        <li><strong>Réglez vos critères :</strong> activité, distance, dénivelé…</li>
-        <li><strong>Touchez « Générer »</strong> (le bouton vert juste au-dessus du panneau, toujours à portée de main) et comparez les propositions.</li>
+        <li><strong>Une seule fois :</strong> la mise en route vous demande votre position et votre clé gratuite OpenRouteService (vous pourrez la changer dans <em>Réglages</em>).</li>
+        <li><strong>Choisissez l'essentiel :</strong> activité, boucle / aller-retour / A&nbsp;→&nbsp;B, départ et distance. Le reste (dénivelé, revêtement…) est dans <span class="ui-button">Plus de critères</span>.</li>
+        <li><strong>Touchez « Générer »</strong> (le bouton vert juste au-dessus du panneau) et comparez les propositions. Pas convaincu ? <span class="ui-button">Autres parcours</span> en propose d'autres.</li>
       </ol>
     </section>
 
@@ -40,10 +39,10 @@
         <li><a href="#depart">Choisir le départ (et l'arrivée)</a></li>
         <li><a href="#criteres">Régler les critères</a></li>
         <li><a href="#resultats">Lire les résultats</a></li>
-        <li><a href="#favoris">Favoris et export GPX</a></li>
+        <li><a href="#favoris">Mes parcours, export GPX et historique</a></li>
         <li><a href="#installer">Installer l'app sur son téléphone</a></li>
         <li><a href="#reglages">Les réglages</a></li>
-        <li><a href="#compte">Compte, partage et sorties</a></li>
+        <li><a href="#compte">Compte et partage</a></li>
         <li><a href="#fonctionnement">Comment les parcours sont calculés</a></li>
         <li><a href="#faq">Questions fréquentes</a></li>
       </ol>
@@ -73,7 +72,8 @@
         <li><strong>Taper une adresse :</strong> dans le champ <em>Départ</em> (et <em>Arrivée</em> en mode A&nbsp;→&nbsp;B), commencez à écrire une adresse, un lieu ou une ville : des suggestions apparaissent dès 3 lettres, touchez la bonne. « Ma position » revient à votre position GPS. Quand vous placez un point en touchant la carte, son adresse s'affiche dans le champ.</li>
         <li><span class="ui-pin me"></span> <strong>Ma position</strong> est toujours affichée par un point bleu, que vous partiez d'ici ou d'ailleurs. Le bouton <span class="ui-button" aria-label="Centrer la carte sur ma position"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7.5 3 3 7.5z"/></svg></span>, juste au-dessus du panneau, recentre la carte sur vous (sans changer le départ).</li>
         <li><span class="ui-pin start"></span> <strong>Départ :</strong> au premier lancement, c'est votre position (un anneau vert autour du point bleu). Choisissez « Ma position » dans le champ Départ pour y revenir, tapez une adresse, ou <strong>touchez n'importe où sur la carte</strong>.</li>
-        <li><strong>Barre d'onglets</strong> (en bas de l'écran) : <em>Parcours</em> réduit ou rouvre le panneau, <em>Favoris</em> liste vos parcours enregistrés, <em>Sorties</em> affiche votre historique, <em>Compte</em> gère la connexion et <em>Réglages</em> ouvre les réglages. Tous s'affichent dans le même panneau, que vous pouvez agrandir ou réduire en le faisant glisser. Touchez à nouveau l'onglet affiché pour réduire le panneau (ou le rouvrir).</li>
+        <li><strong>Barre d'onglets</strong> (en bas de l'écran) : <em>Parcours</em> pour créer un parcours, <em>Mes parcours</em> pour vos favoris et l'historique de vos sorties, <em>Réglages</em> pour votre allure, votre clé, l'affichage et le compte. Tous s'affichent dans le même panneau, que vous pouvez agrandir ou réduire en le faisant glisser. Touchez à nouveau l'onglet affiché pour réduire le panneau (ou le rouvrir).</li>
+        <li><strong>Sources de la carte :</strong> le petit bouton <span class="ui-button">i</span> en haut à droite affiche les crédits de la carte (OpenStreetMap…).</li>
         <li><strong>Carte en plein écran :</strong> faites glisser la barre en haut du panneau avec le doigt. Il se cale sur trois positions : réduit (la carte occupe tout l'écran et une barre affiche le parcours sélectionné), mi-hauteur, ou presque plein écran. Un petit coup rapide suffit pour passer à la position suivante ; un simple toucher réduit ou rouvre le panneau. Sur ordinateur, utilisez l'onglet sur le bord gauche du panneau.</li>
         <li><span class="ui-pin end"></span> <strong>Arrivée</strong> (mode <span class="ui-chip">A&nbsp;→&nbsp;B</span> uniquement) : après le départ, touchez la carte une seconde fois pour placer l'arrivée. Le sélecteur <span class="ui-chip"><i class="pin start"></i> Départ</span> <span class="ui-chip"><i class="pin end"></i> Arrivée</span> permet de déplacer l'un ou l'autre.</li>
       </ul>
@@ -81,12 +81,16 @@
 
     <section id="criteres" aria-labelledby="criteres-title">
       <h2 id="criteres-title"><span class="guide-num">3</span> Régler les critères</h2>
-      <p>Vos réglages sont mémorisés d'une fois sur l'autre.</p>
+      <p>
+        Vos réglages sont mémorisés d'une fois sur l'autre. L'écran principal ne montre que l'essentiel ;
+        <span class="ui-button">Plus de critères</span> ouvre le reste, et résume en pastilles ce que vous avez changé
+        (ex. « Vallonné · D+ ≤ 200 m · Chemins »).
+      </p>
 
       <dl class="guide-defs">
         <dt>Activité</dt>
         <dd>
-          <div class="ui-row"><span class="ui-chip on">Course</span><span class="ui-chip">Trail</span><span class="ui-chip">Vélo route</span><span class="ui-chip">Vélo</span><span class="ui-chip">VTT</span></div>
+          <div class="ui-row"><span class="ui-chip on">Course</span><span class="ui-chip">Trail</span><span class="ui-chip">Route</span><span class="ui-chip">Vélo</span><span class="ui-chip">VTT</span></div>
           Chaque activité utilise des chemins adaptés : la course passe par les trottoirs et parcs, le trail privilégie
           les sentiers, le vélo de route évite les chemins de terre, le VTT les recherche.
         </dd>
@@ -102,26 +106,28 @@
         <dt>Distance</dt>
         <dd>La distance visée. Les propositions s'en approchent à ±10 %.</dd>
 
-        <dt>Allure / Vitesse moyenne</dt>
+        <dt>Dénivelé <small class="muted">(Plus de critères)</small></dt>
         <dd>
-          À pied, votre allure en minutes par kilomètre (ex. <strong>5'30/km</strong>) ; à vélo, votre vitesse moyenne
-          en km/h. Elle sert uniquement à estimer la durée.
+          <strong>Libre</strong>, <strong>Plat</strong>, <strong>Vallonné</strong> (environ 10 m de montée par km) ou
+          <strong>Montagne</strong> (environ 25 m/km). Juste en dessous, <strong>Limiter le D+ total</strong> écarte les
+          parcours dont le total des montées dépasse la limite (réglable par pas de 50 m avec − et +) ; si aucun ne
+          passe, les moins vallonnés sont proposés avec le badge « D+ &gt; max ».
         </dd>
 
-        <dt>Dénivelé</dt>
-        <dd>
-          <strong>Plat</strong>, <strong>Vallonné</strong> (environ 10 m de montée par km) ou <strong>Montagneux</strong>
-          (environ 25 m/km). Activez <strong>D+ maximum</strong> pour écarter les parcours dont le total des montées dépasse la limite ; si aucun ne passe, les moins vallonnés sont proposés avec le badge « D+ &gt; max ».
-        </dd>
-
-        <dt>Revêtement</dt>
+        <dt>Revêtement <small class="muted">(Plus de critères)</small></dt>
         <dd><strong>Bitume</strong> pour rester sur routes et trottoirs, <strong>Chemins</strong> pour privilégier la terre, le gravier et l'herbe.</dd>
 
         <dt>Éviter les grands axes</dt>
         <dd>Écarte autant que possible les routes principales, souvent bruyantes et fréquentées.</dd>
 
-        <dt>Propositions</dt>
+        <dt>Nombre de propositions</dt>
         <dd>Le nombre de parcours proposés (1 à 5). Chacun part dans une direction différente.</dd>
+
+        <dt>Allure</dt>
+        <dd>
+          Elle se règle dans <em>Réglages ▸ Mon allure</em>, une fois pour chaque activité : à pied en minutes par
+          kilomètre (ex. <strong>5'30/km</strong>), à vélo en km/h. Elle sert uniquement à estimer la durée.
+        </dd>
       </dl>
       <p class="guide-tip">
         Ces critères servent à <strong>classer</strong> les parcours trouvés : le premier proposé est celui qui
@@ -132,25 +138,36 @@
     <section id="resultats" aria-labelledby="resultats-title">
       <h2 id="resultats-title"><span class="guide-num">4</span> Lire les résultats</h2>
       <p>
-        Les propositions apparaissent sous forme de cartes : touchez-en une (ou son tracé sur la carte) pour
-        l'afficher en bleu. En dessous, le détail :
+        Pendant le calcul, le panneau montre les étapes (relief analysé, tracé par les chemins, classement) et la carte
+        les formes étudiées en pointillés. Le bouton <span class="ui-button">Annuler</span> arrête le calcul.
+      </p>
+      <p>
+        Les propositions apparaissent ensuite sous forme de cartes, chacune avec une étiquette qui la distingue :
+        <span class="ui-chip">La plus plate</span> <span class="ui-chip">La plus nature</span>
+        <span class="ui-chip">Au plus près</span> (de la distance visée), ou sa direction (« Vers l'est »).
+        Touchez-en une (ou son tracé sur la carte) pour l'afficher en orange. Sur la carte, des flèches indiquent le
+        sens du parcours et des repères numérotés marquent les kilomètres.
+      </p>
+      <p>
+        Juste sous les propositions : <span class="ui-button">Vers ma montre</span> (export GPX),
+        l'icône d'enregistrement et <span class="ui-button">Détail</span>, qui ouvre :
       </p>
       <dl class="guide-defs compact">
         <dt>D+ / D−</dt><dd>Total des montées et des descentes, en mètres.</dd>
-        <dt>Alt. min / max</dt><dd>Points le plus bas et le plus haut du parcours.</dd>
+        <dt>Point haut</dt><dd>Altitude la plus haute du parcours.</dd>
         <dt>Durée</dt><dd>Estimée avec votre allure. À pied, chaque 100 m de montée compte comme 1 km de plus (le « kilomètre-effort » des traileurs).</dd>
         <dt>Repassages</dt><dd>Part du parcours qui emprunte un chemin déjà parcouru. Proche de 0 % pour une vraie boucle, environ 50 % pour un aller-retour.</dd>
-        <dt>Grands axes</dt><dd>Part du parcours sur des routes principales.</dd>
-        <dt>Revêtement</dt><dd>La barre colorée montre la part de bitume, de chemins et de revêtement inconnu (non renseigné dans OpenStreetMap).</dd>
-        <dt>Profil</dt><dd>La courbe d'altitude tout au long du parcours.</dd>
+        <dt>Revêtement</dt><dd>La barre colorée montre la part de bitume, de chemins et de revêtement inconnu (non renseigné dans OpenStreetMap), et la part de grands axes s'il y en a.</dd>
+        <dt>Profil</dt><dd>La courbe d'altitude tout au long du parcours. Touchez-la (ou faites glisser le doigt) : un point noir montre l'endroit correspondant sur la carte, avec la distance et l'altitude.</dd>
       </dl>
     </section>
 
     <section id="favoris" aria-labelledby="favoris-title">
-      <h2 id="favoris-title"><span class="guide-num">5</span> Favoris et export GPX</h2>
+      <h2 id="favoris-title"><span class="guide-num">5</span> Mes parcours, export GPX et historique</h2>
       <ul class="guide-list">
-        <li><span class="ui-button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg> Enregistrer</span> garde le parcours affiché dans vos favoris, avec le nom de votre choix. Retrouvez-les avec le bouton <span class="ui-button" aria-label="Favoris"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span> de la barre d'onglets, en bas de l'écran.</li>
-        <li><span class="ui-button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg> GPX</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers.</li>
+        <li><span class="ui-button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg> Enregistrer</span> garde le parcours affiché dans <em>Mes parcours</em>, avec le nom de votre choix. Chaque favori y apparaît avec une miniature du tracé et le nombre de fois où vous l'avez fait.</li>
+        <li><span class="ui-button">Vers ma montre</span> / <span class="ui-button">Envoyer vers ma montre (GPX)</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers.</li>
+        <li><span class="ui-button">Marquer fait</span>, après une sortie : indiquez la date et la durée. <em>Mes parcours ▸ Historique</em> affiche vos sorties et vos totaux (sorties, distance, D+, temps) sur 30 jours, l'année ou depuis le début, et un résumé du mois en cours. Sans compte, l'historique est gardé sur cet appareil.</li>
       </ul>
       <p class="guide-tip">
         Les favoris sont enregistrés dans le navigateur de cet appareil. Pour les retrouver sur un autre appareil,
@@ -182,25 +199,28 @@
 
     <section id="reglages" aria-labelledby="reglages-title">
       <h2 id="reglages-title"><span class="guide-num">7</span> Les réglages</h2>
-      <p>Le bouton <span class="ui-button" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span> ouvre les réglages :</p>
+      <p>L'onglet <span class="ui-button" aria-label="Réglages"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg> Réglages</span> regroupe :</p>
       <dl class="guide-defs compact">
-        <dt>Clé OpenRouteService</dt><dd>Votre clé, avec un bouton pour vérifier qu'elle fonctionne.</dd>
+        <dt>Compte</dt><dd>Connexion et synchronisation (voir plus bas).</dd>
+        <dt>Mon allure</dt><dd>Votre allure (à pied) ou vitesse moyenne (à vélo) pour chaque activité, avec − et +.</dd>
+        <dt>Clé OpenRouteService</dt><dd>L'état de votre clé (« Changer » pour la remplacer et la tester) et le nombre d'itinéraires demandés aujourd'hui depuis cet appareil, sur les 2 000 de l'offre gratuite.</dd>
         <dt>Thème</dt><dd>Clair, sombre, ou automatique (suit le réglage de votre téléphone).</dd>
         <dt>Fond de carte</dt><dd><strong>Standard</strong>, <strong>Topographique</strong> (courbes de niveau, idéal en trail) ou <strong>Vélo</strong> (pistes cyclables mises en avant).</dd>
         <dt>Mes données</dt><dd>Exporter / importer vos favoris, réinitialiser les critères, ou tout effacer.</dd>
+        <dt>Aide</dt><dd>Ce tutoriel, et « Revoir la mise en route ».</dd>
       </dl>
     </section>
 
     <section id="compte" aria-labelledby="compte-title">
-      <h2 id="compte-title"><span class="guide-num">8</span> Compte, partage et sorties</h2>
+      <h2 id="compte-title"><span class="guide-num">8</span> Compte et partage</h2>
       <p>
-        Le compte est facultatif : sans compte, tout fonctionne sur votre appareil. Avec un compte (bouton
-        <span class="ui-button" aria-label="Mon compte"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span> de la barre d'onglets, en bas de l'écran) :
+        Le compte est facultatif : sans compte, tout fonctionne sur votre appareil. Avec un compte
+        (<em>Réglages ▸ Compte</em>) :
       </p>
       <dl class="guide-defs compact">
         <dt>Synchronisation</dt><dd>Vos favoris, vos critères, votre clé OpenRouteService, le thème et le fond de carte vous suivent sur tous vos appareils. Les favoris créés avant de vous connecter sont ajoutés au compte.</dd>
         <dt>Partager</dt><dd>Sous un parcours, <span class="ui-button">Partager</span> crée un lien à envoyer (message, WhatsApp…). La personne qui l'ouvre voit le parcours dans l'app, sans avoir besoin de compte. Vous pouvez arrêter un partage depuis « Mon compte ».</dd>
-        <dt>Mes sorties</dt><dd>Après une sortie, touchez <span class="ui-button">Réalisé</span> sous le parcours : indiquez la date et la durée. « Mon compte ▸ Mes sorties » affiche votre historique et vos totaux (sorties, distance, D+, temps) sur 30 jours, l'année ou depuis le début.</dd>
+        <dt>Historique</dt><dd>Les sorties marquées « faites » sont enregistrées dans votre compte et visibles sur tous vos appareils (<em>Mes parcours ▸ Historique</em>).</dd>
       </dl>
       <p>
         Pour créer un compte : « Créer un compte », votre e-mail et un mot de passe d'au moins 8 caractères, puis cliquez

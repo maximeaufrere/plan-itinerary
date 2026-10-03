@@ -21,12 +21,15 @@
 <body class="no-page-zoom">
   <main class="layout">
     <div id="map" class="map" aria-label="Carte : touchez pour choisir le point de départ"></div>
+    <button type="button" id="map-credits" class="map-credits" aria-expanded="false" aria-label="Sources de la carte">i</button>
     <div id="sheet-actions" class="sheet-actions">
       <button type="button" id="quick-generate" class="quick-generate">
         <span class="spinner" aria-hidden="true"></span>
+        <svg class="icon again" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
         <span id="quick-generate-label">Générer</span>
         <svg class="icon arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </button>
+      <button type="button" id="cancel-generate" class="map-pill" hidden>Annuler</button>
       <button type="button" id="locate" class="map-button locate-button" aria-label="Centrer la carte sur ma position">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7.5 3 3 7.5z"/></svg>
       </button>
@@ -40,30 +43,18 @@
       </button>
       <div id="panel-scroll" class="panel-scroll">
       <div id="route-view" class="view" data-view="route">
-      <div id="welcome" class="welcome" hidden>
-        <p><strong>Bienvenue !</strong> Découvrez en 2 minutes comment générer vos parcours.</p>
-        <div class="welcome-actions">
-          <a href="aide.html" class="button primary small">Voir le tutoriel</a>
-          <button type="button" id="dismiss-welcome" class="link-button">Plus tard</button>
-        </div>
-      </div>
-
       <form id="criteria-form" class="criteria">
-        <button type="button" id="criteria-summary" class="criteria-summary" aria-controls="criteria-fields" aria-expanded="false">
-          <span><small>Critères</small><strong id="criteria-summary-text"></strong></span>
-          <em>Modifier</em>
-        </button>
+        <div class="criteria-summary" id="criteria-summary">
+          <span id="criteria-summary-text"></span>
+          <button type="button" id="edit-criteria" class="link-button">Modifier</button>
+        </div>
 
-        <div id="criteria-fields" class="criteria-fields">
-          <section class="group" aria-labelledby="group-activity">
-            <h2 id="group-activity" class="group-title">Activité</h2>
-            <fieldset class="chips scroll" id="activity" aria-labelledby="group-activity"></fieldset>
-          </section>
+        <!-- L'essentiel : activité, type de parcours, départ, distance -->
+        <div id="criteria-main" class="criteria-main">
+          <fieldset class="activity-grid" id="activity" aria-label="Activité"></fieldset>
+          <fieldset class="segmented" id="shape" aria-label="Type de parcours"></fieldset>
 
-          <section class="group" aria-labelledby="group-shape">
-            <h2 id="group-shape" class="group-title">Parcours</h2>
-            <fieldset class="segmented" id="shape" aria-labelledby="group-shape"></fieldset>
-            <div class="addresses">
+          <div class="addresses">
             <div class="address-field" id="start-field">
               <label for="start-address" class="address-label"><i class="pin start"></i>Départ</label>
               <div class="address-input">
@@ -80,84 +71,148 @@
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                 <input type="search" id="end-address" class="address" placeholder="Adresse ou lieu d'arrivée" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
                        role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="end-suggestions">
-                <button type="button" class="address-clear" data-clear="end" aria-label="Effacer l'adresse de arrivée" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                <button type="button" class="address-clear" data-clear="end" aria-label="Effacer l'adresse d'arrivée" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
               </div>
               <ul id="end-suggestions" class="suggestions" role="listbox" aria-label="Suggestions d'adresses" hidden></ul>
             </div>
-            </div>
-            <div id="placing-field" class="field" hidden>
-              <span class="hint">Ou touchez la carte pour placer :</span>
-              <fieldset class="segmented" id="placing" aria-label="Point à placer">
-                <label><input type="radio" name="placing" value="start" checked><span><i class="pin start"></i>Départ</span></label>
-                <label><input type="radio" name="placing" value="end"><span><i class="pin end"></i>Arrivée</span></label>
-              </fieldset>
-            </div>
-          </section>
+          </div>
+          <div id="placing-field" class="field" hidden>
+            <span class="hint">Ou touchez la carte pour placer :</span>
+            <fieldset class="segmented" id="placing" aria-label="Point à placer">
+              <label><input type="radio" name="placing" value="start" checked><span><i class="pin start"></i>Départ</span></label>
+              <label><input type="radio" name="placing" value="end"><span><i class="pin end"></i>Arrivée</span></label>
+            </fieldset>
+          </div>
 
-          <section class="group sliders">
+          <div class="group sliders">
             <div class="field slider">
               <label for="distance">Distance</label>
               <output id="distance-output" for="distance"></output>
               <input type="range" id="distance" step="1">
             </div>
-            <div class="field slider">
-              <label for="speed" id="speed-label">Allure</label>
-              <output id="speed-output" for="speed"></output>
-              <input type="range" id="speed">
+          </div>
+
+          <button type="button" id="open-more" class="more-button" aria-controls="criteria-more" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+            <span class="more-text"><strong>Plus de critères</strong><span id="more-summary" class="tag-row"></span></span>
+            <svg class="icon chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+
+        <!-- Plus de critères : dénivelé, revêtement, options -->
+        <div id="criteria-more" class="criteria-more" hidden>
+          <div class="subview-header">
+            <button type="button" id="close-more" class="round-button" aria-label="Retour aux critères principaux">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+            </button>
+            <h2>Plus de critères</h2>
+            <button type="button" id="reset-more" class="link-button">Réinitialiser</button>
+          </div>
+
+          <section class="group" aria-labelledby="group-elevation">
+            <h3 id="group-elevation" class="group-title">Dénivelé</h3>
+            <fieldset class="segmented" id="elevation" aria-labelledby="group-elevation"></fieldset>
+            <div class="limit-card">
+              <div class="limit-row">
+                <label for="limit-gain" class="list-label">Limiter le D+ total</label>
+                <input type="checkbox" id="limit-gain" class="switch">
+              </div>
+              <div class="limit-row" id="max-gain-row">
+                <span class="hint">Les parcours qui montent plus sont écartés.</span>
+                <div class="stepper" role="group" aria-label="D+ maximum">
+                  <button type="button" id="gain-minus" aria-label="Moins 50 m"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+                  <output id="max-gain" aria-live="polite"></output>
+                  <button type="button" id="gain-plus" aria-label="Plus 50 m"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section class="group" aria-labelledby="group-elevation">
-            <h2 id="group-elevation" class="group-title">Dénivelé</h2>
-            <fieldset class="chips wrap" id="elevation" aria-labelledby="group-elevation"></fieldset>
-          </section>
-
           <section class="group" aria-labelledby="group-surface">
-            <h2 id="group-surface" class="group-title">Revêtement</h2>
-            <fieldset class="chips wrap" id="surface" aria-labelledby="group-surface"></fieldset>
+            <h3 id="group-surface" class="group-title">Revêtement</h3>
+            <fieldset class="segmented" id="surface" aria-labelledby="group-surface"></fieldset>
           </section>
 
           <section class="group" aria-labelledby="group-options">
-            <h2 id="group-options" class="group-title">Options</h2>
+            <h3 id="group-options" class="group-title">Options</h3>
             <div class="list">
-              <div class="list-row">
-                <label for="limit-gain" class="list-label">D+ maximum<small>Total des montées du parcours. Les parcours au-dessus sont écartés.</small></label>
-                <div class="list-control">
-                  <span class="unit-input" id="max-gain-field">
-                    <input type="number" id="max-gain" min="0" step="50" inputmode="numeric" aria-label="Dénivelé positif maximal">
-                    <span aria-hidden="true">m</span>
-                  </span>
-                  <input type="checkbox" id="limit-gain" class="switch">
-                </div>
-              </div>
               <div class="list-row">
                 <label for="avoid-major-roads" class="list-label">Éviter les grands axes</label>
                 <input type="checkbox" id="avoid-major-roads" class="switch">
               </div>
               <div class="list-row">
-                <span class="list-label" id="proposals-label">Propositions</span>
+                <span class="list-label" id="proposals-label">Nombre de propositions</span>
                 <div class="stepper" role="group" aria-labelledby="proposals-label">
-                  <button type="button" id="proposals-minus" aria-label="Moins de propositions">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>
-                  </button>
+                  <button type="button" id="proposals-minus" aria-label="Moins de propositions"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
                   <output id="proposals" aria-live="polite"></output>
-                  <button type="button" id="proposals-plus" aria-label="Plus de propositions">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg>
-                  </button>
+                  <button type="button" id="proposals-plus" aria-label="Plus de propositions"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
                 </div>
               </div>
             </div>
+            <p class="hint">Votre allure se règle dans <button type="button" id="goto-pace" class="inline-link">Réglages</button> : elle ne change pas le parcours, seulement la durée estimée.</p>
           </section>
 
+          <button type="submit" id="more-generate" class="primary wide">
+            <span id="more-generate-label">Générer</span>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
         </div>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
       </form>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <!-- Pendant le calcul -->
+      <div id="progress" class="progress" hidden>
+        <ol class="progress-steps">
+          <li id="step-relief" data-state="active"><i aria-hidden="true"></i><span>Analyse du relief autour du départ</span></li>
+          <li id="step-trace" data-state="todo"><i aria-hidden="true"></i><span>Tracé par les chemins</span></li>
+          <li id="step-rank" data-state="todo"><i aria-hidden="true"></i><span>Classement selon vos critères</span></li>
+        </ol>
+        <div class="skeleton-cards" aria-hidden="true">
+          <div class="skeleton-card"><b></b><b></b><b></b><b></b></div>
+          <div class="skeleton-card"><b></b><b></b><b></b><b></b></div>
+          <div class="skeleton-card"><b></b><b></b><b></b><b></b></div>
+        </div>
+        <p id="request-note" class="hint"></p>
+      </div>
 
       <div id="results" class="results" hidden>
         <div id="cards" class="cards" role="listbox" aria-label="Propositions"></div>
+        <div id="result-actions" class="result-actions">
+          <button type="button" id="quick-gpx" class="primary">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            Vers ma montre
+          </button>
+          <button type="button" id="quick-save" class="round-button tonal" aria-label="Enregistrer dans mes parcours"></button>
+          <button type="button" id="show-detail" class="secondary">Détail</button>
+        </div>
         <div id="details" class="details"></div>
       </div>
       </div>
+
+      <section id="library" class="view" data-view="library" aria-labelledby="library-title" hidden>
+        <div class="view-header">
+          <h2 id="library-title">Mes parcours</h2>
+        </div>
+        <fieldset class="segmented" id="library-tabs" aria-label="Favoris ou historique">
+          <label><input type="radio" name="library-tab" value="favorites" checked><span>Favoris <small id="favorites-count"></small></span></label>
+          <label><input type="radio" name="library-tab" value="history"><span>Historique <small id="history-count"></small></span></label>
+        </fieldset>
+        <div id="month-summary" class="month-summary"></div>
+        <div id="library-favorites">
+          <ul id="favorites-list" class="route-list"></ul>
+        </div>
+        <div id="library-history" hidden>
+          <fieldset class="segmented compact" id="outing-period" aria-label="Période">
+            <label><input type="radio" name="outing-period" value="30" checked><span>30 jours</span></label>
+            <label><input type="radio" name="outing-period" value="year"><span>Année</span></label>
+            <label><input type="radio" name="outing-period" value="all"><span>Tout</span></label>
+          </fieldset>
+          <div id="outing-stats" class="stats stats-4"></div>
+          <ul id="outings-list" class="route-list"></ul>
+          <p id="history-note" class="hint"></p>
+        </div>
+      </section>
 
       <section id="settings" class="view" data-view="settings" aria-labelledby="settings-title" hidden>
         <div class="view-header">
@@ -165,23 +220,46 @@
         </div>
         <p id="settings-message" class="settings-message" hidden></p>
 
+        <button type="button" id="open-account" class="account-row">
+          <span class="account-row-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>
+          <span class="account-row-text"><strong>Compte</strong><small id="account-row-text"></small></span>
+          <svg class="icon chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+
+        <section class="settings-section" aria-labelledby="settings-pace" id="pace-section">
+          <h3 id="settings-pace">Mon allure</h3>
+          <div class="list" id="pace-list"></div>
+          <p class="hint">Sert à estimer la durée des parcours. À pied, chaque 100&nbsp;m de D+ compte comme 1&nbsp;km de plus.</p>
+        </section>
+
         <section class="settings-section" aria-labelledby="settings-key">
           <h3 id="settings-key">Clé OpenRouteService</h3>
           <div class="settings-card">
-            <div class="key-row">
-              <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false"
-                     placeholder="Collez votre clé ici" aria-label="Clé API OpenRouteService">
-              <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <div class="settings-row">
+              <span class="key-state"><i id="key-dot" class="state-dot" aria-hidden="true"></i><strong id="key-state-text"></strong></span>
+              <button type="button" id="change-key" class="link-button" aria-controls="key-editor" aria-expanded="false">Changer</button>
             </div>
-            <div class="key-row">
-              <button type="button" id="test-key" class="secondary small">Tester la clé</button>
-              <span id="key-status" class="key-status" role="status" aria-live="polite"></span>
+            <div id="key-editor" class="key-editor" hidden>
+              <div class="key-row">
+                <input type="password" id="api-key" autocomplete="off" autocapitalize="off" spellcheck="false"
+                       placeholder="Collez votre clé ici" aria-label="Clé API OpenRouteService">
+                <button type="button" id="toggle-key" class="icon-button" aria-label="Afficher la clé" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              </div>
+              <div class="key-row">
+                <button type="button" id="test-key" class="secondary small">Tester la clé</button>
+                <span id="key-status" class="key-status" role="status" aria-live="polite"></span>
+              </div>
+              <p class="hint">
+                Gratuite, elle sert à calculer les itinéraires et reste sur cet appareil.
+                <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">Créer un compte</a> ·
+                <a href="aide.html#cle">Comment l'obtenir ?</a>
+              </p>
             </div>
-            <p class="hint">
-              Gratuite, elle sert à calculer les itinéraires. Elle reste enregistrée sur cet appareil uniquement.
-              <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">Créer un compte</a> ·
-              <a href="aide.html#cle">Comment l'obtenir ?</a>
-            </p>
+            <div class="quota">
+              <div class="quota-row"><span>Utilisé aujourd'hui</span><strong id="quota-count"></strong></div>
+              <div class="quota-bar"><span id="quota-bar"></span></div>
+              <p id="quota-note" class="hint"></p>
+            </div>
           </div>
         </section>
 
@@ -207,7 +285,7 @@
           <h3 id="settings-data">Mes données</h3>
           <div class="settings-card">
             <div class="settings-row">
-              <span>Favoris <small id="favorites-count" class="muted"></small></span>
+              <span>Favoris <small id="settings-favorites-count" class="muted"></small></span>
               <div class="button-group">
                 <button type="button" id="export-favorites" class="secondary small">Exporter</button>
                 <button type="button" id="import-favorites" class="secondary small">Importer</button>
@@ -228,9 +306,11 @@
           <div class="settings-card">
             <a href="aide.html" class="settings-link">Tutoriel : comment ça marche <span aria-hidden="true">›</span></a>
             <a href="aide.html#faq" class="settings-link">Questions fréquentes <span aria-hidden="true">›</span></a>
+            <button type="button" id="replay-onboarding" class="settings-link as-button">Revoir la mise en route <span aria-hidden="true">›</span></button>
             <p class="hint about">
               Plan Itinéraire <span id="app-version"></span> · Cartes © OpenStreetMap ·
               Itinéraires <a href="https://openrouteservice.org" target="_blank" rel="noopener">openrouteservice</a> ·
+              Altitudes <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">Terrain Tiles</a> ·
               <a href="https://github.com/maximeaufrere/plan-itinerary" target="_blank" rel="noopener">Code source</a>
             </p>
           </div>
@@ -238,8 +318,12 @@
       </section>
 
       <section id="account" class="view" data-view="account" aria-labelledby="account-title" hidden>
-        <div class="view-header">
+        <div class="subview-header">
+          <button type="button" id="account-back" class="round-button" aria-label="Retour aux réglages">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
           <h2 id="account-title">Mon compte</h2>
+          <span class="subview-spacer" aria-hidden="true"></span>
         </div>
         <p id="account-message" class="settings-message" hidden></p>
 
@@ -247,7 +331,8 @@
           <div class="settings-card">
             <p class="hint">
               Les comptes ne sont pas encore activés sur cette installation de l'app. Le propriétaire doit relier un projet
-              Supabase gratuit (voir le README du projet). En attendant, tout fonctionne sur cet appareil sans compte.
+              Supabase gratuit (voir le README du projet). En attendant, tout fonctionne sur cet appareil sans compte :
+              favoris et historique de vos sorties compris.
             </p>
           </div>
         </section>
@@ -255,9 +340,8 @@
         <section id="account-signed-out" class="settings-section" hidden>
           <div class="settings-card">
             <ul class="benefits">
-              <li>Favoris et réglages synchronisés sur tous vos appareils</li>
+              <li>Favoris, historique et réglages synchronisés sur tous vos appareils</li>
               <li>Partage de parcours par lien</li>
-              <li>Historique de vos sorties et statistiques</li>
             </ul>
             <fieldset class="segmented" id="auth-mode" aria-label="Connexion ou création de compte">
               <label><input type="radio" name="auth-mode" value="signin" checked><span>Se connecter</span></label>
@@ -304,19 +388,6 @@
             </div>
           </section>
 
-          <section class="settings-section" aria-labelledby="outings-title">
-            <h3 id="outings-title">Mes sorties</h3>
-            <div class="settings-card">
-              <fieldset class="segmented compact" id="outing-period" aria-label="Période">
-                <label><input type="radio" name="outing-period" value="30" checked><span>30 jours</span></label>
-                <label><input type="radio" name="outing-period" value="year"><span>Année</span></label>
-                <label><input type="radio" name="outing-period" value="all"><span>Tout</span></label>
-              </fieldset>
-              <div id="outing-stats" class="stats stats-4"></div>
-              <ul id="outings-list" class="item-list"></ul>
-            </div>
-          </section>
-
           <section class="settings-section" aria-labelledby="shares-title">
             <h3 id="shares-title">Mes parcours partagés</h3>
             <div class="settings-card">
@@ -341,31 +412,64 @@
           </section>
         </div>
       </section>
-
-      <section id="favorites" class="view" data-view="favorites" aria-labelledby="favorites-title" hidden>
-        <div class="view-header">
-          <h2 id="favorites-title">Favoris</h2>
-        </div>
-        <p class="hint">Vos parcours enregistrés. Touchez-en un pour l'afficher sur la carte.</p>
-        <ul id="favorites-list" class="favorites-list"></ul>
-      </section>
       </div>
     </section>
   </main>
 
   <nav id="tabbar" class="tabbar" aria-label="Navigation principale">
     <button type="button" id="tab-route" data-tab="route" class="tab active" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5"/></svg><span>Parcours</span></button>
-    <button type="button" id="open-favorites" data-tab="favorites" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>Favoris</span></button>
-    <button type="button" id="tab-outings" data-tab="outings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Sorties</span></button>
-    <button type="button" id="open-account" data-tab="account" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg><span>Compte</span></button>
-    <button type="button" id="open-settings" data-tab="settings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Réglages</span></button>
+    <button type="button" id="tab-library" data-tab="library" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>Mes parcours</span></button>
+    <button type="button" id="tab-settings" data-tab="settings" class="tab"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Réglages</span></button>
   </nav>
 
+  <!-- Mise en route : position, puis clé OpenRouteService -->
+  <div id="onboarding" class="onboarding" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" hidden>
+    <svg class="onboarding-art" viewBox="0 0 390 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path d="M-10 60 C90 30 200 90 400 40" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.5"/>
+      <path d="M-10 110 C80 80 210 140 400 90" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.5"/>
+      <path d="M-10 160 C100 130 220 190 400 140" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.5"/>
+      <path d="M190 210 C150 190 120 150 140 115 C160 80 220 70 260 95 C300 120 290 170 250 195 C230 205 210 210 190 210" fill="none" stroke="#ff8a4c" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="190" cy="210" r="11" fill="#ffffff" stroke="#84d4a6" stroke-width="4"/>
+    </svg>
+    <div class="onboarding-sheet">
+      <div class="onboarding-top">
+        <span id="onboarding-step-label"></span>
+        <span class="onboarding-dots" aria-hidden="true"><i data-dot="1"></i><i data-dot="2"></i></span>
+      </div>
 
+      <section class="onboarding-step" data-step="1">
+        <h1 id="onboarding-title" tabindex="-1">Des parcours sur mesure, autour de vous</h1>
+        <p>Choisissez une distance et un relief : l'app dessine plusieurs boucles de course ou de vélo et vous propose les meilleures.</p>
+        <p class="hint">Votre position sert seulement de point de départ. Vous pouvez aussi taper une adresse ou toucher la carte.</p>
+        <div class="onboarding-actions">
+          <button type="button" id="onboarding-locate" class="primary wide">Utiliser ma position</button>
+          <button type="button" id="onboarding-skip-locate" class="link-button">Choisir le départ moi-même</button>
+        </div>
+      </section>
+
+      <section class="onboarding-step" data-step="2" hidden>
+        <h1 id="onboarding-key-title" tabindex="-1">Une clé gratuite pour tracer vos parcours</h1>
+        <p id="onboarding-message" class="settings-message" hidden></p>
+        <ol class="onboarding-list">
+          <li><span>1</span><span>Créez un compte sur <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">openrouteservice.org</a> (2 min).</span></li>
+          <li><span>2</span><span>Copiez la clé affichée dans votre tableau de bord.</span></li>
+          <li><span>3</span><span>Collez-la ici : elle reste sur cet appareil.</span></li>
+        </ol>
+        <label class="field onboarding-field"><span>Clé OpenRouteService</span>
+          <input type="text" id="onboarding-key" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez votre clé">
+        </label>
+        <p id="onboarding-status" class="key-status" role="status" aria-live="polite"></p>
+        <div class="onboarding-actions">
+          <button type="button" id="onboarding-test" class="primary wide">Tester et commencer</button>
+          <button type="button" id="onboarding-later" class="link-button">Plus tard</button>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <dialog id="outing-dialog" aria-labelledby="outing-title">
     <form id="outing-form" class="settings-form">
-      <h2 id="outing-title">Ajouter à mes sorties</h2>
+      <h2 id="outing-title">Marquer comme fait</h2>
       <label class="field"><span>Nom</span><input type="text" id="outing-name" maxlength="120" required></label>
       <label class="field"><span>Date</span><input type="date" id="outing-date" required></label>
       <div class="field">
@@ -382,7 +486,6 @@
       </div>
     </form>
   </dialog>
-
 
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/supabase/supabase.js"></script>

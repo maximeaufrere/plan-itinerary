@@ -1,23 +1,19 @@
 import { initAccount } from './account.js';
 import { initAddressField } from './address.js';
 import { elevationChart, sparkline } from './chart.js';
-import {
-  ACTIVITIES,
-  ELEVATION_PREFERENCES,
-  SHAPES,
-  SPEED_RANGES,
-  SURFACES,
-  estimatedDuration,
-  sanitizeCriteria,
-} from './criteria.js';
+import { ACTIVITIES, ELEVATION_PREFERENCES, SHAPES, SURFACES, estimatedDuration, sanitizeCriteria } from './criteria.js';
 import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
-import { formatDistance, formatDuration, formatElevation, formatPace, formatPercent } from './format.js';
+import { formatDistance, formatDuration, formatElevation, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
 import { reverse as reverseGeocode } from './geocode.js';
-import { distance } from './geo.js';
+import { cumulativeDistances, distance, pointAtDistance, pointsAlong } from './geo.js';
 import { toGpx } from './gpx.js';
-import { icons } from './icons.js';
+import { activityIcons, icons } from './icons.js';
+import { labelRoutes } from './labels.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
+import { initLibrary } from './library.js';
+import { initOnboarding } from './onboarding.js';
+import { DAILY_QUOTA, requestsToday } from './ors.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
 import { KEYS, applyTheme, storage } from './storage.js';
@@ -80,6 +76,7 @@ const addressFields = {};
  */
 function setPoint(kind, point, { label } = {}) {
   state[kind] = point;
+  markResultsStale();
   if (!point) {
     markers[kind]?.remove();
     markers[kind] = null;
@@ -249,42 +246,28 @@ async function useMyPositionAsStart() {
 
 // MARK: - Formulaire
 
-const chips = (name, entries) =>
-  entries.map(([value, label]) => `<label class="chip"><input type="radio" name="${name}" value="${value}"><span>${label}</span></label>`).join('');
+/** Libellés courts des contrôles segmentés. */
+const ELEVATION_SHORT = { any: 'Libre', flat: 'Plat', rolling: 'Vallonné', hilly: 'Montagne' };
+const SURFACE_SHORT = { any: 'Libre', paved: 'Bitume', unpaved: 'Chemins' };
+const ACTIVITY_SHORT = { road: 'Route' };
+const GAIN_STEP = 50;
+
+const segments = (name, entries) =>
+  entries.map(([value, label]) => `<label><input type="radio" name="${name}" value="${value}"><span>${label}</span></label>`).join('');
 
 function buildForm() {
-  $('activity').innerHTML = chips('activity', Object.entries(ACTIVITIES).map(([key, a]) => [key, a.label]));
-  $('shape').innerHTML = Object.entries(SHAPES)
-    .map(([key, label]) => `<label><input type="radio" name="shape" value="${key}"><span>${label}</span></label>`)
+  $('activity').innerHTML = Object.entries(ACTIVITIES)
+    .map(
+      ([key, activity]) => `
+      <label class="activity-option">
+        <input type="radio" name="activity" value="${key}" aria-label="${activity.label}">
+        <span>${activityIcons[key]}${ACTIVITY_SHORT[key] ?? activity.label}</span>
+      </label>`,
+    )
     .join('');
-  $('elevation').innerHTML = chips('elevation', Object.entries(ELEVATION_PREFERENCES).map(([key, p]) => [key, p.label]));
-  $('surface').innerHTML = chips('surface', Object.entries(SURFACES));
-}
-
-/** À pied, le curseur règle une allure en secondes par km ; à vélo, une vitesse en km/h. */
-function speedSlider(activityKey) {
-  const { kind } = ACTIVITIES[activityKey];
-  const [minSpeed, maxSpeed] = SPEED_RANGES[kind];
-  if (kind === 'foot') {
-    return {
-      label: 'Allure',
-      min: Math.round(3600 / maxSpeed),
-      max: Math.round(3600 / minSpeed),
-      step: 5,
-      toSlider: (speed) => Math.round(3600 / speed / 5) * 5,
-      fromSlider: (seconds) => 3600 / seconds,
-      format: (speed) => formatPace(speed),
-    };
-  }
-  return {
-    label: 'Vitesse moyenne',
-    min: minSpeed,
-    max: maxSpeed,
-    step: 1,
-    toSlider: (speed) => Math.round(speed),
-    fromSlider: (value) => value,
-    format: (speed) => `${Math.round(speed)} km/h`,
-  };
+  $('shape').innerHTML = segments('shape', Object.entries(SHAPES));
+  $('elevation').innerHTML = segments('elevation', Object.keys(ELEVATION_PREFERENCES).map((key) => [key, ELEVATION_SHORT[key]]));
+  $('surface').innerHTML = segments('surface', Object.keys(SURFACES).map((key) => [key, SURFACE_SHORT[key]]));
 }
 
 /** Partie remplie des curseurs (le navigateur ne la colore pas partout de la même façon). */
@@ -294,6 +277,20 @@ function fillRange(input) {
   const ratio = max > min ? (Number(input.value) - min) / (max - min) : 0;
   input.style.setProperty('--fill', `${(ratio * 100).toFixed(1)}%`);
 }
+
+/** Critères avancés qui s'écartent des valeurs par défaut, en pastilles courtes. */
+function advancedTags() {
+  const { criteria } = state;
+  const tags = [];
+  if (criteria.elevation !== 'any') tags.push(ELEVATION_PREFERENCES[criteria.elevation].label);
+  if (criteria.maxGain != null) tags.push(`D+ ≤ ${formatElevation(criteria.maxGain)}`);
+  if (criteria.surface !== 'any') tags.push(SURFACES[criteria.surface]);
+  if (criteria.avoidMajorRoads) tags.push('Sans grands axes');
+  if (criteria.proposals !== 3) tags.push(`${criteria.proposals} proposition${criteria.proposals > 1 ? 's' : ''}`);
+  return tags;
+}
+
+const proposalsLabel = (n) => `Générer ${n} parcours`;
 
 function syncForm() {
   const { criteria } = state;
@@ -307,13 +304,7 @@ function syncForm() {
   [distance.min, distance.max] = activity.range;
   distance.value = criteria.distanceKm;
   $('distance-output').textContent = `${criteria.distanceKm} km`;
-
-  const slider = speedSlider(criteria.activity);
-  const speed = $('speed');
-  $('speed-label').textContent = slider.label;
-  Object.assign(speed, { min: slider.min, max: slider.max, step: slider.step });
-  speed.value = slider.toSlider(criteria.speeds[criteria.activity]);
-  $('speed-output').textContent = slider.format(criteria.speeds[criteria.activity]);
+  fillRange(distance);
 
   document.querySelector(`input[name="elevation"][value="${criteria.elevation}"]`).checked = true;
   document.querySelector(`input[name="surface"][value="${criteria.surface}"]`).checked = true;
@@ -321,41 +312,72 @@ function syncForm() {
   $('proposals').textContent = String(criteria.proposals);
   $('proposals-minus').disabled = criteria.proposals <= 1;
   $('proposals-plus').disabled = criteria.proposals >= 5;
-  $('limit-gain').checked = criteria.maxGain != null;
-  $('max-gain').disabled = criteria.maxGain == null;
-  $('max-gain-field').classList.toggle('disabled', criteria.maxGain == null);
-  $('max-gain').value = criteria.maxGain ?? 200;
-  for (const range of [distance, speed]) fillRange(range);
+  const limited = criteria.maxGain != null;
+  $('limit-gain').checked = limited;
+  $('max-gain-row').classList.toggle('disabled', !limited);
+  $('max-gain').textContent = formatElevation(criteria.maxGain ?? lastMaxGain);
+  $('gain-minus').disabled = !limited || criteria.maxGain <= GAIN_STEP;
+  $('gain-plus').disabled = !limited;
+
+  const tags = advancedTags();
+  $('more-summary').innerHTML = tags.length
+    ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')
+    : '<span class="muted">Dénivelé, revêtement, options</span>';
+  $('more-generate-label').textContent = proposalsLabel(criteria.proposals);
   $('criteria-summary-text').textContent = criteriaSummary();
   updatePeek();
 }
 
 function criteriaSummary() {
   const { criteria } = state;
-  return [
-    ACTIVITIES[criteria.activity].label,
-    SHAPES[criteria.shape],
-    `${criteria.distanceKm} km`,
-    speedSlider(criteria.activity).format(criteria.speeds[criteria.activity]),
-  ].join(' · ');
+  return [ACTIVITIES[criteria.activity].label, SHAPES[criteria.shape], `${criteria.distanceKm} km`, ...advancedTags()].join(' · ');
 }
 
-/** Après un calcul, les critères se replient pour laisser la place au parcours. */
+/** Dernière limite de D+ choisie, reprise quand on réactive la limite. */
+let lastMaxGain = state.criteria.maxGain ?? 200;
+
+/** Écran « Plus de critères » (dans la même feuille). */
+function setMoreOpen(open) {
+  $('criteria-more').hidden = !open;
+  $('criteria-main').hidden = open;
+  $('open-more').setAttribute('aria-expanded', String(open));
+  $('panel-scroll').scrollTo({ top: 0 });
+  if (open && sheetState !== 'full') snapTo('full', { fit: false });
+}
+
+/** Après un calcul, les critères se replient pour laisser la place aux propositions. */
 function setCriteriaCollapsed(collapsed) {
   $('criteria-form').classList.toggle('collapsed', collapsed);
-  $('criteria-summary').setAttribute('aria-expanded', String(!collapsed));
+  if (collapsed) setMoreOpen(false);
   $('criteria-summary-text').textContent = criteriaSummary();
   updatePeek();
 }
 
-$('criteria-summary').addEventListener('click', () => {
+$('edit-criteria').addEventListener('click', () => {
   setCriteriaCollapsed(false);
-  $('criteria-form').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (sheetState === 'peek') snapTo('mid');
+  $('panel-scroll').scrollTo({ top: 0, behavior: 'smooth' });
 });
+$('open-more').addEventListener('click', () => setMoreOpen(true));
+$('close-more').addEventListener('click', () => setMoreOpen(false));
+$('reset-more').addEventListener('click', () => {
+  const defaults = sanitizeCriteria({});
+  updateCriteria({
+    elevation: defaults.elevation,
+    maxGain: defaults.maxGain,
+    surface: defaults.surface,
+    avoidMajorRoads: defaults.avoidMajorRoads,
+    proposals: defaults.proposals,
+  });
+});
+$('goto-pace').addEventListener('click', () => settings.open('', { focusPace: true }));
 
 function updateCriteria(changes) {
   state.criteria = sanitizeCriteria({ ...state.criteria, ...changes });
+  if (state.criteria.maxGain != null) lastMaxGain = state.criteria.maxGain;
   storage.set(KEYS.criteria, state.criteria);
+  // Les propositions affichées ne correspondent plus aux critères : « Générer » redevient la seule action.
+  if (!('speeds' in changes)) markResultsStale();
   syncForm();
 }
 
@@ -371,26 +393,20 @@ $('shape').addEventListener('change', (event) => {
   }
 });
 $('distance').addEventListener('input', (event) => updateCriteria({ distanceKm: Number(event.target.value) }));
-$('speed').addEventListener('input', (event) => {
-  const key = state.criteria.activity;
-  const speed = speedSlider(key).fromSlider(Number(event.target.value));
-  updateCriteria({ speeds: { ...state.criteria.speeds, [key]: speed } });
-  refreshDurations();
-});
 $('elevation').addEventListener('change', (event) => updateCriteria({ elevation: event.target.value }));
 $('surface').addEventListener('change', (event) => updateCriteria({ surface: event.target.value }));
 $('avoid-major-roads').addEventListener('change', (event) => updateCriteria({ avoidMajorRoads: event.target.checked }));
 $('proposals-minus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals - 1 }));
 $('proposals-plus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals + 1 }));
-$('limit-gain').addEventListener('change', (event) =>
-  updateCriteria({ maxGain: event.target.checked ? Number($('max-gain').value) || 200 : null }),
-);
-// La limite est prise en compte dès la saisie (pas seulement en quittant le champ).
-$('max-gain').addEventListener('input', (event) => {
-  if (event.target.value !== '') updateCriteria({ maxGain: Number(event.target.value) });
-});
+$('limit-gain').addEventListener('change', (event) => updateCriteria({ maxGain: event.target.checked ? lastMaxGain : null }));
+$('gain-minus').addEventListener('click', () => updateCriteria({ maxGain: Math.max(GAIN_STEP, state.criteria.maxGain - GAIN_STEP) }));
+$('gain-plus').addEventListener('click', () => updateCriteria({ maxGain: state.criteria.maxGain + GAIN_STEP }));
 $('locate').addEventListener('click', () => centerOnMe());
-$('quick-generate').addEventListener('click', () => $('criteria-form').requestSubmit());
+$('quick-generate').addEventListener('click', () => {
+  if (state.controller) return; // le calcul en cours s'annule avec « Annuler »
+  $('criteria-form').requestSubmit();
+});
+$('cancel-generate').addEventListener('click', () => state.controller?.abort());
 
 function setStatus(message, isError = false) {
   // Une erreur ne doit pas rester cachée derrière le panneau réduit.
@@ -402,53 +418,116 @@ function setStatus(message, isError = false) {
 
 // MARK: - Génération
 
+/** Formes étudiées, dessinées en pointillés pendant le tracé. */
+let outlineLayers = [];
+
+function clearOutlines() {
+  for (const layer of outlineLayers) layer.remove();
+  outlineLayers = [];
+}
+
+function setStep(id, stepState, text) {
+  const item = $(id);
+  item.dataset.state = stepState;
+  if (text) item.querySelector('span').textContent = text;
+}
+
+/** Affiche ou masque l'écran de calcul (étapes + cartes en attente) à la place des critères et résultats. */
 function setGenerating(isGenerating) {
-  $('quick-generate').classList.toggle('loading', isGenerating);
-  $('quick-generate').setAttribute('aria-busy', String(isGenerating));
-  $('quick-generate-label').textContent = isGenerating ? 'Annuler' : 'Générer';
+  const button = $('quick-generate');
+  button.classList.toggle('loading', isGenerating);
+  button.setAttribute('aria-busy', String(isGenerating));
+  $('cancel-generate').hidden = !isGenerating;
+  $('locate').hidden = isGenerating;
+  $('route-view').classList.toggle('generating', isGenerating);
+  $('progress').hidden = !isGenerating;
+  if (isGenerating) {
+    setStep('step-relief', 'active', 'Analyse du relief autour du départ');
+    setStep('step-trace', 'todo', 'Tracé par les chemins');
+    setStep('step-rank', 'todo', 'Classement selon vos critères');
+    $('request-note').textContent = '';
+    $('quick-generate-label').textContent = 'Calcul…';
+  } else {
+    clearOutlines();
+    updateGenerateLabel();
+  }
 }
 
 $('criteria-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (state.controller) return;
 
-  if (state.controller) {
-    state.controller.abort();
-    return;
-  }
   const apiKey = storage.get(KEYS.apiKey, '');
   if (!apiKey) {
-    settings.open('Ajoutez votre clé OpenRouteService (gratuite) pour générer des itinéraires. Le tutoriel explique comment l\'obtenir en 2 minutes.');
+    onboarding.askKey('Il faut une clé OpenRouteService (gratuite) pour générer des parcours.');
     return;
   }
   if (!state.start) {
+    setCriteriaCollapsed(false);
     setStatus('Choisissez un départ : touchez la carte ou utilisez « Ma position ».', true);
     return;
   }
   if (isPointToPoint() && !state.end) {
+    setCriteriaCollapsed(false);
     document.querySelector('input[name="placing"][value="end"]').checked = true;
     setStatus('Touchez la carte pour placer l\'arrivée.', true);
     return;
   }
 
+  showView('route');
   const controller = new AbortController();
   state.controller = controller;
+  const requestsBefore = requestsToday();
+  setStatus('');
   setGenerating(true);
-  setStatus('Calcul des itinéraires…');
+  // La carte doit rester visible pour suivre les formes étudiées.
+  if (sheetState !== 'mid') snapTo('mid', { fit: false });
+  $('panel-scroll').scrollTo({ top: 0 });
 
   try {
-    const { routes, directIsLonger, maxGainUnmet } = await generateRoutes({
+    const { routes, directIsLonger, maxGainUnmet, overMaxGain } = await generateRoutes({
       start: state.start,
       end: isPointToPoint() ? state.end : null,
       criteria: state.criteria,
       apiKey,
       signal: controller.signal,
-      onProgress: (done, total) => setStatus(`Calcul des itinéraires… (${done} sur ${total} prêts)`),
-      onWait: (seconds) => setStatus(`Pause de ${seconds} s pour respecter la limite d'OpenRouteService (40 itinéraires par minute)…`),
+      onPhase: (phase, info) => {
+        if (phase === 'relief') {
+          setStep(
+            'step-relief',
+            'done',
+            info.reused ? 'Formes déjà étudiées : réutilisées' : `Relief analysé : ${info.studied} formes étudiées`,
+          );
+          setStep('step-trace', 'active');
+        } else if (phase === 'trace') {
+          clearOutlines();
+          const color = getComputedStyle(document.documentElement).getPropertyValue('--route').trim();
+          outlineLayers = info.outlines.map((points) =>
+            L.polyline(points, { color, weight: 3, opacity: 0.75, dashArray: '6 10', className: 'outline-draft', interactive: false }).addTo(map),
+          );
+        } else if (phase === 'rank') {
+          setStep('step-trace', 'done');
+          setStep('step-rank', 'active');
+        }
+      },
+      onProgress: (done, total) => {
+        setStep('step-trace', 'active', `Tracé par les chemins : ${done} sur ${total}`);
+        $('quick-generate-label').textContent = `Calcul… ${done} sur ${total}`;
+      },
+      onWait: (seconds) => setStep('step-trace', 'active', `Pause de ${seconds} s (limite de 40 itinéraires par minute)`),
     });
-    showRoutes(routes, state.criteria.activity);
+    const used = requestsToday() - requestsBefore;
+    state.lastRequestNote = `${used} requête${used > 1 ? 's' : ''} OpenRouteService pour cette génération · ${requestsToday().toLocaleString('fr-FR')} / ${DAILY_QUOTA.toLocaleString('fr-FR')} aujourd'hui`;
+    showRoutes(routes, state.criteria.activity, { fresh: true });
     const messages = [];
     if (directIsLonger) {
       messages.push(`Le trajet direct (${formatDistance(routes[0].distance)}) est déjà plus long que la distance visée : c'est lui qui est proposé.`);
+    }
+    if (overMaxGain && routes.length < state.criteria.proposals && !maxGainUnmet) {
+      messages.push(
+        `${overMaxGain} parcours écarté${overMaxGain > 1 ? 's' : ''} : plus de ${formatElevation(state.criteria.maxGain)} de D+. ` +
+          '« Autres parcours » en cherche d\'autres.',
+      );
     }
     if (maxGainUnmet) {
       messages.push(
@@ -468,20 +547,45 @@ $('criteria-form').addEventListener('submit', async (event) => {
 
 // MARK: - Résultats
 
-function showRoutes(routes, activity) {
+/**
+ * Affiche des itinéraires.
+ * @param {{ fresh?: boolean }} [options]  `fresh` : ils viennent d'être générés avec les critères actuels
+ *   (le bouton propose alors « Autres parcours »)
+ */
+function showRoutes(routes, activity, { fresh = false } = {}) {
   showView('route');
   state.routes = routes;
   state.routesActivity = activity;
   state.routesShape = state.criteria.shape;
+  state.routesCriteria = { ...state.criteria };
+  state.routesStart = state.start;
+  state.resultsFresh = fresh;
+  state.labels = labelRoutes(routes, { criteria: state.routesCriteria, start: state.start });
   renderRoutes();
   selectRoute(routes[0].id);
   setCriteriaCollapsed(true);
-  // Le premier parcours est généré : le message de bienvenue a fait son office.
-  dismissWelcome();
+  updateGenerateLabel();
   $('panel-scroll').scrollTo({ top: 0 });
 }
 
+/** « Générer » devient « Autres parcours » tant que les propositions affichées correspondent aux critères. */
+function updateGenerateLabel() {
+  if (state.controller) return;
+  const again = Boolean(state.resultsFresh && state.routes.length);
+  $('quick-generate').classList.toggle('again', again);
+  $('quick-generate-label').textContent = again ? 'Autres parcours' : 'Générer';
+}
+
+function markResultsStale() {
+  if (!state.resultsFresh) return;
+  state.resultsFresh = false;
+  updateGenerateLabel();
+}
+
 const routeDuration = (route) => formatDuration(estimatedDuration(route, state.routesActivity, state.criteria.speeds));
+const routeName = (route) => route.name ?? `${ACTIVITIES[state.routesActivity].label} ${formatDistance(route.distance)}`;
+/** Étiquette d'une proposition (« La plus plate »…) ou nom d'un parcours enregistré. */
+const routeTag = (route) => (route.name ? escapeHtml(route.name) : escapeHtml(state.labels?.get(route.id)?.tag ?? ''));
 
 function renderRoutes() {
   for (const layer of routeLayers.values()) layer.remove();
@@ -497,23 +601,25 @@ function renderRoutes() {
   }
 
   $('cards').innerHTML = state.routes
-    .map(
-      (route, index) => `
+    .map((route) => {
+      const detail = route.name ? '' : state.labels?.get(route.id)?.detail ?? '';
+      return `
       <button type="button" class="card" role="option" data-id="${route.id}">
-        <small>${state.routes.length > 1 ? `Proposition ${index + 1}` : escapeHtml(route.name ?? 'Itinéraire')}</small>
+        <span class="card-tag">${routeTag(route)}</span>
         <strong>${formatDistance(route.distance)}</strong>
         <span>↗ ${formatElevation(route.ascent)} · <span class="card-duration">${routeDuration(route)}</span></span>
+        ${detail ? `<span class="card-detail">${escapeHtml(detail)}</span>` : ''}
         ${route.overMaxGain ? '<span class="over-limit">D+ &gt; max</span>' : ''}
         ${sparkline(route.profile)}
-      </button>`,
-    )
+      </button>`;
+    })
     .join('');
   $('results').hidden = state.routes.length === 0;
 }
 
 /** L'allure a changé : on met à jour les durées affichées sans tout redessiner. */
 function refreshDurations() {
-  if (state.routesActivity !== state.criteria.activity) return;
+  if (!state.routes.length) return;
   for (const card of $('cards').children) {
     const route = state.routes.find((r) => r.id === card.dataset.id);
     card.querySelector('.card-duration').textContent = routeDuration(route);
@@ -535,6 +641,7 @@ function selectRoute(id) {
   if (!route) return;
 
   styleRoutes();
+  decorateRoute(route);
   fitToRoute(id);
 
   for (const card of $('cards').children) {
@@ -592,13 +699,117 @@ function styleRoutes() {
   }
 }
 
-function surfaceBreakdown(surface) {
+// MARK: Sens du parcours, repères kilométriques et curseur du profil
+
+let decorations = [];
+let profileMarker = null;
+
+/** Écart entre deux repères kilométriques, selon la longueur du parcours. */
+const kmStep = (km) => (km <= 6 ? 1 : km <= 15 ? 2 : km <= 40 ? 5 : km <= 100 ? 10 : 20);
+
+function decorateRoute(route) {
+  for (const layer of decorations) layer.remove();
+  decorations = [];
+  hideProfileCursor();
+  if (route.coordinates.length < 2) return;
+  const marker = (point, html, size) =>
+    L.marker(point, {
+      icon: L.divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
+      interactive: false,
+      keyboard: false,
+    }).addTo(map);
+
+  const arrowSpacing = route.distance / 7;
+  for (const { point, bearing } of pointsAlong(route.coordinates, route.distance, arrowSpacing, { offset: arrowSpacing / 2 })) {
+    decorations.push(
+      marker(
+        point,
+        `<span class="route-arrow" style="transform: rotate(${Math.round(bearing)}deg)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5l7 13H5z"/></svg></span>`,
+        18,
+      ),
+    );
+  }
+  const step = kmStep(route.distance / 1000) * 1000;
+  for (const { distance: at, point } of pointsAlong(route.coordinates, route.distance, step)) {
+    decorations.push(marker(point, `<span class="km-marker">${Math.round(at / 1000)}</span>`, 24));
+  }
+}
+
+/** Point du parcours et altitude à une distance donnée (mètres, distance officielle). */
+function routePointAt(route, at) {
+  const cumulative = cumulativeDistances(route.coordinates);
+  const scale = cumulative.at(-1) > 0 ? route.distance / cumulative.at(-1) : 1;
+  const found = pointAtDistance(route.coordinates, at / scale, cumulative);
+  let elevation = null;
+  const profile = route.profile;
+  if (profile.length > 1) {
+    const i = Math.max(1, profile.findIndex((p) => p.distance >= at));
+    const [p0, p1] = [profile[i - 1], profile[i] ?? profile[i - 1]];
+    const t = p1.distance > p0.distance ? (at - p0.distance) / (p1.distance - p0.distance) : 0;
+    elevation = p0.elevation + (p1.elevation - p0.elevation) * Math.min(1, Math.max(0, t));
+  }
+  return { point: found?.point, elevation };
+}
+
+function hideProfileCursor() {
+  profileMarker?.remove();
+  profileMarker = null;
+  const cursor = document.querySelector('.chart-cursor');
+  if (cursor) cursor.hidden = true;
+}
+
+/** Toucher ou survoler le profil : un curseur sur le graphique, le point correspondant sur la carte. */
+function bindProfileCursor(route) {
+  const plot = document.querySelector('#details .chart-plot');
+  if (!plot || route.profile.length < 2) return;
+  const cursor = plot.querySelector('.chart-cursor');
+  const tip = cursor.querySelector('.chart-tip');
+  const total = route.profile.at(-1).distance;
+
+  const move = (event) => {
+    const rect = plot.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    const at = ratio * total;
+    const { point, elevation } = routePointAt(route, at);
+    cursor.hidden = false;
+    cursor.style.left = `${(ratio * 100).toFixed(2)}%`;
+    cursor.classList.toggle('flip', ratio > 0.6);
+    tip.textContent = `${formatDistance(at)} · ${formatElevation(elevation)}`;
+    if (!point) return;
+    if (profileMarker) profileMarker.setLatLng(point);
+    else {
+      profileMarker = L.marker(point, {
+        icon: L.divIcon({ className: '', html: '<span class="profile-marker"></span>', iconSize: [18, 18], iconAnchor: [9, 9] }),
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: 800,
+      }).addTo(map);
+    }
+    revealPoint(point);
+  };
+  plot.addEventListener('pointerdown', (event) => {
+    plot.setPointerCapture(event.pointerId);
+    move(event);
+  });
+  plot.addEventListener('pointermove', (event) => {
+    if (event.pointerType === 'mouse' || plot.hasPointerCapture(event.pointerId)) move(event);
+  });
+  plot.addEventListener('pointerleave', (event) => {
+    if (event.pointerType === 'mouse') hideProfileCursor();
+  });
+}
+
+// MARK: Détail
+
+function surfaceBreakdown(route) {
+  const { surface } = route;
   if (!surface) return '';
   const parts = [
     ['paved', 'Bitume', surface.paved],
     ['unpaved', 'Chemins', surface.unpaved],
     ['unknown', 'Inconnu', surface.unknown],
   ].filter(([, , share]) => share > 0.005);
+  const majorRoads = route.majorRoads > 0.005 ? `<span class="legend-extra">Grands axes ${formatPercent(route.majorRoads)}</span>` : '';
   return `
     <div>
       <div class="surface-bar" role="img" aria-label="Revêtement : ${parts.map(([, label, share]) => `${label} ${formatPercent(share)}`).join(', ')}">
@@ -606,62 +817,76 @@ function surfaceBreakdown(surface) {
       </div>
       <div class="surface-legend">
         ${parts.map(([key, label, share]) => `<span><i class="surface-${key}"></i>${label} ${formatPercent(share)}</span>`).join('')}
+        ${majorRoads}
       </div>
     </div>`;
 }
 
+const isSaved = (route) => state.favorites.some((f) => f.id === route.id);
+
 function renderDetails(route) {
-  const stat = (label, value, id = '') => `<div class="stat"><small>${label}</small><strong${id ? ` id="${id}"` : ''}>${value}</strong></div>`;
-  const isFavorite = state.favorites.some((f) => f.id === route.id);
+  const stat = (label, value) => `<div class="stat"><small>${label}</small><strong>${value}</strong></div>`;
   const index = state.routes.findIndex((r) => r.id === route.id);
-  const subtitle = route.name
-    ? escapeHtml(route.name)
-    : `${ACTIVITIES[state.routesActivity].label} · ${SHAPES[state.routesShape]}`;
-  const badge = state.routes.length > 1 ? `<span class="badge">Prop. ${index + 1} sur ${state.routes.length}</span>` : '';
+  const saved = isSaved(route);
   const chart = elevationChart(route.profile);
+  const tag = routeTag(route);
   $('details').innerHTML = `
-    <div class="detail-header">
-      <div><small>${subtitle}</small><strong>${formatDistance(route.distance)}</strong></div>
-      ${badge}
+    <div class="detail-head">
+      <div>
+        ${tag ? `<span class="card-tag">${tag}</span>` : ''}
+        <h3 class="detail-title">${formatDistance(route.distance)} · <span id="detail-duration">${routeDuration(route)}</span></h3>
+      </div>
+      ${state.routes.length > 1 ? `<span class="detail-count">${index + 1} sur ${state.routes.length}</span>` : ''}
+    </div>
+    <div class="stats stats-4">
+      ${stat('D+', formatElevation(route.ascent))}
+      ${stat('D−', formatElevation(route.descent))}
+      ${stat('Point haut', formatElevation(route.maxAltitude))}
+      ${stat('Repassage', route.overlap == null ? '–' : formatPercent(route.overlap))}
     </div>
     ${
       chart
         ? `<div class="profile-card">
-            <header><span>Profil</span><span>↗ ${formatElevation(route.ascent)} · ↘ ${formatElevation(route.descent)}</span></header>
+            <header><span>Profil</span><span class="muted">Touchez pour situer sur la carte</span></header>
             ${chart}
           </div>`
         : ''
     }
-    <div class="stats">
-      ${stat('Durée', routeDuration(route), 'detail-duration')}
-      ${stat('Alt. min', formatElevation(route.minAltitude))}
-      ${stat('Alt. max', formatElevation(route.maxAltitude))}
-      ${stat('Repassages', route.overlap == null ? '–' : formatPercent(route.overlap))}
-      ${stat('Grands axes', route.majorRoads == null ? '–' : formatPercent(route.majorRoads))}
-      ${stat('Chemins', route.surface ? formatPercent(route.surface.unpaved) : '–')}
-    </div>
-    ${surfaceBreakdown(route.surface)}
-    <div class="actions actions-grid">
-      <button type="button" id="save-favorite" class="secondary" ${isFavorite ? 'disabled' : ''}>${isFavorite ? `${icons.starFilled} Enregistré` : `${icons.star} Enregistrer`}</button>
-      <button type="button" id="export-gpx" class="secondary">${icons.download} GPX</button>
-      <button type="button" id="share-route" class="secondary">${icons.share} Partager</button>
-      <button type="button" id="log-outing" class="secondary">${icons.check} Réalisé</button>
+    ${surfaceBreakdown(route)}
+    <button type="button" id="export-gpx" class="primary wide">${icons.download} Envoyer vers ma montre (GPX)</button>
+    <div class="tile-actions">
+      <button type="button" id="save-favorite" ${saved ? 'disabled' : ''}>${saved ? icons.bookmarkFilled : icons.bookmark}<span>${saved ? 'Enregistré' : 'Enregistrer'}</span></button>
+      <button type="button" id="share-route">${icons.share}<span>Partager</span></button>
+      <button type="button" id="log-outing">${icons.check}<span>Marquer fait</span></button>
     </div>`;
-  const routeName = () => route.name ?? `${ACTIVITIES[state.routesActivity].label} ${formatDistance(route.distance)}`;
   $('export-gpx').addEventListener('click', () => exportGpx(route));
   $('save-favorite').addEventListener('click', () => saveFavorite(route));
-  $('share-route').addEventListener('click', () => account.shareRoute(route, { activity: state.routesActivity, name: routeName() }));
+  $('share-route').addEventListener('click', () => account.shareRoute(route, { activity: state.routesActivity, name: routeName(route) }));
   $('log-outing').addEventListener('click', () =>
-    account.logOuting(route, {
+    library.logOuting(route, {
       activity: state.routesActivity,
-      name: routeName(),
+      name: routeName(route),
       duration: estimatedDuration(route, state.routesActivity, state.criteria.speeds),
     }),
   );
+  bindProfileCursor(route);
+
+  // Actions rapides, sous les propositions.
+  $('quick-save').innerHTML = saved ? icons.bookmarkFilled : icons.bookmark;
+  $('quick-save').disabled = saved;
+  $('quick-save').setAttribute('aria-label', saved ? 'Déjà dans mes parcours' : 'Enregistrer dans mes parcours');
 }
 
+const selectedRoute = () => state.routes.find((r) => r.id === state.selectedId);
+$('quick-gpx').addEventListener('click', () => selectedRoute() && exportGpx(selectedRoute()));
+$('quick-save').addEventListener('click', () => selectedRoute() && saveFavorite(selectedRoute()));
+$('show-detail').addEventListener('click', () => {
+  snapTo('full', { fit: false });
+  setTimeout(() => $('details').scrollIntoView({ block: 'start', behavior: 'smooth' }), 350);
+});
+
 async function exportGpx(route) {
-  const name = route.name ?? `${ACTIVITIES[state.routesActivity].label} ${formatDistance(route.distance)}`;
+  const name = routeName(route);
   const fileName = `${name.replace(/[^\p{L}\p{N}]+/gu, '-')}.gpx`;
   const file = new File([toGpx(route, name)], fileName, { type: 'application/gpx+xml' });
   await shareOrDownload(file, name);
@@ -671,7 +896,7 @@ async function exportGpx(route) {
 
 function saveFavorite(route) {
   const activity = state.routesActivity;
-  const suggested = `${ACTIVITIES[activity].label} ${formatDistance(route.distance)}`;
+  const suggested = routeName(route);
   const name = window.prompt('Nom du parcours', suggested);
   if (name === null) return;
 
@@ -683,55 +908,21 @@ function saveFavorite(route) {
   }
   state.favorites = favorites;
   // L'itinéraire affiché devient le favori (même identifiant), pour refléter l'état « enregistré ».
-  const saved = { ...fromFavorite(favorite), score: route.score };
+  const saved = { ...fromFavorite(favorite), name: favorite.name, score: route.score, overMaxGain: route.overMaxGain };
+  const label = state.labels?.get(route.id);
+  if (label) state.labels.set(saved.id, label);
   state.routes = state.routes.map((r) => (r.id === route.id ? saved : r));
   renderRoutes();
   selectRoute(saved.id);
-  setStatus(`« ${favorite.name} » ajouté aux favoris.`);
+  setStatus(`« ${favorite.name} » ajouté à Mes parcours.`);
 }
 
-function renderFavorites() {
-  const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
-  $('favorites-list').innerHTML = state.favorites.length
-    ? state.favorites
-        .map(
-          (favorite) => `
-        <li>
-          <button type="button" class="favorite-open" data-id="${favorite.id}">
-            <strong>${escapeHtml(favorite.name)}</strong>
-            <small>${ACTIVITIES[favorite.activity]?.label ?? ''} · ${formatDistance(favorite.route.distance)} · ↗ ${formatElevation(favorite.route.ascent)} · ${dateFormat.format(new Date(favorite.savedAt))}</small>
-          </button>
-          <button type="button" class="favorite-delete" data-id="${favorite.id}" aria-label="Supprimer ${escapeHtml(favorite.name)}">${icons.trash}</button>
-        </li>`,
-        )
-        .join('')
-    : '<li class="favorites-empty">Aucun favori pour l\'instant. Utilisez « Enregistrer » sous un itinéraire.</li>';
+function removeFavorite(id) {
+  state.favorites = state.favorites.filter((f) => f.id !== id);
+  storage.set(KEYS.favorites, state.favorites);
+  const shown = state.routes.find((r) => r.id === id);
+  if (shown && shown.id === state.selectedId) renderDetails(shown);
 }
-
-$('open-favorites').addEventListener('click', () => {
-  renderFavorites();
-  showView('favorites');
-});
-
-$('favorites-list').addEventListener('click', (event) => {
-  const open = event.target.closest('.favorite-open');
-  const remove = event.target.closest('.favorite-delete');
-  if (open) {
-    const favorite = state.favorites.find((f) => f.id === open.dataset.id);
-    if (!favorite) return;
-    if (ACTIVITIES[favorite.activity]) updateCriteria({ activity: favorite.activity });
-    showRoutes([{ ...fromFavorite(favorite), name: favorite.name }], favorite.activity);
-    setStatus('');
-  } else if (remove) {
-    const favorite = state.favorites.find((f) => f.id === remove.dataset.id);
-    if (!favorite || !window.confirm(`Supprimer « ${favorite.name} » ?`)) return;
-    state.favorites = state.favorites.filter((f) => f.id !== favorite.id);
-    storage.set(KEYS.favorites, state.favorites);
-    renderFavorites();
-    const shown = state.routes.find((r) => r.id === favorite.id);
-    if (shown) renderDetails(shown);
-  }
-});
 
 // MARK: - Réglages
 
@@ -747,15 +938,21 @@ const settings = initSettings({
   onResetCriteria: () => {
     state.criteria = sanitizeCriteria({});
     storage.set(KEYS.criteria, state.criteria);
+    markResultsStale();
     syncForm();
+  },
+  getSpeeds: () => state.criteria.speeds,
+  setSpeed: (activity, speed) => {
+    updateCriteria({ speeds: { ...state.criteria.speeds, [activity]: speed } });
+    refreshDurations();
   },
 });
 
-$('open-settings').addEventListener('click', () => settings.open());
+$('tab-settings').addEventListener('click', () => settings.open());
 
 // MARK: - Panneau : feuille glissable (téléphone), volet repliable (ordinateur)
 
-const VIEW_TITLES = { favorites: 'Favoris', account: 'Mon compte', settings: 'Réglages' };
+const VIEW_TITLES = { library: 'Mes parcours', account: 'Mon compte', settings: 'Réglages' };
 
 /** Texte de la barre d'aperçu affichée quand le panneau est réduit. */
 function updatePeek() {
@@ -970,6 +1167,7 @@ const account = initAccount({
     storage.set(KEYS.favorites, state.favorites, { silent: true });
     const shown = state.routes.find((r) => r.id === state.selectedId);
     if (shown) renderDetails(shown);
+    if (currentView() === 'library') library.refresh();
   },
   applySettings: (row) => {
     if (row.criteria) {
@@ -988,16 +1186,37 @@ const account = initAccount({
       setBaseLayer(row.base_layer);
     }
   },
-  openRoute: (route, activity) => {
-    if (ACTIVITIES[activity]) updateCriteria({ activity });
-    showRoutes([route], activity);
-  },
+  openRoute: (route, activity) => openSavedRoute(route, activity),
   setStatus,
+  onUserChange: () => {
+    if (currentView() === 'library') library.refresh();
+  },
+});
+
+/** Affiche un parcours enregistré (favori, sortie, lien de partage). */
+function openSavedRoute(route, activity) {
+  if (ACTIVITIES[activity]) updateCriteria({ activity });
+  showRoutes([route], activity);
+  setStatus('');
+}
+
+// MARK: - Mes parcours
+
+const library = initLibrary({
+  getFavorites: () => state.favorites,
+  removeFavorite,
+  openRoute: openSavedRoute,
+  isSignedIn: () => account.signedIn,
+  setStatus,
+});
+
+$('tab-library').addEventListener('click', () => {
+  showView('library');
+  library.refresh();
 });
 
 // MARK: - Barre d'onglets
 
-// « Parcours » réduit ou rouvre le panneau ; « Sorties » ouvre l'historique du compte.
 $('tab-route').addEventListener('click', () => showView('route'));
 
 // Toucher l'onglet déjà affiché (quel qu'il soit) réduit ou rouvre le panneau, au lieu de rouvrir la vue.
@@ -1006,6 +1225,8 @@ $('tabbar').addEventListener(
   (event) => {
     const tab = event.target.closest('[data-tab]');
     if (!tab?.classList.contains('active')) return;
+    // Depuis « Mon compte », l'onglet Réglages ramène aux réglages.
+    if (tab.dataset.tab === 'settings' && currentView() === 'account') return;
     event.stopPropagation(); // l'action habituelle de l'onglet n'est pas exécutée
     snapTo(sheetState === 'peek' ? 'mid' : 'peek');
   },
@@ -1015,26 +1236,36 @@ $('tabbar').addEventListener(
 // Changer de vue rouvre la feuille si elle était réduite et revient en haut de son contenu.
 onViewChange((view) => {
   // « Générer » n'a de sens que dans la vue Parcours.
-  $('quick-generate').hidden = view !== 'route';
+  $('sheet-actions').classList.toggle('route-only-hidden', view !== 'route');
   $('panel-scroll').scrollTo({ top: 0 });
   if (sheetState === 'peek') snapTo('mid', { fit: false });
   updatePeek();
 });
-$('tab-outings').addEventListener('click', () => account.openOutings());
 
-// MARK: - Bienvenue
+// MARK: - Sources de la carte (repliées derrière un bouton « i »)
 
-if (!storage.get(KEYS.welcomeDismissed, false)) $('welcome').hidden = false;
-function dismissWelcome() {
-  storage.set(KEYS.welcomeDismissed, true);
-  $('welcome').hidden = true;
-}
-$('dismiss-welcome').addEventListener('click', dismissWelcome);
-$('welcome').querySelector('a').addEventListener('click', dismissWelcome);
+$('map-credits').addEventListener('click', () => {
+  const open = !document.body.classList.contains('credits-open');
+  document.body.classList.toggle('credits-open', open);
+  $('map-credits').setAttribute('aria-expanded', String(open));
+});
+
+// MARK: - Mise en route
+
+const onboarding = initOnboarding({
+  onLocate: () => {
+    watchMyPosition();
+    getMyPosition().catch((error) => setStatus(error.message, true));
+  },
+  onSkipLocate: () => setStatus('Tapez une adresse de départ ou touchez la carte.'),
+  onDone: () => settings.refreshQuota(),
+});
+$('replay-onboarding').addEventListener('click', () => onboarding.start());
 
 // MARK: - Démarrage
 
 buildForm();
 syncForm();
 snapTo(sheetState, { save: false, fit: false });
-watchMyPosition();
+if (onboarding.needed) onboarding.start();
+else watchMyPosition();
