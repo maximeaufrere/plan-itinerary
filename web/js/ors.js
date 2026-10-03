@@ -88,9 +88,12 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, o
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
+    // Les refus de la passerelle d'ORS (clé refusée, quota du jour ou limite par minute atteints) n'ont pas
+    // les en-têtes CORS : le navigateur les présente comme une coupure réseau, sans code d'erreur lisible.
     throw new OrsError(
-      'Impossible de joindre OpenRouteService. Vérifiez votre connexion, ou patientez une minute : ' +
-        'au-delà de 40 itinéraires par minute, OpenRouteService bloque temporairement les requêtes.',
+      'OpenRouteService ne répond pas ou refuse les requêtes. Causes possibles : pas de connexion, ' +
+        'clé refusée, quota du jour épuisé (2 000 itinéraires), ou plus de 40 itinéraires en une minute. ' +
+        'Vérifiez votre quota sur openrouteservice.org (tableau de bord) puis réessayez dans une minute.',
       0,
     );
   }

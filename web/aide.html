@@ -237,8 +237,14 @@
         <p>L'offre gratuite limite le nombre de calculs par minute et par jour. Patientez une minute ; si le message persiste, le quota du jour est épuisé et sera remis à zéro le lendemain.</p>
       </details>
       <details>
-        <summary>« Impossible de joindre OpenRouteService »</summary>
-        <p>Vérifiez d'abord votre connexion. Sinon, la limite de 40 itinéraires par minute a sans doute été dépassée : OpenRouteService bloque alors les requêtes pendant une minute, d'une façon qui ressemble à une coupure réseau. L'app ralentit d'elle-même pour l'éviter (message « Pause de … s »), mais si vous utilisez la même clé ailleurs en même temps, patientez une minute et réessayez.</p>
+        <summary>« OpenRouteService ne répond pas ou refuse les requêtes »</summary>
+        <p>Quand OpenRouteService refuse une requête, le navigateur ne peut pas en lire la raison exacte. Vérifiez dans l'ordre :</p>
+        <ul>
+          <li>votre connexion internet ;</li>
+          <li>votre <strong>quota du jour</strong> : connectez-vous sur <a href="https://openrouteservice.org/dev/#/home" target="_blank" rel="noopener">openrouteservice.org</a>, le tableau de bord indique les requêtes restantes pour « Directions V2 » (2 000 par jour, remis à zéro chaque nuit) ;</li>
+          <li>votre <strong>clé</strong>, avec « Tester la clé » dans les réglages ;</li>
+          <li>la limite de <strong>40 itinéraires par minute</strong> : l'app ralentit d'elle-même pour l'éviter (message « Pause de … s »), mais patientez une minute si vous utilisez la même clé ailleurs.</li>
+        </ul>
       </details>
       <details>
         <summary>Ma position n'est pas trouvée</summary>

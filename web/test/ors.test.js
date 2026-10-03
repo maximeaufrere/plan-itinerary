@@ -9,14 +9,15 @@ const okResponse = () => ({
   }),
 });
 
-test('réseau injoignable : erreur bloquante, qui évoque la limite par minute', async (t) => {
+test('réseau injoignable ou refus d\'ORS : erreur bloquante, qui liste les causes possibles', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => {
     throw new TypeError('Load failed');
   });
   await assert.rejects(fetchRoute({ apiKey: 'k', profile: 'foot-walking', points: [[45.7, 4.8], [45.71, 4.81]] }), (error) => {
     assert.ok(error instanceof OrsError);
     assert.equal(error.isFatal, true);
-    assert.match(error.message, /40 itinéraires par minute/);
+    assert.match(error.message, /quota du jour/);
+    assert.match(error.message, /40 itinéraires en une minute/);
     return true;
   });
 });
