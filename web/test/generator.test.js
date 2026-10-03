@@ -258,3 +258,15 @@ test('sans limite de D+, rien n\'est écarté', () => {
   const { routes } = selectRoutes([route('a', 900, 2), route('b', 50, 1)], { ...defaultCriteria(), proposals: 3 });
   assert.deepEqual(routes.map((r) => r.id), ['b', 'a']);
 });
+
+test('l\'échelle observée sur le premier tracé sert aux suivants : moins de requêtes', async () => {
+  const criteria = { ...defaultCriteria(), distanceKm: 10, proposals: 3 };
+  // Les routes font toujours 1,6 fois la ligne droite.
+  const { calls, fetchRoute } = fakeFetch({ distanceFor: (r) => cumulativeDistances(r.points).at(-1) * 1.6 });
+
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
+
+  assert.equal(routes.length, 3);
+  // 4 formes tracées : 2 requêtes pour la première, puis 1 seule pour chacune des 3 autres.
+  assert.equal(calls.length, 5);
+});

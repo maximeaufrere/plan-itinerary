@@ -2,7 +2,7 @@ import { majorRoadShare, overlapRatio, surfaceShares } from './analysis.js';
 import { ACTIVITIES, score } from './criteria.js';
 import { cumulativeDistances, elevationGainAndLoss } from './geo.js';
 import { fetchRoute as orsFetchRoute } from './ors.js';
-import { detourShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
+import { DETOUR_FACTOR, detourShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
 import { defaultTerrain } from './terrain.js';
 
 /** Écart relatif à la distance visée considéré comme acceptable. */
@@ -32,13 +32,14 @@ export async function generateRoutes({
   apiKey,
   signal,
   onProgress,
+  onWait,
   fetchRoute = orsFetchRoute,
   terrain = defaultTerrain(),
   random = Math.random,
 }) {
   const profile = ACTIVITIES[criteria.activity].profile;
   const target = criteria.distanceKm * 1000;
-  const request = (points, roundTrip) => fetchRoute({ apiKey, profile, points, roundTrip, signal });
+  const request = (points, roundTrip) => fetchRoute({ apiKey, profile, points, roundTrip, signal, onWait });
   const finish = (raw, id) => {
     const route = toRoute(raw, id);
     route.score = score(route, criteria);
@@ -90,10 +91,30 @@ export async function generateRoutes({
     return true;
   };
 
+  // Rapport « distance par la route / ligne droite » observé sur les premiers tracés : appliqué aux formes
+  // suivantes, il leur donne d'emblée la bonne taille et évite la plupart des requêtes de correction.
+  const detour = { total: 0, count: 0 };
+  const traceShape = async (shape) => {
+    const initialScale = detour.count ? DETOUR_FACTOR / (detour.total / detour.count) : 1;
+    let lastPoints;
+    const route = await adjustToTarget(
+      target,
+      (scale) => {
+        lastPoints = shape.points(scale);
+        return request(lastPoints);
+      },
+      initialScale,
+    );
+    const straight = cumulativeDistances(lastPoints).at(-1);
+    if (straight > 0 && route.distance > 0) {
+      detour.total += route.distance / straight;
+      detour.count++;
+    }
+    return route;
+  };
+
   const attempts = Math.min(ranked.length, candidateCount + SPARE_SHAPES);
-  const canContinue = await tryCandidates(candidateCount, attempts, (index) =>
-    adjustToTarget(target, (scale) => request(ranked[index].points(scale))),
-  );
+  const canContinue = await tryCandidates(candidateCount, attempts, (index) => traceShape(ranked[index]));
 
   if (canContinue && candidates.length === 0 && criteria.shape === 'loop') {
     const baseSeed = Math.floor(random() * 10_000);
@@ -143,8 +164,8 @@ export function selectRoutes(candidates, criteria) {
 }
 
 /** Répète `attempt(scale)` en corrigeant l'échelle selon l'écart à la distance visée ; garde le meilleur essai. */
-async function adjustToTarget(target, attempt) {
-  let scale = 1;
+async function adjustToTarget(target, attempt, initialScale = 1) {
+  let scale = initialScale;
   let best;
   for (let i = 0; i < MAX_ADJUSTMENTS; i++) {
     const route = await attempt(scale);

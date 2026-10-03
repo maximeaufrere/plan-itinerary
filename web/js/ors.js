@@ -2,6 +2,37 @@
 
 const BASE_URL = 'https://api.openrouteservice.org/v2/directions';
 
+/**
+ * L'offre gratuite accepte 40 itinéraires par minute. Au-delà, ORS refuse les requêtes d'une façon que
+ * le navigateur prend pour une coupure réseau : on reste donc sous la limite en patientant si besoin.
+ */
+const RATE_LIMIT = 35;
+const RATE_WINDOW = 60_000;
+const recentRequests = [];
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    }, { once: true });
+  });
+}
+
+/** Attend qu'une requête puisse partir sans dépasser la limite ; `onWait(secondes)` prévient l'interface. */
+async function waitForSlot(signal, onWait, now = Date.now) {
+  for (;;) {
+    while (recentRequests.length && now() - recentRequests[0] >= RATE_WINDOW) recentRequests.shift();
+    if (recentRequests.length < RATE_LIMIT) break;
+    const delay = RATE_WINDOW - (now() - recentRequests[0]) + 100;
+    onWait?.(Math.ceil(delay / 1000));
+    await sleep(delay, signal);
+  }
+  recentRequests.push(now());
+}
+
 export class OrsError extends Error {
   constructor(message, status) {
     super(message);
@@ -9,9 +40,9 @@ export class OrsError extends Error {
     this.status = status;
   }
 
-  /** Erreur qui empêchera aussi les requêtes suivantes (clé invalide, quota atteint). */
+  /** Erreur qui empêchera aussi les requêtes suivantes (réseau, clé invalide, quota atteint). */
   get isFatal() {
-    return this.status === 401 || this.status === 403 || this.status === 429;
+    return this.status === 0 || this.status === 401 || this.status === 403 || this.status === 429;
   }
 }
 
@@ -28,10 +59,11 @@ function describeError(status, apiMessage) {
  * @param {Array<[number, number]>} options.points points [lat, lon] à relier dans l'ordre
  * @param {{length: number, points: number, seed: number}} [options.roundTrip] boucle générée par ORS à partir d'un seul point
  * @param {AbortSignal} [options.signal]
+ * @param {(seconds: number) => void} [options.onWait] appelé si l'on patiente pour respecter la limite par minute
  * @returns {Promise<{coordinates: Array<[number, number]>, elevations: number[] | null, distance: number,
  *   ascent: number | null, descent: number | null, extras: {surface?: object[], waytype?: object[]}}>}
  */
-export async function fetchRoute({ apiKey, profile, points, roundTrip, signal }) {
+export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, onWait }) {
   const body = {
     coordinates: points.map(([lat, lon]) => [lon, lat]),
     elevation: true,
@@ -41,6 +73,7 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal })
   };
   if (roundTrip) body.options.round_trip = roundTrip;
 
+  await waitForSlot(signal, onWait);
   let response;
   try {
     response = await fetch(`${BASE_URL}/${profile}/geojson`, {
@@ -55,7 +88,11 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal })
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
-    throw new OrsError('Impossible de joindre OpenRouteService. Vérifiez votre connexion.', 0);
+    throw new OrsError(
+      'Impossible de joindre OpenRouteService. Vérifiez votre connexion, ou patientez une minute : ' +
+        'au-delà de 40 itinéraires par minute, OpenRouteService bloque temporairement les requêtes.',
+      0,
+    );
   }
 
   if (!response.ok) {
