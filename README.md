@@ -19,7 +19,7 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 - Départ (et arrivée en A → B) par **adresse avec suggestions**, position GPS ou point touché sur la carte
   (géocodage OpenRouteService, même clé ; secours automatique par [Photon](https://photon.komoot.io), sans clé,
   si OpenRouteService est injoignable ou si aucune clé n'est configurée)
-- Activités : course (piéton), trail (randonnée), vélo de route, vélo, VTT — chacune avec son profil de calcul ORS
+- Activités : course (piéton), trail (randonnée), vélo de route, balade à vélo, VTT — chacune avec son profil de calcul ORS
 - Types de parcours :
   - **Boucle** : notre propre algorithme (`web/js/planner.js`) dessine 24 polygones de 3 à 5 points de passage
     autour du départ, estime leur relief avec les dalles d'altitude

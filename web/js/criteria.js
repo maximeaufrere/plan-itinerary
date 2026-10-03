@@ -3,7 +3,7 @@ export const ACTIVITIES = {
   running: { label: 'Course', kind: 'foot', profile: 'foot-walking', speedKmh: 10, range: [1, 50], defaultKm: 10 },
   trail: { label: 'Trail', kind: 'foot', profile: 'foot-hiking', speedKmh: 8, range: [1, 60], defaultKm: 15 },
   road: { label: 'Vélo route', kind: 'bike', profile: 'cycling-road', speedKmh: 25, range: [5, 200], defaultKm: 50 },
-  bike: { label: 'Vélo', kind: 'bike', profile: 'cycling-regular', speedKmh: 18, range: [5, 150], defaultKm: 30 },
+  bike: { label: 'Balade à vélo', kind: 'bike', profile: 'cycling-regular', speedKmh: 18, range: [5, 150], defaultKm: 30 },
   mtb: { label: 'VTT', kind: 'bike', profile: 'cycling-mountain', speedKmh: 14, range: [5, 120], defaultKm: 30 },
 };
 

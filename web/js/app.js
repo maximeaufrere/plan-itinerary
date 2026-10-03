@@ -249,7 +249,7 @@ async function useMyPositionAsStart() {
 /** Libellés courts des contrôles segmentés. */
 const ELEVATION_SHORT = { any: 'Libre', flat: 'Plat', rolling: 'Vallonné', hilly: 'Montagne' };
 const SURFACE_SHORT = { any: 'Libre', paved: 'Bitume', unpaved: 'Chemins' };
-const ACTIVITY_SHORT = { road: 'Route' };
+const ACTIVITY_SHORT = { road: 'Route', bike: 'Balade' };
 const GAIN_STEP = 50;
 
 const segments = (name, entries) =>
