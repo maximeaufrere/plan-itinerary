@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
-import { fetchRoute, OrsError } from '../js/ors.js';
+import { fetchRoute, OrsError, splitRoute } from '../js/ors.js';
 
 const okResponse = () => ({
   ok: true,
@@ -46,4 +46,41 @@ test('limite par minute : au-delà de 35 requêtes, on patiente au lieu d\'écho
   mock.timers.tick(61_000);
   await pending;
   assert.equal(done, true);
+});
+
+test('découpage d\'une requête groupée : tracés, altitudes, distances et revêtement par parcours', () => {
+  // 5 points sur une ligne, 1 km entre chacun ; points envoyés aux indices 0, 2 et 4 du tracé.
+  const coordinates = [0, 1, 2, 3, 4].map((i) => [45, 4 + i * 0.0127]);
+  const raw = {
+    coordinates,
+    elevations: [100, 110, 120, 110, 100],
+    distance: 8000, // la route fait le double de la ligne droite
+    wayPoints: [0, 2, 4],
+    extraValues: { surface: [[0, 1, 1], [1, 3, 8], [3, 4, 1]], waytype: [[0, 4, 3]] },
+  };
+  const [first, second] = splitRoute(raw, [[0, 1], [1, 2]]);
+  assert.equal(first.coordinates.length, 3);
+  assert.deepEqual(first.elevations, [100, 110, 120]);
+  assert.deepEqual(second.coordinates[0], coordinates[2]);
+  assert.ok(Math.abs(first.distance - 4000) < 50, `${first.distance}`);
+  assert.ok(Math.abs(first.distance - second.distance) < 1);
+  // 1er parcours : moitié bitume (code 1), moitié chemin (code 8).
+  const amounts = Object.fromEntries(first.extras.surface.map((s) => [s.value, Math.round(s.amount)]));
+  assert.deepEqual(amounts, { 1: 50, 8: 50 });
+  assert.equal(second.extras.waytype[0].amount, 100);
+  assert.throws(() => splitRoute({ ...raw, wayPoints: null }, [[0, 1]]));
+});
+
+test('erreur ORS : code et point en cause lus dans la réponse', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => ({
+    ok: false,
+    status: 404,
+    json: async () => ({ error: { code: 2010, message: 'Could not find routable point within a radius of 350.0 meters of specified coordinate 3: 4.85 45.77.' } }),
+  }));
+  await assert.rejects(fetchRoute({ apiKey: 'k', profile: 'foot-walking', points: [[45.7, 4.8], [45.71, 4.81]] }), (error) => {
+    assert.equal(error.code, 2010);
+    assert.equal(error.coordinateIndex, 3);
+    assert.equal(error.isFatal, false);
+    return true;
+  });
 });

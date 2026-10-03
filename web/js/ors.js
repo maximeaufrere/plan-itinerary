@@ -1,5 +1,7 @@
 // Client minimal de l'API Directions d'OpenRouteService : https://openrouteservice.org/dev/#/api-docs/v2/directions
 
+import { cumulativeDistances } from './geo.js';
+
 const BASE_URL = 'https://api.openrouteservice.org/v2/directions';
 
 /**
@@ -34,10 +36,18 @@ async function waitForSlot(signal, onWait, now = Date.now) {
 }
 
 export class OrsError extends Error {
-  constructor(message, status) {
+  /**
+   * @param {string} message
+   * @param {number} status code HTTP (0 si aucune réponse lisible)
+   * @param {{code?: number, coordinateIndex?: number | null}} [details] code d'erreur ORS et, pour un point
+   *   impossible à rejoindre, sa position dans la liste des points envoyés
+   */
+  constructor(message, status, { code, coordinateIndex = null } = {}) {
     super(message);
     this.name = 'OrsError';
     this.status = status;
+    this.code = code;
+    this.coordinateIndex = coordinateIndex;
   }
 
   /** Erreur qui empêchera aussi les requêtes suivantes (réseau, clé invalide, quota atteint). */
@@ -61,7 +71,8 @@ function describeError(status, apiMessage) {
  * @param {AbortSignal} [options.signal]
  * @param {(seconds: number) => void} [options.onWait] appelé si l'on patiente pour respecter la limite par minute
  * @returns {Promise<{coordinates: Array<[number, number]>, elevations: number[] | null, distance: number,
- *   ascent: number | null, descent: number | null, extras: {surface?: object[], waytype?: object[]}}>}
+ *   ascent: number | null, descent: number | null, extras: {surface?: object[], waytype?: object[]},
+ *   wayPoints: number[] | null, extraValues: {surface?: number[][], waytype?: number[][]}}>}
  */
 export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, onWait }) {
   const body = {
@@ -100,13 +111,20 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, o
 
   if (!response.ok) {
     let apiMessage;
+    let code;
     try {
       const json = await response.json();
       apiMessage = typeof json.error === 'string' ? json.error : json.error?.message;
+      code = json.error?.code;
     } catch {
       // Corps d'erreur non JSON : on garde le message générique.
     }
-    throw new OrsError(describeError(response.status, apiMessage), response.status);
+    // Ex. « Could not find routable point within a radius of 350.0 meters of specified coordinate 3: … »
+    const match = /coordinate (\d+)/.exec(apiMessage ?? '');
+    throw new OrsError(describeError(response.status, apiMessage), response.status, {
+      code,
+      coordinateIndex: match ? Number(match[1]) : null,
+    });
   }
 
   const json = await response.json();
@@ -126,5 +144,51 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, o
       surface: feature.properties.extras?.surface?.summary,
       waytype: feature.properties.extras?.waytype?.summary,
     },
+    // Position dans le tracé de chaque point envoyé, et valeurs détaillées [début, fin, valeur] :
+    // de quoi découper une requête groupée en plusieurs parcours.
+    wayPoints: feature.properties.way_points ?? null,
+    extraValues: {
+      surface: feature.properties.extras?.surface?.values,
+      waytype: feature.properties.extras?.waytype?.values,
+    },
   };
+}
+
+/**
+ * Découpe un itinéraire obtenu en une seule requête (plusieurs parcours enchaînés) en parcours séparés.
+ * `ranges` : pour chaque parcours, positions [premier, dernier] de ses points dans la liste envoyée à ORS.
+ * Les résumés de revêtement et de type de voie sont recalculés pour chaque morceau.
+ */
+export function splitRoute(raw, ranges) {
+  if (!raw.wayPoints) throw new OrsError('Réponse OpenRouteService sans points de passage.', 500);
+  const distances = cumulativeDistances(raw.coordinates);
+  const scale = distances.at(-1) > 0 ? raw.distance / distances.at(-1) : 1;
+  return ranges.map(([first, last]) => {
+    const a = raw.wayPoints[first];
+    const b = raw.wayPoints[last];
+    return {
+      coordinates: raw.coordinates.slice(a, b + 1),
+      elevations: raw.elevations?.slice(a, b + 1) ?? null,
+      distance: (distances[b] - distances[a]) * scale,
+      ascent: null,
+      descent: null,
+      extras: {
+        surface: summarize(raw.extraValues?.surface, distances, a, b),
+        waytype: summarize(raw.extraValues?.waytype, distances, a, b),
+      },
+    };
+  });
+}
+
+/** Résumé « part du parcours par valeur » ({ value, distance, amount en % }) entre les indices a et b du tracé. */
+function summarize(values, distances, a, b) {
+  if (!values?.length) return undefined;
+  const total = distances[b] - distances[a];
+  const byValue = new Map();
+  for (const [from, to, value] of values) {
+    const lo = Math.max(from, a);
+    const hi = Math.min(to, b);
+    if (hi > lo) byValue.set(value, (byValue.get(value) ?? 0) + distances[hi] - distances[lo]);
+  }
+  return [...byValue].map(([value, length]) => ({ value, distance: length, amount: total > 0 ? (length / total) * 100 : 0 }));
 }

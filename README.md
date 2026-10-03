@@ -24,8 +24,11 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
   - **Boucle** : notre propre algorithme (`web/js/planner.js`) dessine 24 polygones de 3 à 5 points de passage
     autour du départ, estime leur relief avec les dalles d'altitude
     [Terrarium](https://registry.opendata.aws/terrain-tiles/) (AWS Open Data, sans clé), puis fait tracer par ORS
-    les meilleures formes dans des directions variées ; échelle corrigée si l'écart dépasse 5 %, formes de rechange
-    si une forme est impossible, et boucles `round_trip` d'ORS en dernier recours
+    les meilleures formes dans des directions variées, **plusieurs par requête** (enchaînées puis découpées grâce
+    aux `way_points` de la réponse, ≤ 90 km et 50 points par requête) ; échelle corrigée en une requête groupée si
+    l'écart dépasse 10 %, formes de rechange si une forme est impossible, et boucles `round_trip` d'ORS en dernier
+    recours. « Générer à nouveau » avec les mêmes critères réutilise les parcours non affichés, le trajet direct
+    (A → B) et l'échelle observée
   - **Aller-retour** : point de demi-tour choisi parmi 16 directions selon le relief estimé
   - **A → B avec détour** : si le trajet direct est trop court, passage par un point placé sur une ellipse
     dont A et B sont les foyers (toutes ses positions donnent la même distance à vol d'oiseau), position choisie
@@ -87,8 +90,9 @@ du schéma. Ne mettez **jamais** la clé « service_role » dans l'app.
 L'app demande une clé API gratuite au premier calcul (bouton ⚙️) : créez un compte sur
 [openrouteservice.org](https://openrouteservice.org/dev/#/signup) et copiez la clé de votre tableau de bord.
 La clé est enregistrée **uniquement dans le navigateur** de l'appareil (jamais dans le dépôt). Offre gratuite :
-environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme jusqu'à 2 par forme tracée
-(propositions + 1, + 2 avec un D+ maximum, + 3 formes de rechange au besoin ; +1 pour le trajet direct en mode A → B).
+environ 2 000 itinéraires par jour et 40 par minute ; une génération en consomme en général 1 à 3
+(plusieurs parcours par requête ; +1 pour le trajet direct en mode A → B). L'app reste d'elle-même sous 35 requêtes
+par minute.
 
 ## Lancer en local
 

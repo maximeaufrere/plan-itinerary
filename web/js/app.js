@@ -442,7 +442,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
       criteria: state.criteria,
       apiKey,
       signal: controller.signal,
-      onProgress: (index, total) => setStatus(`Calcul de l'itinéraire ${index + 1} sur ${total}…`),
+      onProgress: (done, total) => setStatus(`Calcul des itinéraires… (${done} sur ${total} prêts)`),
       onWait: (seconds) => setStatus(`Pause de ${seconds} s pour respecter la limite d'OpenRouteService (40 itinéraires par minute)…`),
     });
     showRoutes(routes, state.criteria.activity);

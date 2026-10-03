@@ -63,7 +63,7 @@
       </ol>
       <p class="guide-tip">
         La clé reste enregistrée <strong>uniquement sur votre appareil</strong>. L'offre gratuite permet environ
-        2 000 itinéraires par jour : largement de quoi faire (une génération en utilise souvent moins de 10, rarement plus de 20).
+        2 000 itinéraires par jour : largement de quoi faire (une génération en utilise en général 1 à 3, car plusieurs parcours sont calculés dans une même requête).
       </p>
     </section>
 
@@ -100,7 +100,7 @@
         </dd>
 
         <dt>Distance</dt>
-        <dd>La distance visée. Les propositions s'en approchent généralement à ±5 %.</dd>
+        <dd>La distance visée. Les propositions s'en approchent à ±10 %.</dd>
 
         <dt>Allure / Vitesse moyenne</dt>
         <dd>
@@ -125,7 +125,7 @@
       </dl>
       <p class="guide-tip">
         Ces critères servent à <strong>classer</strong> les parcours trouvés : le premier proposé est celui qui
-        respecte le mieux l'ensemble. Si aucun ne vous convient, générez à nouveau : les directions changent à chaque fois.
+        respecte le mieux l'ensemble. Si aucun ne vous convient, générez à nouveau : avec les mêmes critères, l'app propose d'autres directions en réutilisant ce qu'elle a déjà calculé, ce qui économise des requêtes.
       </p>
     </section>
 
@@ -215,7 +215,7 @@
       <ol class="guide-steps">
         <li>L'app dessine une vingtaine de formes de parcours autour du départ (des points de passage), orientées dans toutes les directions.</li>
         <li>Elle estime le relief de chacune grâce à une carte des altitudes, sans rien demander à OpenRouteService : les formes qui correspondent le mieux à votre profil de dénivelé et à votre D+ maximum passent en premier, tout en restant variées.</li>
-        <li>OpenRouteService trace seulement les meilleures formes par de vrais chemins. Si un tracé est trop long ou trop court, il est recalculé une fois à la bonne échelle ; si une forme est impossible (lac, zone sans chemin), une forme de rechange prend sa place.</li>
+        <li>OpenRouteService trace seulement les meilleures formes par de vrais chemins, plusieurs à la fois dans une même requête. Les tracés qui s'écartent de plus de 10 % de la distance visée sont recalculés ensemble à la bonne échelle ; si une forme est impossible (lac, zone sans chemin), une forme de rechange prend sa place.</li>
         <li>Pour chaque candidat, elle mesure le dénivelé, les repassages, le revêtement et la part de grands axes.</li>
         <li>Elle donne une note à chacun selon vos critères et vous présente les meilleurs.</li>
       </ol>
@@ -256,7 +256,7 @@
       </details>
       <details>
         <summary>La distance n'est pas exactement celle demandée</summary>
-        <p>Les parcours suivent de vrais chemins : il est rare de tomber pile sur la distance. L'app vise ±5 % et vous montre d'abord les parcours les plus proches.</p>
+        <p>Les parcours suivent de vrais chemins : il est rare de tomber pile sur la distance. L'app vise ±10 % et vous montre d'abord les parcours les plus proches.</p>
       </details>
       <details>
         <summary>Le parcours repasse par la même rue</summary>

@@ -1,112 +1,188 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { beforeEach, test } from 'node:test';
 import { defaultCriteria, estimatedDuration, sanitizeCriteria, score } from '../js/criteria.js';
-import { generateRoutes, selectRoutes } from '../js/generator.js';
+import { generateRoutes, resetSession, selectRoutes } from '../js/generator.js';
 import { cumulativeDistances, distance, destination } from '../js/geo.js';
 import { toGpx } from '../js/gpx.js';
 import { OrsError } from '../js/ors.js';
 
 const start = [45.7640, 4.8357];
 
-/** Faux ORS : renvoie un tracé dont la distance et le dénivelé sont pilotés par le test. */
-function fakeFetch({ distanceFor, climb = 50 }) {
+beforeEach(() => resetSession());
+
+/**
+ * Faux ORS : le tracé suit les points envoyés (avec un point au milieu de chaque tronçon), la distance vaut
+ * `detour` fois la ligne droite, et `climbFor(milieu)` donne l'altitude gagnée au milieu de chaque tronçon.
+ */
+function fakeOrs({ detour = 1.25, climbFor = () => 50, fail } = {}) {
   const calls = [];
   const fetchRoute = async (request) => {
     calls.push(request);
-    const dist = distanceFor(request, calls.length);
-    const mid = destination(start, dist / 4, 90);
+    fail?.(request, calls.length);
+    const points = request.points;
+    const coordinates = [];
+    const elevations = [];
+    const wayPoints = [];
+    points.forEach((point, i) => {
+      if (i > 0) {
+        const mid = [(points[i - 1][0] + point[0]) / 2, (points[i - 1][1] + point[1]) / 2];
+        coordinates.push(mid);
+        elevations.push(200 + climbFor(mid));
+      }
+      wayPoints.push(coordinates.length);
+      coordinates.push(point);
+      elevations.push(200);
+    });
     return {
-      coordinates: [start, mid, start],
-      elevations: [200, 200 + climb, 200],
-      distance: dist,
+      coordinates,
+      elevations,
+      distance: cumulativeDistances(coordinates).at(-1) * detour,
       ascent: null,
       descent: null,
+      extras: {},
+      wayPoints,
+      extraValues: {},
     };
   };
   return { calls, fetchRoute };
 }
 
-test('boucle : nos points de passage, puis correction de l\'échelle quand ORS s\'écarte de la cible', async () => {
-  const criteria = { ...defaultCriteria(), distanceKm: 10, proposals: 1 };
-  // Les routes font 1,6 fois la ligne droite, plus que les 1,25 prévus.
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: (r) => cumulativeDistances(r.points).at(-1) * 1.6 });
+/** Nombre de parcours dans une requête de boucles : chaque passage au départ, sauf le premier. */
+const loopsIn = (call) => call.points.filter((p) => p[0] === start[0] && p[1] === start[1]).length - 1;
+
+test('boucles : plusieurs formes tracées en une seule requête, puis découpées', async () => {
+  const criteria = { ...defaultCriteria(), distanceKm: 10, proposals: 3 };
+  const { calls, fetchRoute } = fakeOrs();
 
   const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
-  assert.equal(routes.length, 1);
-  assert.equal(calls[0].roundTrip, undefined);
-  assert.ok(calls[0].points.length >= 5, 'départ + au moins 3 points de passage + retour');
-  assert.deepEqual(calls[0].points[0], start);
-  assert.deepEqual(calls[0].points.at(-1), start);
-  const first = cumulativeDistances(calls[0].points).at(-1);
-  const second = cumulativeDistances(calls[1].points).at(-1);
-  assert.ok(Math.abs(first * 1.25 - 10_000) < 50, 'première forme dimensionnée pour 10 km');
-  assert.ok(Math.abs(second / first - 1.25 / 1.6) < 0.01, 'deuxième essai réduit à l\'échelle');
-  assert.ok(Math.abs(routes[0].distance - 10_000) < 100);
-  assert.equal(routes[0].ascent, 50);
-  assert.equal(routes[0].maxAltitude, 250);
+  assert.equal(calls.length, 1, 'une seule requête pour toute la génération');
+  assert.equal(loopsIn(calls[0]), 4, '3 propositions + 1 candidat');
+  assert.equal(routes.length, 3);
+  for (const route of routes) {
+    assert.deepEqual(route.coordinates[0], start);
+    assert.deepEqual(route.coordinates.at(-1), start);
+    assert.ok(Math.abs(route.distance - 10_000) < 1000, `${route.distance}`);
+    assert.ok(route.ascent > 0);
+  }
 });
 
-test('boucle : relief estimé avant le tracé, les formes plates passent en premier', async () => {
+test('boucles : les formes trop longues sont corrigées ensemble, en une requête de plus', async () => {
+  const criteria = { ...defaultCriteria(), distanceKm: 10, proposals: 3 };
+  // Les routes font 1,6 fois la ligne droite, plus que les 1,25 prévus : +28 %.
+  const { calls, fetchRoute } = fakeOrs({ detour: 1.6 });
+
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
+
+  assert.equal(calls.length, 2);
+  assert.equal(loopsIn(calls[1]), 4);
+  for (const route of routes) assert.ok(Math.abs(route.distance - 10_000) < 200, `${route.distance}`);
+});
+
+test('boucles : relief estimé avant le tracé, les formes plates passent en premier', async () => {
   // Terrain fictif : plat au sud du départ, très pentu au nord.
   const terrain = {
     load: async () => {},
     elevationAt: ([lat]) => (lat > start[0] ? 200 + (lat - start[0]) * 50_000 : 200),
   };
   const criteria = { ...defaultCriteria(), elevation: 'flat', proposals: 2 };
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 10_000 });
+  const { calls, fetchRoute } = fakeOrs();
 
   await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain });
 
-  const centerLat = (call) => call.points.reduce((sum, [lat]) => sum + lat, 0) / call.points.length;
-  assert.ok(centerLat(calls[0]) < start[0] - 0.005, 'la meilleure forme part vers le sud');
-  for (const call of calls) assert.ok(centerLat(call) < start[0] + 0.002, 'aucune forme ne part vers le nord');
+  const centerLat = calls[0].points.reduce((sum, [lat]) => sum + lat, 0) / calls[0].points.length;
+  assert.ok(centerLat < start[0] - 0.003, 'les formes retenues partent vers le sud');
 });
 
-test('boucle : formes de rechange, puis boucles ORS en dernier recours', async () => {
+test('une forme impossible à tracer est remplacée, les autres sont retracées ensemble', async () => {
   const criteria = { ...defaultCriteria(), proposals: 1 };
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 10_000 });
-  const failing = async (request) => {
-    if (!request.roundTrip) {
+  const { calls, fetchRoute } = fakeOrs({
+    fail: (request, n) => {
+      // Premier essai : le dernier point de passage (2e boucle) est dans un lac.
+      if (n === 1) throw new OrsError('Point non routable', 404, { code: 2010, coordinateIndex: request.points.length - 2 });
+    },
+  });
+
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
+
+  assert.equal(routes.length, 1);
+  assert.equal(calls.length, 2);
+  assert.equal(loopsIn(calls[1]), 2, 'la 1re boucle + une forme de rechange');
+  assert.deepEqual(calls[1].points[1], calls[0].points[1], 'la 1re boucle est reprise telle quelle');
+});
+
+test('requête refusée sans coupable identifié : les formes sont retracées une par une', async () => {
+  const criteria = { ...defaultCriteria(), proposals: 1 };
+  const { calls, fetchRoute } = fakeOrs({
+    fail: (_, n) => {
+      if (n === 1) throw new OrsError('Itinéraire trop long', 400, { code: 2004 });
+    },
+  });
+
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
+
+  assert.equal(routes.length, 1);
+  assert.equal(calls.length, 3);
+  assert.equal(loopsIn(calls[1]), 1);
+  assert.equal(loopsIn(calls[2]), 1);
+});
+
+test('réponse illisible pour une requête groupée : on retente une par une, puis on s\'arrête', async () => {
+  const criteria = { ...defaultCriteria(), proposals: 1 };
+  const { calls, fetchRoute } = fakeOrs({
+    fail: () => {
+      throw new OrsError('OpenRouteService ne répond pas', 0);
+    },
+  });
+
+  await assert.rejects(generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null }), /ne répond pas/);
+  assert.equal(calls.length, 2, 'la requête groupée, puis une seule requête individuelle');
+});
+
+test('boucles ORS en dernier recours si aucune forme ne passe', async () => {
+  const criteria = { ...defaultCriteria(), proposals: 1 };
+  const { calls, fetchRoute } = fakeOrs({
+    fail: (request) => {
+      if (!request.roundTrip) throw new OrsError('Point non routable', 404);
+    },
+  });
+  const fallback = async (request) => {
+    if (request.roundTrip) {
       calls.push(request);
-      throw new OrsError('Point non routable', 404);
+      return { coordinates: [start, destination(start, 2500, 90), start], elevations: null, distance: 10_000, ascent: 10, descent: 10 };
     }
     return fetchRoute(request);
   };
 
-  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute: failing, terrain: null });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute: fallback, terrain: null });
 
   assert.equal(routes.length, 1);
-  const ours = calls.filter((c) => !c.roundTrip);
-  assert.equal(ours.length, 2 + 3, '2 formes voulues + 3 de rechange');
   assert.ok(calls.at(-1).roundTrip);
+  assert.ok(calls.filter((c) => !c.roundTrip).length <= 8);
 });
 
-test('aller-retour : passe par un point de demi-tour puis revient au départ', async () => {
+test('aller-retour : plusieurs demi-tours enchaînés dans la même requête', async () => {
   const criteria = { ...defaultCriteria(), shape: 'out_and_back', proposals: 1 };
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 10_000 });
+  const { calls, fetchRoute } = fakeOrs();
 
-  await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
-  assert.equal(calls[0].points.length, 3);
-  assert.deepEqual(calls[0].points[0], start);
-  assert.deepEqual(calls[0].points[2], start);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].points.length, 5);
+  for (const i of [0, 2, 4]) assert.deepEqual(calls[0].points[i], start);
   assert.equal(calls[0].roundTrip, undefined);
+  assert.equal(routes.length, 1);
 });
 
 test('classe les propositions selon le dénivelé souhaité', async () => {
   const criteria = { ...defaultCriteria(), elevation: 'flat', proposals: 2 };
-  let n = 0;
-  const fetchRoute = async () => {
-    n++;
-    const climb = n % 2 === 0 ? 5 : 300;
-    return { coordinates: [start, start], elevations: [100, 100 + climb], distance: 10_000, ascent: null, descent: null };
-  };
+  // Relief à l'est du départ seulement.
+  const { fetchRoute } = fakeOrs({ climbFor: ([, lon]) => (lon > start[1] ? 150 : 2) });
 
-  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(routes.length, 2);
-  assert.ok(routes[0].ascent < routes[1].ascent);
+  assert.ok(routes[0].ascent <= routes[1].ascent);
 });
 
 test('une erreur de clé arrête la génération', async () => {
@@ -117,18 +193,6 @@ test('une erreur de clé arrête la génération', async () => {
     generateRoutes({ start, criteria: defaultCriteria(), apiKey: 'k', fetchRoute }),
     /Clé invalide/,
   );
-});
-
-test('un candidat impossible est ignoré', async () => {
-  let n = 0;
-  const fetchRoute = async () => {
-    n++;
-    if (n === 1) throw new OrsError('Point non routable', 404);
-    return { coordinates: [start, start], elevations: null, distance: 10_000, ascent: 12, descent: 12 };
-  };
-  const { routes } = await generateRoutes({ start, criteria: { ...defaultCriteria(), proposals: 2 }, apiKey: 'k', fetchRoute });
-  assert.equal(routes.length, 2);
-  assert.equal(routes[0].ascent, 12);
 });
 
 test('annulation', async () => {
@@ -171,33 +235,60 @@ test('GPX valide avec altitudes et nom échappé', () => {
 test('A → B : propose le trajet direct s\'il est déjà plus long que la distance visée', async () => {
   const end = destination(start, 8000, 45);
   const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 5, proposals: 3 };
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: () => 9_000 });
+  const { calls, fetchRoute } = fakeOrs();
 
-  const result = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute });
+  const result = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(calls.length, 1);
   assert.equal(result.directIsLonger, true);
   assert.equal(result.routes.length, 1);
 });
 
-test('A → B : les points de détour sont sur une ellipse de foyers A et B, des deux côtés', async () => {
+test('A → B : détours sur une ellipse de foyers A et B, des deux côtés, tracés en une requête', async () => {
   const end = destination(start, 4000, 90);
   const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 10, proposals: 2 };
-  // 1er appel : trajet direct de 5 km ; ensuite les détours font pile 10 km.
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: (_, n) => (n === 1 ? 5_000 : 10_000) });
+  // Trajet direct : 5 km ; les détours font 10 km.
+  const { calls, fetchRoute } = fakeOrs();
 
-  const { routes, directIsLonger } = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute });
+  const { routes, directIsLonger } = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(directIsLonger, undefined);
+  assert.equal(calls.length, 2, 'trajet direct + une requête pour tous les détours');
   assert.equal(routes.length, 2);
-  const detours = calls.slice(1).map((c) => c.points[1]);
+  // Requête groupée : A, W1, B, A, W2, B, A, W3, B (les liaisons B → A sont écartées).
+  const detours = [1, 4, 7].map((i) => calls[1].points[i]);
   const expectedSum = 10_000 / 1.25;
   for (const waypoint of detours) {
     assert.ok(Math.abs(distance(start, waypoint) + distance(waypoint, end) - expectedSum) < 20);
   }
   // Angles 90° puis 270° : un détour de chaque côté de l'axe A → B (orienté est-ouest ici).
   assert.ok((detours[0][0] - start[0]) * (detours[1][0] - start[0]) < 0);
-  for (const call of calls.slice(1)) assert.deepEqual(call.points.at(-1), end);
+  for (const route of routes) {
+    assert.deepEqual(route.coordinates[0], start);
+    assert.deepEqual(route.coordinates.at(-1), end);
+    assert.ok(Math.abs(route.distance - 10_000) < 100, `${route.distance}`);
+  }
+});
+
+test('Générer à nouveau : parcours non affichés réutilisés, trajet direct et échelle mémorisés', async () => {
+  const end = destination(start, 4000, 90);
+  const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 10, proposals: 2 };
+  const { calls, fetchRoute } = fakeOrs({ detour: 1.6 });
+
+  const first = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute, terrain: null });
+  const before = calls.length;
+  const second = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute, terrain: null });
+
+  assert.equal(calls.length - before, 1, 'une seule requête : ni trajet direct, ni correction d\'échelle');
+  assert.equal(calls.at(-1).points.length, 6, 'deux nouveaux détours : 3 candidats - 1 déjà tracé');
+  const firstIds = new Set(first.routes.map((r) => r.id));
+  assert.ok(second.routes.every((r) => !firstIds.has(r.id)), 'de nouvelles propositions');
+  assert.equal(second.routes.length, 2);
+
+  // Critères modifiés : on repart de zéro.
+  const third = calls.length;
+  await generateRoutes({ start, end, criteria: { ...criteria, distanceKm: 11 }, apiKey: 'k', fetchRoute, terrain: null });
+  assert.deepEqual(calls[third].points, [start, end], 'le trajet direct est redemandé');
 });
 
 test('score : pénalise les repassages, sauf en aller-retour', () => {
@@ -229,20 +320,18 @@ test('durée : kilomètre-effort à pied, vitesse moyenne à vélo', () => {
 });
 
 test('D+ max : les parcours au-dessus de la limite sont écartés', async () => {
-  const climbs = [400, 120, 260, 90, 300, 180];
-  let n = 0;
-  const fetchRoute = async () => {
-    const climb = climbs[n++ % climbs.length];
-    return { coordinates: [start, start], elevations: [100, 100 + climb], distance: 10_000, ascent: null, descent: null };
-  };
+  // Relief nettement à l'est du départ seulement : seules les boucles orientées vers l'est le traversent.
+  const { calls, fetchRoute } = fakeOrs({ climbFor: ([, lon]) => (lon > start[1] + 0.012 ? 150 : 5) });
   const criteria = { ...defaultCriteria(), proposals: 3, maxGain: 200 };
-  const { routes, maxGainUnmet } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute });
+
+  const { routes, maxGainUnmet } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(maxGainUnmet, undefined);
   assert.ok(routes.length > 0);
   assert.ok(routes.every((r) => r.ascent <= 200), routes.map((r) => r.ascent).join(','));
-  // Davantage de directions explorées quand une limite de D+ est fixée.
-  assert.ok(n >= criteria.proposals + 3);
+  // Davantage de formes tracées quand une limite de D+ est fixée, toujours en une requête.
+  assert.equal(calls.length, 1);
+  assert.equal(loopsIn(calls[0]), criteria.proposals + 3);
 });
 
 test('D+ max impossible à respecter : les moins vallonnés, signalés', () => {
@@ -257,16 +346,4 @@ test('sans limite de D+, rien n\'est écarté', () => {
   const route = (id, ascent, score) => ({ id, ascent, score, distance: 10_000 });
   const { routes } = selectRoutes([route('a', 900, 2), route('b', 50, 1)], { ...defaultCriteria(), proposals: 3 });
   assert.deepEqual(routes.map((r) => r.id), ['b', 'a']);
-});
-
-test('l\'échelle observée sur le premier tracé sert aux suivants : moins de requêtes', async () => {
-  const criteria = { ...defaultCriteria(), distanceKm: 10, proposals: 3 };
-  // Les routes font toujours 1,6 fois la ligne droite.
-  const { calls, fetchRoute } = fakeFetch({ distanceFor: (r) => cumulativeDistances(r.points).at(-1) * 1.6 });
-
-  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
-
-  assert.equal(routes.length, 3);
-  // 4 formes tracées : 2 requêtes pour la première, puis 1 seule pour chacune des 3 autres.
-  assert.equal(calls.length, 5);
 });
