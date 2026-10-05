@@ -1,10 +1,5 @@
-# Xcode
-*.xcodeproj/
-*.xcworkspace/
-xcuserdata/
-DerivedData/
-build/
-*.ipa
-*.dSYM.zip
+# Système
 .DS_Store
-.swiftpm/
+
+# Dépendances et fichiers générés
+node_modules/
