@@ -118,7 +118,7 @@ function showPoints(points) {
   } else if (valid.length > 1) {
     map.fitBounds(L.latLngBounds(valid), {
       paddingTopLeft: [40, 60 + (mobileQuery.matches ? safeArea.top : 0)],
-      paddingBottomRight: [40, hiddenMapBottom() + 40],
+      paddingBottomRight: [40 + hiddenMapRight(), hiddenMapBottom() + 40],
       maxZoom: 15,
     });
   }
@@ -673,13 +673,23 @@ function selectRoute(id) {
 
 /** Hauteur (px) du bas de la carte masquée par le panneau et la barre d'onglets (téléphone uniquement). */
 function hiddenMapBottom() {
-  return mobileQuery.matches ? currentSheetHeight() + tabbarHeight() : 0;
+  if (mobileQuery.matches) return currentSheetHeight() + tabbarHeight();
+  // Ordinateur, panneau replié : seule la petite carte reste en bas à droite.
+  if (document.querySelector('.layout').classList.contains('map-full')) {
+    return Math.round(window.innerHeight - panel.getBoundingClientRect().top);
+  }
+  return 0;
+}
+
+/** Largeur (px) de la carte masquée à droite par le panneau flottant (ordinateur uniquement). */
+function hiddenMapRight() {
+  if (mobileQuery.matches || document.querySelector('.layout').classList.contains('map-full')) return 0;
+  return Math.round(window.innerWidth - panel.getBoundingClientRect().left);
 }
 
 /** Centre la carte sur un point dans la partie visible, au-dessus du panneau. */
 function centerOnVisible(point, zoom = map.getZoom(), options = {}) {
-  const offset = hiddenMapBottom() / 2;
-  const target = map.project(point, zoom).add([0, offset]);
+  const target = map.project(point, zoom).add([hiddenMapRight() / 2, hiddenMapBottom() / 2]);
   map.setView(map.unproject(target, zoom), zoom, options);
 }
 
@@ -687,7 +697,8 @@ function centerOnVisible(point, zoom = map.getZoom(), options = {}) {
 function revealPoint(point) {
   const position = map.latLngToContainerPoint(point);
   const visibleBottom = map.getSize().y - hiddenMapBottom();
-  if (position.y > visibleBottom - 48 || position.y < 48 || position.x < 24 || position.x > map.getSize().x - 24) {
+  const visibleRight = map.getSize().x - hiddenMapRight();
+  if (position.y > visibleBottom - 48 || position.y < 48 || position.x < 24 || position.x > visibleRight - 24) {
     centerOnVisible(point, map.getZoom(), { animate: true });
   }
 }
@@ -697,10 +708,10 @@ function fitToRoute(id, { animate = false } = {}) {
   if (!layer) return;
   map.invalidateSize();
   // Sur téléphone, la carte passe sous la feuille : on garde le parcours dans la partie visible.
-  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + 24 : 30;
+  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + 24 : hiddenMapBottom() + 30;
   map.fitBounds(layer.getBounds(), {
     paddingTopLeft: [30, 40 + (mobileQuery.matches ? safeArea.top : 0)],
-    paddingBottomRight: [30, bottom],
+    paddingBottomRight: [30 + hiddenMapRight(), bottom],
     animate,
   });
 }
@@ -1065,6 +1076,33 @@ function setSheetHeight(height, { animate = true } = {}) {
   actions.style.pointerEvents = opacity < 0.5 ? 'none' : '';
 }
 
+/**
+ * Ordinateur : « Générer » et la localisation se placent contre la carte flottante, juste au-dessus
+ * (ou à sa gauche, en bas, quand le panneau occupe toute la hauteur).
+ */
+function placeDesktopActions() {
+  const actions = $('sheet-actions');
+  if (mobileQuery.matches) {
+    actions.classList.remove('dock-above', 'dock-side');
+    actions.style.right = '';
+    actions.style.width = '';
+    return;
+  }
+  document.documentElement.style.setProperty('--tabbar-h', `${$('tabbar').offsetHeight}px`);
+  const rect = panel.getBoundingClientRect();
+  const right = Math.round(window.innerWidth - rect.right);
+  const above = rect.top > 90;
+  actions.classList.toggle('dock-above', above);
+  actions.classList.toggle('dock-side', !above);
+  actions.style.right = above ? `${right}px` : `${Math.round(window.innerWidth - rect.left + 12)}px`;
+  actions.style.width = above ? `${Math.round(rect.width)}px` : '';
+  actions.style.bottom = above ? `${Math.round(window.innerHeight - rect.top + 12)}px` : `${right}px`;
+  // La carte (zoom, crédits) laisse la place au panneau.
+  document.documentElement.style.setProperty('--panel-left-gap', `${Math.round(window.innerWidth - rect.left + 12)}px`);
+}
+new ResizeObserver(() => placeDesktopActions()).observe(panel);
+window.addEventListener('resize', () => placeDesktopActions());
+
 /** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
 function snapTo(position, { save = true, fit = true } = {}) {
   sheetState = position;
@@ -1083,6 +1121,7 @@ function snapTo(position, { save = true, fit = true } = {}) {
     for (const prop of ['opacity', 'pointerEvents', 'bottom']) $('sheet-actions').style[prop] = '';
     panel.classList.remove('dragging');
     document.querySelector('.layout').classList.toggle('map-full', collapsed);
+    placeDesktopActions();
   }
   updatePeek();
   if (save) storage.set(KEYS.panelCollapsed, position);

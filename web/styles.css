@@ -2363,3 +2363,107 @@ button.primary, button.secondary, button.tonal, a.button, .chip span, .ui-chip, 
 input[type="range"]::-webkit-slider-runnable-track { border-radius: var(--radius-pill); }
 input[type="range"]::-moz-range-track { border-radius: var(--radius-pill); }
 .surface-legend i { border-radius: 3px; }
+
+/* ==========================================================================
+   Ordinateur : même carte flottante que sur téléphone. Le panneau et la barre
+   d'onglets forment un bloc posé sur la carte (en plein écran), à droite ;
+   le panneau prend la hauteur de son contenu.
+   ========================================================================== */
+@media (min-width: 900px) {
+  :root { --dock-width: 420px; --dock-margin: 16px; --panel-left-gap: calc(var(--dock-width) + var(--dock-margin) * 2); }
+
+  .layout { display: block; position: relative; height: 100dvh; }
+  .map { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; }
+
+  .tabbar {
+    left: auto;
+    right: var(--dock-margin);
+    bottom: var(--dock-margin);
+    width: var(--dock-width);
+    padding: 6px;
+    gap: 4px;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-sheet) var(--radius-sheet);
+    background: var(--bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 14px 30px rgb(27 38 32 / 0.18);
+    transition: none;
+  }
+  .tab { min-height: 52px; padding: 7px 0 5px; border-radius: 28px; }
+  .tab.active { background: color-mix(in srgb, var(--accent-soft) 85%, transparent); }
+
+  .panel {
+    position: fixed;
+    top: auto;
+    right: var(--dock-margin);
+    bottom: calc(var(--dock-margin) + var(--tabbar-h, 65px));
+    width: var(--dock-width);
+    height: auto;
+    max-height: calc(100dvh - var(--dock-margin) * 2 - var(--tabbar-h, 65px));
+    flex: none;
+    margin: 0;
+    overflow: hidden;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    background: var(--bg);
+    box-shadow: 0 -10px 30px rgb(27 38 32 / 0.14);
+    transition: none;
+  }
+  .panel-scroll { flex: 0 1 auto; min-width: 0; padding: 4px 22px 22px; }
+
+  /* Poignée en haut (comme sur téléphone) : un clic replie ou rouvre le panneau */
+  .panel-handle {
+    position: static;
+    flex: 0 0 auto;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 10px 22px 6px;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    cursor: pointer;
+  }
+  .grabber { display: block; width: 44px; height: 5px; border-radius: 3px; background: var(--border); }
+  .tab-chevron { display: none; }
+  .panel-peek { display: none; }
+  .layout.map-full .panel { flex-basis: auto; }
+  .layout.map-full .panel-scroll { display: none; }
+  .layout.map-full .panel-peek {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 4px 4px 6px;
+    color: var(--text);
+    font-weight: 700;
+    text-align: left;
+  }
+  .layout.map-full ~ .tabbar { right: var(--dock-margin); bottom: var(--dock-margin); width: var(--dock-width); border-radius: 0 0 var(--radius-sheet) var(--radius-sheet); box-shadow: 0 14px 30px rgb(27 38 32 / 0.18); }
+
+  /* « Générer » et localisation collés à la carte flottante (position calculée en JS) */
+  .sheet-actions { left: auto; transition: none; }
+  .sheet-actions.dock-above { justify-content: space-between; }
+  .sheet-actions.dock-side { width: auto; justify-content: flex-end; }
+  .sheet-actions .locate-button { margin-right: 0; }
+
+  /* Zoom et sources de la carte à gauche du panneau */
+  .map .leaflet-bottom.leaflet-right { top: 58px; bottom: auto; right: calc(var(--panel-left-gap) - 4px); }
+  .map .leaflet-bottom.leaflet-right .leaflet-control { margin: 4px 0 0; }
+  .map-credits, .layout.map-full .map-credits { right: var(--panel-left-gap); }
+  .toast { right: 0; width: auto; }
+  .sheet-actions.dock-side .toast { left: auto; width: min(420px, 60vw); }
+}
+@media (min-width: 900px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .panel { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.5); }
+  :root:not([data-theme="light"]) .tabbar { box-shadow: 0 14px 30px rgb(0 0 0 / 0.55); }
+}
+@media (min-width: 900px) {
+  :root[data-theme="dark"] .panel { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.5); }
+  :root[data-theme="dark"] .tabbar { box-shadow: 0 14px 30px rgb(0 0 0 / 0.55); }
+}
