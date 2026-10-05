@@ -1076,29 +1076,19 @@ function setSheetHeight(height, { animate = true } = {}) {
   actions.style.pointerEvents = opacity < 0.5 ? 'none' : '';
 }
 
-/**
- * Ordinateur : « Générer » et la localisation se placent contre la carte flottante, juste au-dessus
- * (ou à sa gauche, en bas, quand le panneau occupe toute la hauteur).
- */
+/** Ordinateur : « Générer » se place juste au-dessus de la carte flottante (panneau + menu). */
 function placeDesktopActions() {
   const actions = $('sheet-actions');
   if (mobileQuery.matches) {
-    actions.classList.remove('dock-above', 'dock-side');
     actions.style.right = '';
     actions.style.width = '';
     return;
   }
   document.documentElement.style.setProperty('--tabbar-h', `${$('tabbar').offsetHeight}px`);
   const rect = panel.getBoundingClientRect();
-  const right = Math.round(window.innerWidth - rect.right);
-  const above = rect.top > 90;
-  actions.classList.toggle('dock-above', above);
-  actions.classList.toggle('dock-side', !above);
-  actions.style.right = above ? `${right}px` : `${Math.round(window.innerWidth - rect.left + 12)}px`;
-  actions.style.width = above ? `${Math.round(rect.width)}px` : '';
-  actions.style.bottom = above ? `${Math.round(window.innerHeight - rect.top + 12)}px` : `${right}px`;
-  // La carte (zoom, crédits) laisse la place au panneau.
-  document.documentElement.style.setProperty('--panel-left-gap', `${Math.round(window.innerWidth - rect.left + 12)}px`);
+  actions.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
+  actions.style.width = `${Math.round(rect.width)}px`;
+  actions.style.bottom = `${Math.round(window.innerHeight - rect.top + 12)}px`;
 }
 new ResizeObserver(() => placeDesktopActions()).observe(panel);
 window.addEventListener('resize', () => placeDesktopActions());

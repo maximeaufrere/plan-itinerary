@@ -2448,8 +2448,6 @@ input[type="range"]::-moz-range-track { border-radius: var(--radius-pill); }
 
   /* « Générer » et localisation collés à la carte flottante (position calculée en JS) */
   .sheet-actions { left: auto; transition: none; }
-  .sheet-actions.dock-above { justify-content: space-between; }
-  .sheet-actions.dock-side { width: auto; justify-content: flex-end; }
   .sheet-actions .locate-button { margin-right: 0; }
 
   /* Zoom et sources de la carte à gauche du panneau */
@@ -2457,7 +2455,6 @@ input[type="range"]::-moz-range-track { border-radius: var(--radius-pill); }
   .map .leaflet-bottom.leaflet-right .leaflet-control { margin: 4px 0 0; }
   .map-credits, .layout.map-full .map-credits { right: var(--panel-left-gap); }
   .toast { right: 0; width: auto; }
-  .sheet-actions.dock-side .toast { left: auto; width: min(420px, 60vw); }
 }
 @media (min-width: 900px) and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .panel { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.5); }
@@ -2466,4 +2463,46 @@ input[type="range"]::-moz-range-track { border-radius: var(--radius-pill); }
 @media (min-width: 900px) {
   :root[data-theme="dark"] .panel { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.5); }
   :root[data-theme="dark"] .tabbar { box-shadow: 0 14px 30px rgb(0 0 0 / 0.55); }
+}
+
+/* Ordinateur : « Générer » toujours au-dessus du menu ; outils de carte en colonne à gauche du menu,
+   en bas : localisation, zoom + / −, puis « i » (sources de la carte). */
+@media (min-width: 900px) {
+  :root { --tools-right: calc(var(--dock-margin) + var(--dock-width) + 12px); --tool-size: 44px; }
+  /* Le panneau laisse toujours la place du bouton « Générer » au-dessus de lui. */
+  .panel { max-height: calc(100dvh - var(--dock-margin) * 2 - var(--tabbar-h, 65px) - 76px); }
+  .sheet-actions { justify-content: flex-start; }
+  .sheet-actions .map-pill { margin-left: auto; }
+
+  .map-credits, .layout.map-full .map-credits {
+    top: auto;
+    bottom: var(--dock-margin);
+    right: var(--tools-right);
+    width: var(--tool-size);
+    height: var(--tool-size);
+    font-size: 16px;
+  }
+  .map .leaflet-bottom.leaflet-right {
+    top: auto;
+    bottom: calc(var(--dock-margin) + var(--tool-size) + 8px);
+    right: var(--tools-right);
+  }
+  .map .leaflet-bottom.leaflet-right .leaflet-control { margin: 0; }
+  .map .leaflet-bar a, .map .leaflet-touch .leaflet-bar a { width: var(--tool-size); height: var(--tool-size); line-height: var(--tool-size); }
+  .sheet-actions .locate-button {
+    position: fixed;
+    right: var(--tools-right);
+    bottom: calc(var(--dock-margin) + var(--tool-size) * 3 + 16px);
+    width: var(--tool-size);
+    height: var(--tool-size);
+    margin: 0;
+  }
+  /* Sources de la carte : à gauche de la colonne d'outils, en bas. */
+  .map .leaflet-control-attribution {
+    position: fixed;
+    right: calc(var(--tools-right) + var(--tool-size) + 8px);
+    bottom: var(--dock-margin);
+    max-width: 50vw;
+    border-radius: var(--radius-control);
+  }
 }
