@@ -2229,3 +2229,20 @@ a.button,
 .route-shown:not(.new-search) .start-marker:not(.at-me),
 .route-shown:not(.new-search) .end-marker { display: none; }
 .new-search .route-end { opacity: 0.35; }
+
+/* Zoom : capsule verticale (+ en haut, − en bas), comme les autres boutons flottants */
+.leaflet-control-zoom.leaflet-bar,
+.leaflet-touch .leaflet-control-zoom.leaflet-bar { border-radius: var(--radius-pill); }
+.leaflet-control-zoom.leaflet-bar a,
+.leaflet-touch .leaflet-control-zoom.leaflet-bar a { border-radius: 0; border-bottom: 0; }
+/* Séparateur court entre + et −, qui ne touche pas les bords arrondis */
+.leaflet-control-zoom.leaflet-bar a.leaflet-control-zoom-in { position: relative; }
+.leaflet-control-zoom.leaflet-bar a.leaflet-control-zoom-in::after {
+  content: "";
+  position: absolute;
+  left: 25%;
+  right: 25%;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+}
