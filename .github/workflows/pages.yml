@@ -3,7 +3,7 @@ name: Publier l'app web
 # Publie le dossier web/ sur GitHub Pages à chaque modification de l'app web sur la branche par défaut.
 on:
   push:
-    branches: [claude/ios-route-planner]
+    branches: [main]
     paths: ['web/**', 'scripts/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
