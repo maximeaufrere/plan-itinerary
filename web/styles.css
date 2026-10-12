@@ -1611,7 +1611,7 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 .card .card-novelty.known { color: var(--muted); }
 
 .result-actions { display: flex; gap: 8px; align-items: center; }
-.result-actions .primary { flex: 1; min-height: 50px; padding: 0 16px; white-space: nowrap; }
+.result-actions .primary { flex: 1; min-width: 0; min-height: 50px; padding: 0 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .result-actions .secondary { min-height: 50px; padding: 0 16px; }
 
 /* Détail d'un parcours */
@@ -2168,5 +2168,5 @@ a.button,
 .daylight.warn { color: var(--warning); font-weight: 600; }
 
 /* Après l'export GPX : où l'importer */
-.export-help { margin: -4px 4px 0; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
+.export-help { margin: 10px 4px 0; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
 .export-help a { color: var(--accent); font-weight: 700; }

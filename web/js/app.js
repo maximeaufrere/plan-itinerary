@@ -302,6 +302,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
  */
 function showRoutes(routes, activity, { fresh = false } = {}) {
   routeEdit.stop();
+  $('export-help').hidden = true;
   showView('route');
   state.routes = routes;
   state.routesActivity = activity;
@@ -476,23 +477,12 @@ function renderDetails(route) {
         : ''
     }
     ${surfaceBreakdown(route)}
-    <button type="button" id="export-gpx" class="primary wide">${icons.download} Envoyer vers ma montre (GPX)</button>
-    <p id="export-help" class="export-help" hidden>
-      Fichier prêt. Pour l'avoir sur votre montre ou votre compteur, importez-le comme parcours :
-      <a href="https://connect.garmin.com/modern/courses" target="_blank" rel="noopener">Garmin Connect</a> (Importer),
-      <a href="https://www.strava.com/routes/new" target="_blank" rel="noopener">Strava</a> (icône d'import),
-      <a href="https://www.komoot.com/upload" target="_blank" rel="noopener">Komoot</a>.
-    </p>
     <div class="tile-actions">
       <button type="button" id="save-favorite" ${saved ? 'disabled' : ''}>${saved ? icons.bookmarkFilled : icons.bookmark}<span>${saved ? 'Enregistré' : 'Enregistrer'}</span></button>
       <button type="button" id="share-route">${icons.share}<span>Partager</span></button>
       <button type="button" id="log-outing">${icons.check}<span>Marquer fait</span></button>
       <button type="button" id="edit-route">${icons.pencil}<span>Ajuster</span></button>
     </div>`;
-  $('export-gpx').addEventListener('click', async () => {
-    await exportGpx(route);
-    $('export-help').hidden = false;
-  });
   $('save-favorite').addEventListener('click', () => saveFavorite(route));
   $('share-route').addEventListener('click', () => account.shareRoute(route, { activity: state.routesActivity, name: routeName(route) }));
   $('log-outing').addEventListener('click', () =>

@@ -43,7 +43,7 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 - **Chemins nouveaux** : part du tracé jamais parcourue d'après l'historique et les favoris, prise en compte dans le
   classement (`web/js/novelty.js`)
 - **Partage par lien sans compte** : le parcours est encodé dans le lien (`web/js/share-link.js`)
-- Actions rapides sous les propositions (« Vers ma montre » = GPX, enregistrer, détail) ; « Générer » devient
+- Actions rapides sous les propositions (« Exporter en GPX », enregistrer, détail) ; « Générer » devient
   « Autres parcours » tant que les critères n'ont pas changé
 - **Mes parcours** : favoris avec miniature du tracé et nombre de sorties, **historique des sorties** (gardé sur
   l'appareil sans compte), statistiques par période et résumé du mois
