@@ -2161,3 +2161,8 @@ a.button,
   font-weight: 600;
   line-height: 1.35;
 }
+
+/* Lumière du jour sous le titre d'un parcours */
+.daylight { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.35; }
+.daylight .icon { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+.daylight.warn { color: var(--warning); font-weight: 600; }

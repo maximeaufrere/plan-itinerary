@@ -51,6 +51,7 @@ const APP_FILES = [
   'js/sheet.js',
   'js/state.js',
   'js/storage.js',
+  'js/sun.js',
   'js/sync.js',
   'js/terrain.js',
   'js/thumbnail.js',

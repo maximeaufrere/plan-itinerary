@@ -35,6 +35,7 @@ import { routeDataFromHash } from './share-link.js';
 import { getSheetState, initSheet, mobileQuery, snapTo, toggleSheet } from './sheet.js';
 import { isPointToPoint, selectedRoute, state } from './state.js';
 import { KEYS, applyTheme, storage } from './storage.js';
+import { daylightNote } from './sun.js';
 import { hideToast, showToast } from './toast.js';
 import { currentView, onViewChange, showView } from './views.js';
 
@@ -450,6 +451,7 @@ function renderDetails(route) {
   const saved = isSaved(route);
   const chart = elevationChart(route.profile);
   const tag = routeTag(route);
+  const daylight = daylightNote(route.coordinates[0], estimatedDuration(route, state.routesActivity, state.criteria.speeds));
   $('details').innerHTML = `
     <div class="detail-head">
       <div>
@@ -458,6 +460,7 @@ function renderDetails(route) {
       </div>
       ${state.routes.length > 1 ? `<span class="detail-count">${index + 1} sur ${state.routes.length}</span>` : ''}
     </div>
+    ${daylight ? `<p class="daylight${daylight.warn ? ' warn' : ''}">${icons.sun}<span>${daylight.text}</span></p>` : ''}
     <div class="stats stats-4">
       ${stat('D+', formatElevation(route.ascent))}
       ${stat('D−', formatElevation(route.descent))}
