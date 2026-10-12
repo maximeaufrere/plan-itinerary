@@ -7,6 +7,8 @@ const MAX_ZOOM = 12;
 const MIN_ZOOM = 8;
 /** Nombre maximal de dalles chargées pour une génération (~100 Ko chacune). */
 const MAX_TILES = 16;
+/** Dalles gardées en mémoire d'une génération à l'autre (~256 Ko chacune une fois décodées). */
+const MAX_CACHED = 48;
 
 /** Altitude (m) codée dans un pixel Terrarium. */
 export function decodeTerrarium(r, g, b) {
@@ -74,24 +76,36 @@ async function loadTerrariumTile(key, signal) {
  * Modèle de terrain : `load(points)` charge les dalles couvrant ces points,
  * puis `elevationAt(point)` répond sans attendre (null si la zone n'a pas pu être chargée).
  */
-export function createTerrain({ loadTile = loadTerrariumTile } = {}) {
+export function createTerrain({ loadTile = loadTerrariumTile, maxCached = MAX_CACHED } = {}) {
+  // Dalles décodées, de la plus ancienne à la plus récemment utilisée.
   const tiles = new Map();
   let zoom = MAX_ZOOM;
+
+  const touch = (key) => {
+    const data = tiles.get(key);
+    tiles.delete(key);
+    tiles.set(key, data);
+  };
 
   return {
     async load(points, signal) {
       zoom = chooseZoom(points);
-      const keys = tilesFor(points, zoom).filter((key) => !tiles.has(key));
+      const wanted = tilesFor(points, zoom);
+      for (const key of wanted) if (tiles.has(key)) touch(key);
       await Promise.all(
-        keys.map(async (key) => {
-          try {
-            tiles.set(key, await loadTile(key, signal));
-          } catch (error) {
-            if (error.name === 'AbortError') throw error;
-            tiles.set(key, null);
-          }
-        }),
+        wanted
+          .filter((key) => !tiles.has(key))
+          .map(async (key) => {
+            try {
+              tiles.set(key, await loadTile(key, signal));
+            } catch (error) {
+              if (error.name === 'AbortError') throw error;
+              // Dalle indisponible (réseau…) : pas mémorisée, elle sera retentée à la prochaine génération.
+            }
+          }),
       );
+      // On garde les dalles les plus récemment utilisées.
+      while (tiles.size > Math.max(maxCached, wanted.length)) tiles.delete(tiles.keys().next().value);
     },
     elevationAt(point) {
       const { x, y } = tileCoordinates(point, zoom);
@@ -105,8 +119,14 @@ export function createTerrain({ loadTile = loadTerrariumTile } = {}) {
   };
 }
 
-/** Terrain par défaut : seulement dans un navigateur capable de décoder les images. */
+let shared;
+
+/**
+ * Terrain par défaut, partagé par toutes les générations : les dalles déjà téléchargées servent à nouveau
+ * (« Autres parcours », même secteur). Seulement dans un navigateur capable de décoder les images.
+ */
 export function defaultTerrain() {
   if (typeof document === 'undefined' || typeof createImageBitmap !== 'function') return null;
-  return createTerrain();
+  shared ??= createTerrain();
+  return shared;
 }

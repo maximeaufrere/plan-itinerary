@@ -79,3 +79,34 @@ test('terrain : décodage Terrarium, dalles et lecture d\'altitude', async () =>
   assert.equal(terrain.elevationAt(start), 300);
   assert.equal(terrain.elevationAt([-45, -100]), null);
 });
+
+test('terrain : dalles gardées d\'une fois sur l\'autre, plafonnées, échecs retentés', async () => {
+  let calls = 0;
+  let fail = true;
+  const terrain = createTerrain({
+    maxCached: 2,
+    loadTile: async (key) => {
+      calls++;
+      if (fail && key.endsWith('/0')) throw new Error('réseau');
+      return new Uint8ClampedArray(256 * 256 * 4).fill(128);
+    },
+  });
+  const here = [start];
+  await terrain.load(here);
+  const first = calls;
+  await terrain.load(here);
+  assert.equal(calls, first, 'la même dalle n\'est pas retéléchargée');
+
+  // Trois secteurs éloignés : la plus ancienne dalle est oubliée (plafond de 2).
+  await terrain.load([[48.85, 2.35]]);
+  await terrain.load([[43.3, 5.37]]);
+  const before = calls;
+  await terrain.load(here);
+  assert.equal(calls, before + 1, 'dalle oubliée puis rechargée');
+
+  // Une dalle en échec n'est pas mémorisée.
+  const failing = createTerrain({ loadTile: async () => { throw new Error('réseau'); } });
+  await failing.load(here);
+  assert.equal(failing.elevationAt(start), null);
+  fail = false;
+});
