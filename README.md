@@ -36,8 +36,13 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
   (sauf en aller-retour) ; chaque proposition reçoit une **étiquette** (« La plus plate », « La plus nature »,
   « Au plus près », direction…) (`web/js/labels.js`)
 - Pendant le calcul : étapes, formes étudiées en pointillés sur la carte, bouton Annuler, nombre de requêtes
-- Sur la carte : **flèches de sens** et **repères kilométriques** ; profil altimétrique avec **curseur relié à la
-  carte** ; statistiques compactes (D+/D−, point haut, repassages), revêtement, grands axes
+- Sur la carte : **flèches de sens** et **repères kilométriques** ; profil altimétrique **coloré selon la pente**
+  avec **curseur relié à la carte** (distance, altitude, pente) ; statistiques compactes (D+/D−, sommet,
+  repassages), revêtement, grands axes ; **coucher du soleil** et alerte si le retour se fait de nuit (`web/js/sun.js`)
+- **Ajuster un parcours à la main** : poignées à faire glisser, recalcul en 1 requête (`web/js/route-edit.js`)
+- **Chemins nouveaux** : part du tracé jamais parcourue d'après l'historique et les favoris, prise en compte dans le
+  classement (`web/js/novelty.js`)
+- **Partage par lien sans compte** : le parcours est encodé dans le lien (`web/js/share-link.js`)
 - Actions rapides sous les propositions (« Vers ma montre » = GPX, enregistrer, détail) ; « Générer » devient
   « Autres parcours » tant que les critères n'ont pas changé
 - **Mes parcours** : favoris avec miniature du tracé et nombre de sorties, **historique des sorties** (gardé sur

@@ -2166,3 +2166,7 @@ a.button,
 .daylight { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.35; }
 .daylight .icon { flex: none; width: 18px; height: 18px; margin-top: 1px; }
 .daylight.warn { color: var(--warning); font-weight: 600; }
+
+/* Après l'export GPX : où l'importer */
+.export-help { margin: -4px 4px 0; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
+.export-help a { color: var(--accent); font-weight: 700; }

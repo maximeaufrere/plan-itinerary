@@ -120,6 +120,11 @@
         <dt>Éviter les grands axes</dt>
         <dd>Écarte autant que possible les routes principales, souvent bruyantes et fréquentées.</dd>
 
+        <dt>Privilégier les chemins nouveaux</dt>
+        <dd>Activé par défaut : les parcours qui passent par des chemins que vous n'avez jamais empruntés (d'après vos
+        sorties marquées « faites » et vos favoris) sont classés en premier. Chaque proposition indique sa part de
+        nouveauté (« Tout nouveau », « 60 % nouveau », « Déjà fait »).</dd>
+
         <dt>Nombre de propositions</dt>
         <dd>Le nombre de parcours proposés (1 à 5). Chacun part dans une direction différente.</dd>
 
@@ -144,7 +149,7 @@
       <p>
         Les propositions apparaissent ensuite sous forme de cartes, chacune avec une étiquette qui la distingue :
         <span class="ui-chip">La plus plate</span> <span class="ui-chip">La plus nature</span>
-        <span class="ui-chip">Au plus près</span> (de la distance visée), ou sa direction (« Vers l'est »).
+        <span class="ui-chip">Au plus près</span> (de la distance visée), <span class="ui-chip">La plus nouvelle</span>, ou sa direction (« Vers l'est »).
         Touchez-en une (ou son tracé sur la carte) pour l'afficher en orange. Sur la carte, des flèches indiquent le
         sens du parcours et des repères numérotés marquent les kilomètres.
       </p>
@@ -158,15 +163,22 @@
         <dt>Durée</dt><dd>Estimée avec votre allure. À pied, chaque 100 m de montée compte comme 1 km de plus (le « kilomètre-effort » des traileurs).</dd>
         <dt>Repassages</dt><dd>Part du parcours qui emprunte un chemin déjà parcouru. Proche de 0 % pour une vraie boucle, environ 50 % pour un aller-retour.</dd>
         <dt>Revêtement</dt><dd>La barre colorée montre la part de bitume, de chemins et de revêtement inconnu (non renseigné dans OpenStreetMap), et la part de grands axes s'il y en a.</dd>
-        <dt>Profil</dt><dd>La courbe d'altitude tout au long du parcours. Touchez-la (ou faites glisser le doigt) : un point noir montre l'endroit correspondant sur la carte, avec la distance et l'altitude.</dd>
+        <dt>Coucher du soleil</dt><dd>L'heure du coucher du soleil au départ. Si, en partant maintenant à votre allure, vous finissez après la nuit tombée, l'app vous prévient (en orange) du temps passé dans le noir.</dd>
+        <dt>Profil</dt><dd>La courbe d'altitude tout au long du parcours, colorée selon la pente des montées : plus l'orange est foncé, plus ça grimpe (3–6 %, 6–10 %, plus de 10 %), avec la pente la plus forte. Touchez la courbe (ou faites glisser le doigt) : un point noir montre l'endroit correspondant sur la carte, avec la distance, l'altitude et la pente.</dd>
       </dl>
+      <p>
+        <span class="ui-button">Ajuster</span> permet de modifier le tracé à la main : des points blancs apparaissent
+        sur le parcours ; faites-en glisser un et le tracé est recalculé pour passer par là (1 requête OpenRouteService
+        à chaque fois). <span class="ui-button">Terminé</span> garde le nouveau tracé,
+        <span class="ui-button">Tracé d'origine</span> revient au parcours proposé.
+      </p>
     </section>
 
     <section id="favoris" aria-labelledby="favoris-title">
       <h2 id="favoris-title"><span class="guide-num">5</span> Mes parcours, export GPX et historique</h2>
       <ul class="guide-list">
         <li><span class="ui-button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg> Enregistrer</span> garde le parcours affiché dans <em>Mes parcours</em>, avec le nom de votre choix. Chaque favori y apparaît avec une miniature du tracé et le nombre de fois où vous l'avez fait.</li>
-        <li><span class="ui-button">Vers ma montre</span> / <span class="ui-button">Envoyer vers ma montre (GPX)</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers.</li>
+        <li><span class="ui-button">Vers ma montre</span> / <span class="ui-button">Envoyer vers ma montre (GPX)</span> exporte le parcours au format GPX. Sur téléphone, la feuille de partage s'ouvre : envoyez-le vers <strong>Strava</strong>, <strong>Komoot</strong>, <strong>Garmin Connect</strong>, votre montre, ou enregistrez-le dans Fichiers. Sur ordinateur, le fichier est téléchargé et des liens mènent aux pages d'import de Garmin Connect (Parcours ▸ Importer), Strava (créer un itinéraire ▸ importer) et Komoot. L'envoi direct, sans passer par un fichier, n'est pas possible : Strava ne permet pas aux apps de créer des itinéraires et Garmin réserve cette fonction à ses partenaires.</li>
         <li><span class="ui-button">Marquer fait</span>, après une sortie : indiquez la date et la durée. <em>Mes parcours ▸ Historique</em> affiche vos sorties et vos totaux (sorties, distance, D+, temps) sur 30 jours, l'année ou depuis le début, et un résumé du mois en cours. Sans compte, l'historique est gardé sur cet appareil.</li>
       </ul>
       <p class="guide-tip">
