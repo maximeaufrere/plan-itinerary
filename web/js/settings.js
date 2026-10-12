@@ -137,8 +137,8 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
     $('quota-bar').style.width = `${Math.min(100, (used / DAILY_QUOTA) * 100).toFixed(1)}%`;
     $('quota-bar').classList.toggle('high', used > DAILY_QUOTA * 0.8);
     $('quota-note').textContent = left
-      ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui (comptées sur cet appareil).`
-      : 'Quota du jour probablement atteint : il se renouvelle dans la nuit.';
+      ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui. Seules les requêtes de cet appareil sont comptées : si vous utilisez la même clé ailleurs, il en reste moins.`
+      : 'Quota du jour probablement atteint depuis cet appareil : il se renouvelle dans la nuit.';
   }
 
   // MARK: Allure

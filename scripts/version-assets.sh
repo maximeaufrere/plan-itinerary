@@ -8,3 +8,5 @@ version="$2"
 sed -i -E "s#(from '\./[a-z-]+\.js)'#\1?v=${version}'#g" "$dir"/js/*.js
 # Feuilles de style et scripts référencés par les pages
 sed -i -E "s#(href|src)=\"((styles\.css)|(js/app\.js)|(vendor/[^\"]+\.(js|css)))\"#\1=\"\2?v=${version}\"#g" "$dir"/index.html "$dir"/aide.html
+# Mode hors ligne : nouveau nom de cache à chaque publication (l'ancien est effacé)
+sed -i -E "s#^const VERSION = 'dev';#const VERSION = '${version}';#" "$dir"/sw.js

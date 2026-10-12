@@ -4,6 +4,10 @@
   "type": "module",
   "scripts": {
     "start": "npx --yes serve -l 8080 .",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
   }
 }

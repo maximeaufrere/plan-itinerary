@@ -33,6 +33,21 @@ jobs:
         working-directory: web
         run: npm test
 
+      # L'app dans un vrai navigateur (mobile et ordinateur), réseau simulé.
+      - name: Tests navigateur
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+      - name: Rapport des tests navigateur
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-playwright
+          path: web/playwright-report
+
       - uses: actions/configure-pages@v5
 
       # Numéro de version dans les adresses des fichiers : après chaque publication, les navigateurs
@@ -40,6 +55,7 @@ jobs:
       - name: Versionner les fichiers
         run: |
           cp -r web _site
+          rm -rf _site/node_modules _site/e2e _site/test _site/test-results _site/playwright-report _site/package*.json _site/playwright.config.js
           bash scripts/version-assets.sh _site "${GITHUB_SHA::8}"
 
       - uses: actions/upload-pages-artifact@v3

@@ -495,6 +495,11 @@ $('criteria-form').addEventListener('submit', async (event) => {
     return;
   }
 
+  if (navigator.onLine === false) {
+    setStatus('Vous êtes hors ligne : il faut une connexion pour calculer de nouveaux parcours. Vos favoris et votre historique restent consultables.', true);
+    return;
+  }
+
   showView('route');
   const controller = new AbortController();
   state.controller = controller;
@@ -538,7 +543,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
       onWait: (seconds) => setStep('step-trace', 'active', `Pause de ${seconds} s (limite de 40 itinéraires par minute)`),
     });
     const used = requestsToday() - requestsBefore;
-    state.lastRequestNote = `${used} requête${used > 1 ? 's' : ''} OpenRouteService pour cette génération · ${requestsToday().toLocaleString('fr-FR')} / ${DAILY_QUOTA.toLocaleString('fr-FR')} aujourd'hui`;
+    state.lastRequestNote = `${used} requête${used > 1 ? 's' : ''} OpenRouteService pour cette génération · ${requestsToday().toLocaleString('fr-FR')} / ${DAILY_QUOTA.toLocaleString('fr-FR')} aujourd'hui sur cet appareil`;
     showRoutes(routes, state.criteria.activity, { fresh: true });
     const messages = [];
     if (directIsLonger) {
@@ -1355,3 +1360,8 @@ syncForm();
 snapTo(sheetState, { save: false, fit: false });
 if (onboarding.needed && !openedFromLink) onboarding.start();
 else watchMyPosition();
+
+// Mode hors ligne : l'app est gardée sur l'appareil (voir sw.js).
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

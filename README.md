@@ -47,7 +47,8 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
   thème clair / sombre / auto, fond de carte, export / import des favoris, réinitialisation
 - **Mise en route** en 2 étapes à la première visite (position, puis clé) ; tutoriel intégré (`web/aide.html`)
 - **Comptes** (facultatifs) : synchronisation, partage de parcours par lien, historique en ligne — voir plus bas
-- Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil »)
+- Installable sur l'écran d'accueil (Safari ▸ Partager ▸ « Sur l'écran d'accueil ») et utilisable hors ligne
+  (favoris, historique ; service worker `web/sw.js`)
 
 ## Comptes utilisateurs (facultatif)
 
@@ -110,8 +111,14 @@ passer par la version hébergée.
 ## Tests
 
 ```bash
-cd web && npm test   # Node 20+, aucune dépendance à installer
+cd web && npm test   # tests unitaires : Node 20+, aucune dépendance à installer
+
+# Tests dans un vrai navigateur (mobile et ordinateur, réseau simulé)
+cd web && npm install && npx playwright install chromium && npm run test:e2e
 ```
+
+Les deux séries tournent avant chaque publication (`.github/workflows/pages.yml`) : si un test échoue,
+le site n'est pas mis à jour et le rapport est joint au run GitHub Actions.
 
 ## Hébergement
 
