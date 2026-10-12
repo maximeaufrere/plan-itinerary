@@ -52,6 +52,7 @@ function advancedTags() {
   if (criteria.maxGain != null) tags.push(`D+ ≤ ${formatElevation(criteria.maxGain)}`);
   if (criteria.surface !== 'any') tags.push(SURFACES[criteria.surface]);
   if (criteria.avoidMajorRoads) tags.push('Sans grands axes');
+  if (!criteria.preferNew) tags.push('Chemins connus acceptés');
   if (criteria.proposals !== 3) tags.push(`${criteria.proposals} proposition${criteria.proposals > 1 ? 's' : ''}`);
   return tags;
 }
@@ -80,6 +81,7 @@ export function syncForm() {
   document.querySelector(`input[name="elevation"][value="${criteria.elevation}"]`).checked = true;
   document.querySelector(`input[name="surface"][value="${criteria.surface}"]`).checked = true;
   $('avoid-major-roads').checked = criteria.avoidMajorRoads;
+  $('prefer-new').checked = criteria.preferNew;
   $('proposals').textContent = String(criteria.proposals);
   $('proposals-minus').disabled = criteria.proposals <= 1;
   $('proposals-plus').disabled = criteria.proposals >= 5;
@@ -162,6 +164,7 @@ export function initCriteriaForm(options) {
       maxGain: defaults.maxGain,
       surface: defaults.surface,
       avoidMajorRoads: defaults.avoidMajorRoads,
+      preferNew: defaults.preferNew,
       proposals: defaults.proposals,
     });
   });
@@ -182,6 +185,7 @@ export function initCriteriaForm(options) {
   $('elevation').addEventListener('change', (event) => updateCriteria({ elevation: event.target.value }));
   $('surface').addEventListener('change', (event) => updateCriteria({ surface: event.target.value }));
   $('avoid-major-roads').addEventListener('change', (event) => updateCriteria({ avoidMajorRoads: event.target.checked }));
+  $('prefer-new').addEventListener('change', (event) => updateCriteria({ preferNew: event.target.checked }));
   $('proposals-minus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals - 1 }));
   $('proposals-plus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals + 1 }));
   $('limit-gain').addEventListener('change', (event) => updateCriteria({ maxGain: event.target.checked ? lastMaxGain : null }));

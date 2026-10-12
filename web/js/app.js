@@ -21,6 +21,7 @@ import { reverse as reverseGeocode } from './geocode.js';
 import { toGpx } from './gpx.js';
 import { icons } from './icons.js';
 import { labelRoutes } from './labels.js';
+import { knownCells, noveltyShare, noveltyText } from './novelty.js';
 import { initLibrary } from './library.js';
 import { centerOnVisible, fitToLayer, map, revealPoint, setBaseLayer, showPoints } from './map-view.js';
 import { getMyPosition, initMyPosition, isMyPosition, watchMyPosition } from './my-position.js';
@@ -185,6 +186,16 @@ function setStatus(message, isError = false) {
 
 // MARK: - Génération
 
+/** Nouveauté des parcours, d'après les tracés des sorties (de cet appareil et du compte) et des favoris. */
+function noveltyMeasure() {
+  const tracks = [
+    ...state.favorites.map((f) => f.route.coordinates),
+    ...library.knownOutings().filter((o) => o.route?.coordinates).map((o) => o.route.coordinates),
+  ];
+  const cells = knownCells(tracks);
+  return cells.size ? (coordinates) => noveltyShare(coordinates, cells) : null;
+}
+
 function setGenerating(isGenerating) {
   showProgress(isGenerating);
   if (!isGenerating) updateGenerateLabel();
@@ -232,6 +243,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
       criteria: state.criteria,
       apiKey,
       signal: controller.signal,
+      novelty: noveltyMeasure(),
       onPhase: (phase, info) => {
         if (phase === 'relief') {
           setStep(
@@ -345,6 +357,7 @@ function renderRoutes() {
         <strong>${formatDistance(route.distance)}</strong>
         <span>↗ ${formatElevation(route.ascent)} · <span class="card-duration">${routeDuration(route)}</span></span>
         ${detail ? `<span class="card-detail">${escapeHtml(detail)}</span>` : ''}
+        ${route.novelty != null ? `<span class="card-novelty${route.novelty < 0.2 ? ' known' : ''}">${noveltyText(route.novelty)}</span>` : ''}
         ${route.overMaxGain ? '<span class="over-limit">D+ &gt; max</span>' : ''}
         ${sparkline(route.profile)}
       </button>`;
@@ -551,6 +564,7 @@ const routeEdit = initRouteEdit({
   getRoute: selectedRoute,
   getActivity: () => state.routesActivity,
   getApiKey: () => storage.get(KEYS.apiKey, ''),
+  getNovelty: noveltyMeasure,
   replaceRoute,
   setStatus,
   onToggle: (editing) => {

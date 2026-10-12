@@ -106,3 +106,18 @@ test('ajuster le tracé : une poignée déplacée recalcule le parcours (1 requ�
   await expect(page.locator('#quick-generate')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('nouveauté : après un favori, les propositions indiquent leur part de chemins nouveaux', async ({ page, context }) => {
+  await mockNetwork(context);
+  await returningUser(context);
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await generate(page);
+  await expect(page.locator('.card-novelty')).toHaveCount(0); // pas encore d'historique
+  page.once('dialog', (dialog) => dialog.accept('Boucle connue'));
+  await page.click('#quick-save');
+  await page.click('#quick-generate'); // « Autres parcours »
+  await expect(page.locator('.card-novelty').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.card-novelty').first()).toHaveText(/nouveau|Déjà fait/);
+  expect(errors).toEqual([]);
+});

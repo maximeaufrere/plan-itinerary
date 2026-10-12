@@ -56,12 +56,14 @@ export async function generateRoutes({
   fetchRoute = orsFetchRoute,
   terrain = defaultTerrain(),
   random = Math.random,
+  novelty = null,
 }) {
   const profile = ACTIVITIES[criteria.activity].profile;
   const target = criteria.distanceKm * 1000;
   const request = (points, roundTrip) => fetchRoute({ apiKey, profile, points, roundTrip, signal, onWait });
   const finish = (raw) => {
     const route = toRoute(raw, `route-${nextRouteId++}`);
+    route.novelty = novelty ? novelty(route.coordinates) : null;
     route.score = score(route, criteria);
     return route;
   };
@@ -143,8 +145,8 @@ export async function generateRoutes({
 /** Ce qui doit être identique pour réutiliser la génération précédente. */
 function sessionKey(start, end, criteria) {
   const round = (point) => point?.map((value) => value.toFixed(5)).join(',');
-  const { activity, shape, distanceKm, elevation, maxGain, surface, avoidMajorRoads } = criteria;
-  return JSON.stringify([round(start), round(end), activity, shape, distanceKm, elevation, maxGain, surface, avoidMajorRoads]);
+  const { activity, shape, distanceKm, elevation, maxGain, surface, avoidMajorRoads, preferNew } = criteria;
+  return JSON.stringify([round(start), round(end), activity, shape, distanceKm, elevation, maxGain, surface, avoidMajorRoads, preferNew]);
 }
 
 /** Note chaque forme d'après le relief estimé ; sans modèle de terrain, elles restent à égalité. */
@@ -304,9 +306,11 @@ function assemble(batch) {
 /**
  * Itinéraire passant par des points donnés, dans l'ordre (ajustement d'un parcours à la main) : 1 requête.
  */
-export async function traceThrough({ points, activity, apiKey, signal, fetchRoute = orsFetchRoute }) {
+export async function traceThrough({ points, activity, apiKey, signal, novelty = null, fetchRoute = orsFetchRoute }) {
   const raw = await fetchRoute({ apiKey, profile: ACTIVITIES[activity].profile, points, signal });
-  return toRoute(raw, `route-${nextRouteId++}`);
+  const route = toRoute(raw, `route-${nextRouteId++}`);
+  route.novelty = novelty ? novelty(route.coordinates) : null;
+  return route;
 }
 
 export function selectRoutes(candidates, criteria) {

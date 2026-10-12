@@ -38,6 +38,7 @@ const APP_FILES = [
   'js/library.js',
   'js/map-view.js',
   'js/my-position.js',
+  'js/novelty.js',
   'js/onboarding.js',
   'js/ors.js',
   'js/planner.js',

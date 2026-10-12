@@ -42,6 +42,8 @@ export function defaultCriteria() {
     maxGain: null,
     surface: 'any',
     avoidMajorRoads: false,
+    /** Privilégier les chemins jamais parcourus (d'après l'historique et les favoris). */
+    preferNew: true,
     proposals: 3,
     speeds: Object.fromEntries(Object.entries(ACTIVITIES).map(([key, activity]) => [key, activity.speedKmh])),
   };
@@ -58,6 +60,7 @@ export function sanitizeCriteria(input) {
   if (!ELEVATION_PREFERENCES[criteria.elevation]) criteria.elevation = 'any';
   if (!SURFACES[criteria.surface]) criteria.surface = 'any';
   criteria.avoidMajorRoads = Boolean(criteria.avoidMajorRoads);
+  criteria.preferNew = criteria.preferNew !== false;
   const activity = ACTIVITIES[criteria.activity];
   criteria.distanceKm = clamp(Number(criteria.distanceKm) || activity.defaultKm, activity.range);
   criteria.proposals = clamp(Math.round(Number(criteria.proposals) || 3), [1, 5]);
@@ -97,6 +100,11 @@ export function score(route, criteria) {
 
   if (criteria.avoidMajorRoads && route.majorRoads != null) {
     result += route.majorRoads * 60;
+  }
+
+  // Chemins déjà parcourus : tout connu = +40 (autant qu'un mauvais revêtement).
+  if (criteria.preferNew && route.novelty != null) {
+    result += (1 - route.novelty) * 40;
   }
   return result;
 }

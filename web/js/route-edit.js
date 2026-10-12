@@ -28,6 +28,7 @@ const handleIcon = L.divIcon({ className: '', html: '<span class="edit-handle"><
  * @param {() => object | undefined} hooks.getRoute  parcours affiché
  * @param {() => string} hooks.getActivity
  * @param {() => string} hooks.getApiKey
+ * @param {() => ((coordinates: number[][]) => number) | null} [hooks.getNovelty]
  * @param {(route: object, previous: object) => void} hooks.replaceRoute  remplace le parcours affiché
  * @param {(message: string, isError?: boolean) => void} hooks.setStatus  erreurs
  * @param {(editing: boolean) => void} hooks.onToggle
@@ -65,7 +66,13 @@ export function initRouteEdit(hooks) {
     $('edit-done').classList.add('loading');
     hint('Nouveau tracé…');
     try {
-      const route = await traceThrough({ points: editing.via, activity: hooks.getActivity(), apiKey: hooks.getApiKey(), signal: controller.signal });
+      const route = await traceThrough({
+        points: editing.via,
+        activity: hooks.getActivity(),
+        apiKey: hooks.getApiKey(),
+        novelty: hooks.getNovelty?.(),
+        signal: controller.signal,
+      });
       if (editing?.controller !== controller) return;
       hooks.replaceRoute(route, previous);
       hint(`Tracé modifié : ${formatDistance(route.distance)}. Faites glisser un autre point, ou « Terminé ».`);

@@ -30,6 +30,7 @@ function candidateTags(criteria) {
     paved: { tag: 'La plus roulante', value: (r) => (r.surface && r.surface.paved >= 0.5 ? r.surface.paved : null) },
     calm: { tag: 'La plus calme', value: (r) => (r.majorRoads == null ? null : -r.majorRoads) },
     closest: { tag: 'Au plus près', value: (r) => -Math.abs(r.distance - target) },
+    fresh: { tag: 'La plus nouvelle', value: (r) => (r.novelty == null || r.novelty < 0.5 ? null : r.novelty) },
   };
   const order = [];
   if (criteria.elevation === 'flat' || criteria.maxGain != null) order.push('flat');
@@ -37,6 +38,7 @@ function candidateTags(criteria) {
   if (criteria.surface === 'paved') order.push('paved');
   if (criteria.surface === 'unpaved') order.push('nature');
   if (criteria.avoidMajorRoads) order.push('calm');
+  if (criteria.preferNew) order.push('fresh');
   order.push('closest', 'flat', 'nature', 'hilly');
   return [...new Set(order)].map((key) => tags[key]);
 }

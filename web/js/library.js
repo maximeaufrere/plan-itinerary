@@ -258,5 +258,8 @@ export function initLibrary(hooks) {
     }
   });
 
-  return { refresh, logOuting };
+  /** Sorties connues : celles chargées (appareil + compte), sinon celles de cet appareil. */
+  const knownOutings = () => (outings.length ? outings : localOutings());
+
+  return { refresh, logOuting, knownOutings };
 }

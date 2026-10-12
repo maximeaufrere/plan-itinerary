@@ -1607,6 +1607,8 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 }
 .card-tag:empty { display: none; }
 .card .card-detail { font-size: 0.8rem; }
+.card .card-novelty { font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.card .card-novelty.known { color: var(--muted); }
 
 .result-actions { display: flex; gap: 8px; align-items: center; }
 .result-actions .primary { flex: 1; min-height: 50px; padding: 0 16px; white-space: nowrap; }
