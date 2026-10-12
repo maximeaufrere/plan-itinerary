@@ -94,3 +94,29 @@ test('allure au format coureur', () => {
   assert.equal(formatPace(3600 / 330), "5'30/km");
   assert.equal(formatPace(20), "3'00/km");
 });
+
+import { elevationChart, gradeAt, slopeSegments } from '../js/chart.js';
+
+test('profil : tranches de pente fusionnées et classées', () => {
+  // 1 km plat, 1 km à 8 %, 500 m à 12 %, 1 km de descente
+  const profile = [];
+  for (let d = 0; d <= 3500; d += 25) {
+    const e = d <= 1000 ? 200 : d <= 2000 ? 200 + (d - 1000) * 0.08 : d <= 2500 ? 280 + (d - 2000) * 0.12 : 340 - (d - 2500) * 0.1;
+    profile.push({ distance: d, elevation: e });
+  }
+  const segments = slopeSegments(profile);
+  assert.deepEqual(segments.map((s) => s.key), ['flat', 's2', 's3', 'flat']);
+  assert.ok(Math.abs(segments[1].from - 1000) <= 100 && Math.abs(segments[2].from - 2000) <= 100);
+  assert.ok(Math.abs(segments[2].grade - 0.12) < 0.01);
+  assert.ok(Math.abs(gradeAt(profile, 1500) - 0.08) < 0.005);
+  assert.ok(gradeAt(profile, 3000) < -0.09);
+  const html = elevationChart(profile);
+  assert.match(html, /class="slope-s3"/);
+  assert.match(html, /Pente max 12 %/);
+});
+
+test('profil : un parcours plat n\'a ni tranche colorée ni légende', () => {
+  const profile = [0, 500, 1000].map((distance) => ({ distance, elevation: 100 + distance / 1000 }));
+  assert.deepEqual(slopeSegments(profile).map((s) => s.key), ['flat']);
+  assert.doesNotMatch(elevationChart(profile), /slope-legend/);
+});

@@ -1,4 +1,5 @@
 // Sur la carte : sens du parcours, repères kilométriques et point qui suit le curseur du profil.
+import { formatGrade, gradeAt } from './chart.js';
 import { formatDistance, formatElevation } from './format.js';
 import { cumulativeDistances, pointAtDistance, pointsAlong } from './geo.js';
 import { map, revealPoint } from './map-view.js';
@@ -78,7 +79,7 @@ export function bindProfileCursor(route) {
     cursor.hidden = false;
     cursor.style.left = `${(ratio * 100).toFixed(2)}%`;
     cursor.classList.toggle('flip', ratio > 0.6);
-    tip.textContent = `${formatDistance(at)} · ${formatElevation(elevation)}`;
+    tip.textContent = `${formatDistance(at)} · ${formatElevation(elevation)} · ${formatGrade(gradeAt(route.profile, at))}`;
     if (!point) return;
     if (profileMarker) profileMarker.setLatLng(point);
     else {

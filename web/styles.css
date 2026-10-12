@@ -28,6 +28,10 @@
   --accent-text: #ffffff;
   --route: #e8591a;
   --route-other: #8f9a92;
+  /* Pentes du profil : de 3–6 % à plus de 10 % (une seule teinte, de plus en plus marquée) */
+  --slope-1: #e88a46;
+  --slope-2: #c5561a;
+  --slope-3: #86320a;
   --danger: #b42318;
   --success: #1e7a3c;
   --warning: #a15c07;
@@ -57,6 +61,9 @@
     --accent-text: #0d1410;
     --route: #ff7a3d;
     --route-other: #66756b;
+    --slope-1: #9a4a1a;
+    --slope-2: #e0702f;
+    --slope-3: #ffb07c;
     --danger: #ff8a7a;
     --success: #6fdc95;
     --warning: #f5b94a;
@@ -77,6 +84,9 @@
   --accent-text: #0d1410;
   --route: #ff7a3d;
   --route-other: #66756b;
+  --slope-1: #9a4a1a;
+  --slope-2: #e0702f;
+  --slope-3: #ffb07c;
   --danger: #ff8a7a;
   --success: #6fdc95;
   --warning: #f5b94a;
@@ -393,7 +403,13 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .surface-paved { background: #6b7a72; }
 .surface-unpaved { background: #b08968; }
 .surface-unknown { background: var(--border); }
-.surface-legend {
+.slope-s1 { fill: var(--slope-1); background: var(--slope-1); }
+.slope-s2 { fill: var(--slope-2); background: var(--slope-2); }
+.slope-s3 { fill: var(--slope-3); background: var(--slope-3); }
+/* Plat : même vert léger que l'aire du profil */
+.slope-legend i.slope-flat { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.surface-legend,
+.slope-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
@@ -401,7 +417,8 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
   font-size: 0.8rem;
   color: var(--muted);
 }
-.surface-legend i {
+.surface-legend i,
+.slope-legend i {
   display: inline-block;
   width: 10px;
   height: 10px;
@@ -1973,7 +1990,7 @@ a.button,
 .onboarding-dots i {
   border-radius: var(--radius-pill);
 }
-.surface-legend i { border-radius: 3px; }
+.surface-legend i, .slope-legend i { border-radius: 3px; }
 
 /* ==========================================================================
    Ordinateur : même carte flottante que sur téléphone. Le panneau et la barre
