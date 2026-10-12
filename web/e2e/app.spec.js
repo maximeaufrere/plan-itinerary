@@ -121,3 +121,29 @@ test('nouveauté : après un favori, les propositions indiquent leur part de che
   await expect(page.locator('.card-novelty').first()).toHaveText(/nouveau|Déjà fait/);
   expect(errors).toEqual([]);
 });
+
+test('« Modifier » ouvre une nouvelle recherche à part ; la flèche ramène aux propositions', async ({ page, context }) => {
+  await mockNetwork(context);
+  await returningUser(context);
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await generate(page);
+  await expect(page.locator('#quick-generate-label')).toHaveText('Autres parcours');
+
+  await page.click('#edit-criteria');
+  await expect(page.locator('#new-search-header')).toBeVisible();
+  await expect(page.locator('#results')).toBeHidden();
+  await expect(page.locator('#quick-generate-label')).toHaveText('Générer');
+
+  await page.click('#back-to-results');
+  await expect(page.locator('#results')).toBeVisible();
+  await expect(page.locator('#new-search-header')).toBeHidden();
+  await expect(page.locator('#quick-generate-label')).toHaveText('Autres parcours');
+
+  // Nouvelle recherche puis calcul : on retrouve des propositions, l'écran de recherche se referme.
+  await page.click('#edit-criteria');
+  await page.click('#quick-generate');
+  await expect(page.locator('#results')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#new-search-header')).toBeHidden();
+  expect(errors).toEqual([]);
+});

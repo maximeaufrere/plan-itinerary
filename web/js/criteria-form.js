@@ -13,7 +13,7 @@ const SURFACE_SHORT = { any: 'Libre', paved: 'Bitume', unpaved: 'Chemins' };
 const ACTIVITY_SHORT = { road: 'Route', bike: 'Balade' };
 const GAIN_STEP = 50;
 
-const hooks = { onChange: () => {}, onSync: () => {}, setStatus: () => {}, openPace: () => {} };
+const hooks = { onChange: () => {}, onSync: () => {}, setStatus: () => {}, openPace: () => {}, onSearchChange: () => {} };
 
 /** Dernière limite de D+ choisie, reprise quand on réactive la limite. */
 let lastMaxGain = state.criteria.maxGain ?? 200;
@@ -108,11 +108,27 @@ function setMoreOpen(open) {
   $('panel-scroll').scrollTo({ top: 0 });
 }
 
+/** Écran « Nouvelle recherche » : critères ouverts alors que des propositions existent (mises de côté). */
+let searching = false;
+export const isSearching = () => searching;
+
 /** Après un calcul, les critères se replient pour laisser la place aux propositions. */
 export function setCriteriaCollapsed(collapsed) {
   $('criteria-form').classList.toggle('collapsed', collapsed);
   if (collapsed) setMoreOpen(false);
   $('criteria-summary-text').textContent = criteriaSummary();
+  const nowSearching = !collapsed && state.routes.length > 0;
+  $('route-view').classList.toggle('searching', nowSearching);
+  $('new-search-header').hidden = !nowSearching;
+  if (nowSearching) {
+    const count = state.routes.length;
+    $('new-search-hint').textContent =
+      count > 1 ? `Vos ${count} propositions actuelles restent accessibles avec la flèche.` : 'Le parcours affiché reste accessible avec la flèche.';
+  }
+  if (nowSearching !== searching) {
+    searching = nowSearching;
+    hooks.onSearchChange(searching);
+  }
   hooks.onSync();
 }
 
@@ -145,6 +161,7 @@ export const placing = () => document.querySelector('input[name="placing"]:check
  * @param {() => void} options.onSync  le résumé des critères a changé
  * @param {(message: string, isError?: boolean) => void} options.setStatus
  * @param {() => void} options.openPace  ouvre le réglage de l'allure
+ * @param {(searching: boolean) => void} options.onSearchChange  entrée ou sortie de « Nouvelle recherche »
  */
 export function initCriteriaForm(options) {
   Object.assign(hooks, options);
@@ -153,7 +170,11 @@ export function initCriteriaForm(options) {
   $('edit-criteria').addEventListener('click', () => {
     setCriteriaCollapsed(false);
     if (getSheetState() === 'peek') snapTo('mid');
-    $('panel-scroll').scrollTo({ top: 0, behavior: 'smooth' });
+    $('panel-scroll').scrollTo({ top: 0 });
+  });
+  $('back-to-results').addEventListener('click', () => {
+    setCriteriaCollapsed(true);
+    $('panel-scroll').scrollTo({ top: 0 });
   });
   $('open-more').addEventListener('click', () => setMoreOpen(true));
   $('close-more').addEventListener('click', () => setMoreOpen(false));

@@ -6,6 +6,7 @@ import { ACTIVITIES, estimatedDuration } from './criteria.js';
 import {
   criteriaSummary,
   initCriteriaForm,
+  isSearching,
   placeEndNext,
   placing,
   replaceCriteria,
@@ -160,6 +161,12 @@ initCriteriaForm({
   onSync: () => updatePeek(),
   setStatus: (message, isError) => setStatus(message, isError),
   openPace: () => settings.open('', { focusPace: true }),
+  // Nouvelle recherche : « Générer » (et non « Autres parcours »), le parcours affiché passe au second plan.
+  onSearchChange: (searching) => {
+    document.body.classList.toggle('new-search', searching);
+    updateGenerateLabel();
+    styleRoutes();
+  },
 });
 
 $('locate').addEventListener('click', () => centerOnMe());
@@ -321,7 +328,7 @@ function showRoutes(routes, activity, { fresh = false } = {}) {
 /** « Générer » devient « Autres parcours » tant que les propositions affichées correspondent aux critères. */
 function updateGenerateLabel() {
   if (state.controller) return;
-  const again = Boolean(state.resultsFresh && state.routes.length);
+  const again = Boolean(state.resultsFresh && state.routes.length && !isSearching());
   $('quick-generate').classList.toggle('again', again);
   $('quick-generate-label').textContent = again ? 'Autres parcours' : 'Générer';
 }
@@ -411,7 +418,7 @@ function fitToRoute(id, options) {
 function styleRoutes() {
   const styles = getComputedStyle(document.documentElement);
   for (const [routeId, layer] of routeLayers) {
-    const selected = routeId === state.selectedId;
+    const selected = routeId === state.selectedId && !isSearching();
     layer.setStyle({
       color: styles.getPropertyValue(selected ? '--route' : '--route-other').trim(),
       weight: selected ? 6 : 4,

@@ -2170,3 +2170,10 @@ a.button,
 /* Après l'export GPX : où l'importer */
 .export-help { margin: 10px 4px 0; font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
 .export-help a { color: var(--accent); font-weight: 700; }
+
+/* Nouvelle recherche : les propositions sont mises de côté jusqu'au retour ou au prochain calcul */
+.searching #results { display: none; }
+.new-search-header { display: grid; gap: 4px; }
+.new-search-header[hidden] { display: none; }
+.new-search-hint { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
+.new-search .route-arrow, .new-search .km-marker { opacity: 0.35; }
