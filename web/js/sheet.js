@@ -230,10 +230,15 @@ export function initSheet({ onSnap, onSettled }) {
   mobileQuery.addEventListener('change', () => snapTo(sheetState, { save: false }));
 
   // Le contenu change (résultats, sous-écran, autre onglet…) : la feuille suit sa hauteur.
+  let settleTimer = null;
   const refit = () => {
     if (!mobileQuery.matches || sheetState === 'peek' || panel.classList.contains('dragging')) return;
     const target = sheetHeights()[sheetState];
-    if (Math.abs(target - currentSheetHeight()) > 4) setSheetHeight(target);
+    if (Math.abs(target - currentSheetHeight()) <= 4) return;
+    setSheetHeight(target);
+    // Une fois la feuille à sa nouvelle hauteur, la carte se recadre au-dessus d'elle.
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => hooks.onSettled(), 400);
   };
   const observer = new ResizeObserver(() => requestAnimationFrame(refit));
   for (const view of $('panel-scroll').children) observer.observe(view);

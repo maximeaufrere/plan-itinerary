@@ -1,13 +1,32 @@
 // Sur la carte : sens du parcours, repères kilométriques et point qui suit le curseur du profil.
 import { formatGrade, gradeAt } from './chart.js';
 import { formatDistance, formatElevation } from './format.js';
-import { cumulativeDistances, pointAtDistance, pointsAlong } from './geo.js';
+import { cumulativeDistances, distance, pointAtDistance, pointsAlong } from './geo.js';
 import { map, revealPoint } from './map-view.js';
 
 /* global L */
 
 let decorations = [];
 let profileMarker = null;
+
+const FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h13l-2 4 2 4H5" /></svg>';
+const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>';
+
+/** Étiquette d'extrémité : un point sur le tracé, et au-dessus « Départ », « Arrivée » ou les deux. */
+function endpointMarker(point, kind) {
+  const label = { start: `${PLAY}Départ`, end: `${FLAG}Arrivée`, both: `${PLAY}Départ · Arrivée${FLAG}` }[kind];
+  return L.marker(point, {
+    icon: L.divIcon({
+      className: '',
+      html: `<div class="route-end ${kind}"><span class="route-end-label">${label}</span><span class="route-end-dot"></span></div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 700,
+  });
+}
 
 /** Écart entre deux repères kilométriques, selon la longueur du parcours. */
 const kmStep = (km) => (km <= 6 ? 1 : km <= 15 ? 2 : km <= 40 ? 5 : km <= 100 ? 10 : 20);
@@ -38,6 +57,11 @@ export function decorateRoute(route) {
   for (const { distance: at, point } of pointsAlong(route.coordinates, route.distance, step)) {
     decorations.push(marker(point, `<span class="km-marker">${Math.round(at / 1000)}</span>`, 24));
   }
+
+  // Départ et arrivée : une seule étiquette quand ils se confondent (boucle, aller-retour).
+  const [first, last] = [route.coordinates[0], route.coordinates.at(-1)];
+  if (distance(first, last) < 80) decorations.push(endpointMarker(first, 'both').addTo(map));
+  else decorations.push(endpointMarker(first, 'start').addTo(map), endpointMarker(last, 'end').addTo(map));
 }
 
 /** Point du parcours et altitude à une distance donnée (mètres, distance officielle). */

@@ -2177,3 +2177,55 @@ a.button,
 .new-search-header[hidden] { display: none; }
 .new-search-hint { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
 .new-search .route-arrow, .new-search .km-marker { opacity: 0.35; }
+
+/* Départ et arrivée du parcours affiché : point sur le tracé, étiquette juste au-dessus */
+.route-end { position: absolute; left: 0; top: 0; pointer-events: none; }
+.route-end-dot {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1e4d3a;
+  border: 3px solid #ffffff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.route-end.end .route-end-dot {
+  background: conic-gradient(#1b2620 0 25%, #ffffff 0 50%, #1b2620 0 75%, #ffffff 0) 0 0 / 6px 6px;
+  border-color: #1b2620;
+}
+.route-end-label {
+  position: absolute;
+  left: 0;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: var(--radius-pill);
+  background: #1e4d3a;
+  color: #ffffff;
+  font: 800 12px/1.2 var(--font-body);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.route-end.end .route-end-label { background: #1b2620; }
+.route-end-label svg { width: 12px; height: 12px; fill: currentColor; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+/* Pointe de l'étiquette, vers le point */
+.route-end-label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 1px;
+}
+/* Parcours affiché : ses étiquettes remplacent les repères choisis sur la carte */
+.route-shown:not(.new-search) .start-marker:not(.at-me),
+.route-shown:not(.new-search) .end-marker { display: none; }
+.new-search .route-end { opacity: 0.35; }

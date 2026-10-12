@@ -64,6 +64,8 @@ const addressFields = {};
 function setPoint(kind, point, { label } = {}) {
   state[kind] = point;
   markResultsStale();
+  // Départ ou arrivée déplacé : ses repères réapparaissent par-dessus le parcours affiché.
+  document.body.classList.remove('route-shown');
   if (!point) {
     markers[kind]?.remove();
     markers[kind] = null;
@@ -318,9 +320,12 @@ function showRoutes(routes, activity, { fresh = false } = {}) {
   state.routesStart = state.start;
   state.resultsFresh = fresh;
   state.labels = labelRoutes(routes, { criteria: state.routesCriteria, start: state.start });
+  // Critères repliés d'abord : la feuille prend sa hauteur de résultats avant que la carte se cadre.
+  setCriteriaCollapsed(true);
   renderRoutes();
   selectRoute(routes[0].id);
-  setCriteriaCollapsed(true);
+  // Les étiquettes Départ / Arrivée du parcours remplacent les repères placés sur la carte.
+  document.body.classList.add('route-shown');
   updateGenerateLabel();
   $('panel-scroll').scrollTo({ top: 0 });
 }

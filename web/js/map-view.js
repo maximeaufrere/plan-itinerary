@@ -58,10 +58,14 @@ export function showPoints(points) {
 /** Cadre la carte sur un tracé, dans la partie visible. */
 export function fitToLayer(layer, { animate = false } = {}) {
   map.invalidateSize();
-  // Sur téléphone, la carte passe sous la feuille : on garde le parcours dans la partie visible.
-  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + 24 : hiddenMapBottom() + 30;
+  // Sur téléphone, la carte passe sous la feuille et les boutons flottants (« Générer »…) :
+  // on garde le parcours dans la partie visible, avec la place des étiquettes Départ / Arrivée en haut.
+  const floating = mobileQuery.matches ? $('sheet-actions').offsetHeight + 12 : 0;
+  const bottom = mobileQuery.matches
+    ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + floating + 16
+    : hiddenMapBottom() + 30;
   map.fitBounds(layer.getBounds(), {
-    paddingTopLeft: [30, 40 + (mobileQuery.matches ? safeArea.top : 0)],
+    paddingTopLeft: [30, 64 + (mobileQuery.matches ? safeArea.top : 0)],
     paddingBottomRight: [30 + hiddenMapRight(), bottom],
     animate,
   });
