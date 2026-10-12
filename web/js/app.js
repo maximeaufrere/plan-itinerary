@@ -1,28 +1,42 @@
+// Écran principal : relie la carte, le panneau, les critères, le calcul et les résultats.
 import { initAccount } from './account.js';
 import { initAddressField } from './address.js';
 import { elevationChart, sparkline } from './chart.js';
-import { ACTIVITIES, ELEVATION_PREFERENCES, SHAPES, SURFACES, estimatedDuration, sanitizeCriteria } from './criteria.js';
+import { ACTIVITIES, estimatedDuration } from './criteria.js';
+import {
+  criteriaSummary,
+  initCriteriaForm,
+  placeEndNext,
+  placing,
+  replaceCriteria,
+  setCriteriaCollapsed,
+  syncForm,
+  updateCriteria,
+} from './criteria-form.js';
 import { $, escapeHtml } from './dom.js';
 import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
 import { reverse as reverseGeocode } from './geocode.js';
-import { cumulativeDistances, distance, pointAtDistance, pointsAlong } from './geo.js';
 import { toGpx } from './gpx.js';
-import { activityIcons, icons } from './icons.js';
+import { icons } from './icons.js';
 import { labelRoutes } from './labels.js';
-import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
 import { initLibrary } from './library.js';
+import { centerOnVisible, fitToLayer, map, revealPoint, setBaseLayer, showPoints } from './map-view.js';
+import { getMyPosition, initMyPosition, isMyPosition, watchMyPosition } from './my-position.js';
 import { initOnboarding } from './onboarding.js';
-import { DAILY_QUOTA, requestsToday } from './ors.js';
+import { drawOutlines, setStep, showProgress } from './progress.js';
+import { bindProfileCursor, decorateRoute } from './route-decor.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
 import { routeDataFromHash } from './share-link.js';
+import { getSheetState, initSheet, mobileQuery, snapTo, toggleSheet } from './sheet.js';
+import { isPointToPoint, selectedRoute, state } from './state.js';
 import { KEYS, applyTheme, storage } from './storage.js';
+import { hideToast, showToast } from './toast.js';
 import { currentView, onViewChange, showView } from './views.js';
 
 /* global L */
-
 
 // Pas de zoom de la page (la carte, elle, se zoome toujours) : Safari sur iPhone ignore « user-scalable=no »,
 // on bloque donc ses gestes de pincement ; le double-toucher est bloqué en CSS (touch-action).
@@ -30,38 +44,7 @@ for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
 }
 
-const state = {
-  criteria: sanitizeCriteria(storage.get(KEYS.criteria, {})),
-  start: null,
-  end: null,
-  routes: [],
-  /** Activité avec laquelle les itinéraires affichés ont été calculés. */
-  routesActivity: null,
-  selectedId: null,
-  controller: null,
-  favorites: storage.get(KEYS.favorites, []).filter(isValidFavorite),
-};
-
-// MARK: - Carte
-
-const map = L.map('map', { zoomControl: false }).setView([46.6, 2.4], 6);
-map.attributionControl.setPrefix(false);
-// Le panneau change de taille (résultats, rotation) : Leaflet doit recalculer la taille de la carte.
-new ResizeObserver(() => map.invalidateSize()).observe($('map'));
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-let baseLayer = null;
-
-function setBaseLayer(key) {
-  const config = BASE_LAYERS[key] ?? BASE_LAYERS[DEFAULT_BASE_LAYER];
-  baseLayer?.remove();
-  baseLayer = L.tileLayer(config.url, {
-    maxZoom: config.maxZoom,
-    attribution: `${config.attribution} · <a href="https://openrouteservice.org">openrouteservice</a>`,
-  }).addTo(map);
-  baseLayer.bringToBack();
-}
-
-setBaseLayer(storage.get(KEYS.baseLayer, DEFAULT_BASE_LAYER));
+// MARK: - Départ et arrivée
 
 const pinIcon = (className) => L.divIcon({ className: '', html: `<div class="${className}"></div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
 const markers = { start: null, end: null };
@@ -96,9 +79,6 @@ function setPoint(kind, point, { label } = {}) {
   if (kind === 'start') syncStartRing();
 }
 
-const isPointToPoint = () => state.criteria.shape === 'point_to_point';
-const placing = () => document.querySelector('input[name="placing"]:checked').value;
-
 /** Affiche l'adresse d'un point touché sur la carte (si la clé OpenRouteService est disponible). */
 async function describePoint(kind, point) {
   addressFields[kind]?.setLabel('Point choisi sur la carte');
@@ -110,18 +90,10 @@ async function describePoint(kind, point) {
   }
 }
 
-/** Cadre la carte sur un ou deux points, dans la partie visible au-dessus du panneau. */
-function showPoints(points) {
-  const valid = points.filter(Boolean);
-  if (valid.length === 1) {
-    centerOnVisible(valid[0], Math.max(map.getZoom(), 14), { animate: true });
-  } else if (valid.length > 1) {
-    map.fitBounds(L.latLngBounds(valid), {
-      paddingTopLeft: [40, 60 + (mobileQuery.matches ? safeArea.top : 0)],
-      paddingBottomRight: [40 + hiddenMapRight(), hiddenMapBottom() + 40],
-      maxZoom: 15,
-    });
-  }
+/** Quand le départ est ma position, il s'affiche en anneau autour du point bleu (les deux restent visibles). */
+function syncStartRing() {
+  const element = markers.start?.getElement()?.querySelector('.start-marker');
+  if (element) element.classList.toggle('at-me', isMyPosition(state.start));
 }
 
 map.on('click', (event) => {
@@ -131,92 +103,22 @@ map.on('click', (event) => {
   } else {
     setPoint('start', point);
     // Après le départ, on enchaîne naturellement sur l'arrivée.
-    if (isPointToPoint() && !state.end) document.querySelector('input[name="placing"][value="end"]').checked = true;
+    if (isPointToPoint() && !state.end) placeEndNext();
   }
   setStatus('');
 });
 
 // MARK: - Ma position (point bleu, indépendant du départ et de l'arrivée)
 
-/** Dernière position connue de l'utilisateur, [lat, lon], ou null. */
-let myPosition = null;
-let myMarker = null;
-let myAccuracy = null;
-let positionWatch = null;
-let firstFixHandled = false;
-
-const myIcon = L.divIcon({ className: '', html: '<div class="me-marker"><span></span></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
-
-function showMyPosition(point, accuracy) {
-  myPosition = point;
-  if (!myMarker) {
-    myAccuracy = L.circle(point, { radius: accuracy, className: 'me-accuracy', interactive: false }).addTo(map);
-    myMarker = L.marker(point, { icon: myIcon, title: 'Ma position', keyboard: false, interactive: false, zIndexOffset: 500 }).addTo(map);
-  } else {
-    myMarker.setLatLng(point);
-    myAccuracy.setLatLng(point).setRadius(accuracy);
-  }
-  syncStartRing();
-}
-
-/** Quand le départ est ma position, il s'affiche en anneau autour du point bleu (les deux restent visibles). */
-function syncStartRing() {
-  const element = markers.start?.getElement()?.querySelector('.start-marker');
-  if (!element) return;
-  const atMe = Boolean(myPosition && state.start && distance(myPosition, state.start) < 20);
-  element.classList.toggle('at-me', atMe);
-}
-
-const positionErrorMessage = (error) =>
-  error.code === error.PERMISSION_DENIED
-    ? 'Localisation refusée : touchez la carte ou tapez une adresse pour choisir un départ.'
-    : 'Position introuvable : touchez la carte ou tapez une adresse pour choisir un départ.';
-
-/** Suit la position en continu pour garder le point bleu à jour. */
-function watchMyPosition() {
-  if (!('geolocation' in navigator) || positionWatch !== null) return;
-  positionWatch = navigator.geolocation.watchPosition(
-    (position) => {
-      const point = [position.coords.latitude, position.coords.longitude];
-      showMyPosition(point, position.coords.accuracy);
-      // Au premier repérage, la position sert de départ si aucun n'a été choisi.
-      if (!firstFixHandled) {
-        firstFixHandled = true;
-        if (!state.start) {
-          setPoint('start', point, { label: 'Ma position' });
-          centerOnVisible(point, 14);
-        }
-      }
-    },
-    () => {
-      // Erreurs signalées par les actions explicites (bouton, raccourci « Ma position »).
-    },
-    { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
-  );
-}
-
-/** Position actuelle : la dernière connue si elle est récente, sinon une nouvelle mesure. */
-function getMyPosition() {
-  return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) {
-      reject(new Error('Géolocalisation indisponible : touchez la carte ou tapez une adresse pour choisir un départ.'));
-      return;
-    }
-    if (myPosition) {
-      resolve(myPosition);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const point = [position.coords.latitude, position.coords.longitude];
-        showMyPosition(point, position.coords.accuracy);
-        resolve(point);
-      },
-      (error) => reject(new Error(positionErrorMessage(error))),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
-    );
-  });
-}
+initMyPosition({
+  onMove: syncStartRing,
+  // Au premier repérage, la position sert de départ si aucun n'a été choisi.
+  onFirstFix: (point) => {
+    if (state.start) return;
+    setPoint('start', point, { label: 'Ma position' });
+    centerOnVisible(point, 14);
+  },
+});
 
 /** Bouton de localisation : recentre la carte sur ma position, sans toucher au départ ni à l'arrivée. */
 async function centerOnMe() {
@@ -244,159 +146,18 @@ async function useMyPositionAsStart() {
   }
 }
 
-// MARK: - Formulaire
+// MARK: - Critères
 
-/** Libellés courts des contrôles segmentés. */
-const ELEVATION_SHORT = { any: 'Libre', flat: 'Plat', rolling: 'Vallonné', hilly: 'Montagne' };
-const SURFACE_SHORT = { any: 'Libre', paved: 'Bitume', unpaved: 'Chemins' };
-const ACTIVITY_SHORT = { road: 'Route', bike: 'Balade' };
-const GAIN_STEP = 50;
-
-const segments = (name, entries) =>
-  entries.map(([value, label]) => `<label><input type="radio" name="${name}" value="${value}"><span>${label}</span></label>`).join('');
-
-function buildForm() {
-  $('activity').innerHTML = Object.entries(ACTIVITIES)
-    .map(
-      ([key, activity]) => `
-      <label class="activity-option">
-        <input type="radio" name="activity" value="${key}" aria-label="${activity.label}">
-        <span>${activityIcons[key]}${ACTIVITY_SHORT[key] ?? activity.label}</span>
-      </label>`,
-    )
-    .join('');
-  $('shape').innerHTML = segments('shape', Object.entries(SHAPES));
-  $('elevation').innerHTML = segments('elevation', Object.keys(ELEVATION_PREFERENCES).map((key) => [key, ELEVATION_SHORT[key]]));
-  $('surface').innerHTML = segments('surface', Object.keys(SURFACES).map((key) => [key, SURFACE_SHORT[key]]));
-}
-
-/** Partie remplie des curseurs (le navigateur ne la colore pas partout de la même façon). */
-function fillRange(input) {
-  const min = Number(input.min);
-  const max = Number(input.max);
-  const ratio = max > min ? (Number(input.value) - min) / (max - min) : 0;
-  input.style.setProperty('--fill', `${(ratio * 100).toFixed(1)}%`);
-}
-
-/** Critères avancés qui s'écartent des valeurs par défaut, en pastilles courtes. */
-function advancedTags() {
-  const { criteria } = state;
-  const tags = [];
-  if (criteria.elevation !== 'any') tags.push(ELEVATION_PREFERENCES[criteria.elevation].label);
-  if (criteria.maxGain != null) tags.push(`D+ ≤ ${formatElevation(criteria.maxGain)}`);
-  if (criteria.surface !== 'any') tags.push(SURFACES[criteria.surface]);
-  if (criteria.avoidMajorRoads) tags.push('Sans grands axes');
-  if (criteria.proposals !== 3) tags.push(`${criteria.proposals} proposition${criteria.proposals > 1 ? 's' : ''}`);
-  return tags;
-}
-
-function syncForm() {
-  const { criteria } = state;
-  const activity = ACTIVITIES[criteria.activity];
-  document.querySelector(`input[name="activity"][value="${criteria.activity}"]`).checked = true;
-  document.querySelector(`input[name="shape"][value="${criteria.shape}"]`).checked = true;
-  $('placing-field').hidden = !isPointToPoint();
-  $('end-field').hidden = !isPointToPoint();
-
-  const distance = $('distance');
-  [distance.min, distance.max] = activity.range;
-  distance.value = criteria.distanceKm;
-  $('distance-output').textContent = `${criteria.distanceKm} km`;
-  fillRange(distance);
-
-  document.querySelector(`input[name="elevation"][value="${criteria.elevation}"]`).checked = true;
-  document.querySelector(`input[name="surface"][value="${criteria.surface}"]`).checked = true;
-  $('avoid-major-roads').checked = criteria.avoidMajorRoads;
-  $('proposals').textContent = String(criteria.proposals);
-  $('proposals-minus').disabled = criteria.proposals <= 1;
-  $('proposals-plus').disabled = criteria.proposals >= 5;
-  const limited = criteria.maxGain != null;
-  $('limit-gain').checked = limited;
-  $('max-gain-row').classList.toggle('disabled', !limited);
-  $('max-gain').textContent = formatElevation(criteria.maxGain ?? lastMaxGain);
-  $('gain-minus').disabled = !limited || criteria.maxGain <= GAIN_STEP;
-  $('gain-plus').disabled = !limited;
-
-  const tags = advancedTags();
-  $('more-summary').innerHTML = tags.length
-    ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')
-    : '<span class="muted">Dénivelé, revêtement, options</span>';
-  $('criteria-summary-text').textContent = criteriaSummary();
-  updatePeek();
-}
-
-function criteriaSummary() {
-  const { criteria } = state;
-  return [ACTIVITIES[criteria.activity].label, SHAPES[criteria.shape], `${criteria.distanceKm} km`, ...advancedTags()].join(' · ');
-}
-
-/** Dernière limite de D+ choisie, reprise quand on réactive la limite. */
-let lastMaxGain = state.criteria.maxGain ?? 200;
-
-/** Écran « Plus de critères » (dans la même feuille). */
-function setMoreOpen(open) {
-  $('criteria-more').hidden = !open;
-  $('criteria-main').hidden = open;
-  $('open-more').setAttribute('aria-expanded', String(open));
-  $('panel-scroll').scrollTo({ top: 0 });
-}
-
-/** Après un calcul, les critères se replient pour laisser la place aux propositions. */
-function setCriteriaCollapsed(collapsed) {
-  $('criteria-form').classList.toggle('collapsed', collapsed);
-  if (collapsed) setMoreOpen(false);
-  $('criteria-summary-text').textContent = criteriaSummary();
-  updatePeek();
-}
-
-$('edit-criteria').addEventListener('click', () => {
-  setCriteriaCollapsed(false);
-  if (sheetState === 'peek') snapTo('mid');
-  $('panel-scroll').scrollTo({ top: 0, behavior: 'smooth' });
-});
-$('open-more').addEventListener('click', () => setMoreOpen(true));
-$('close-more').addEventListener('click', () => setMoreOpen(false));
-$('reset-more').addEventListener('click', () => {
-  const defaults = sanitizeCriteria({});
-  updateCriteria({
-    elevation: defaults.elevation,
-    maxGain: defaults.maxGain,
-    surface: defaults.surface,
-    avoidMajorRoads: defaults.avoidMajorRoads,
-    proposals: defaults.proposals,
-  });
-});
-$('goto-pace').addEventListener('click', () => settings.open('', { focusPace: true }));
-
-function updateCriteria(changes) {
-  state.criteria = sanitizeCriteria({ ...state.criteria, ...changes });
-  if (state.criteria.maxGain != null) lastMaxGain = state.criteria.maxGain;
-  storage.set(KEYS.criteria, state.criteria);
+initCriteriaForm({
   // Les propositions affichées ne correspondent plus aux critères : « Générer » redevient la seule action.
-  if (!('speeds' in changes)) markResultsStale();
-  syncForm();
-}
+  onChange: (changes) => {
+    if (!('speeds' in changes)) markResultsStale();
+  },
+  onSync: () => updatePeek(),
+  setStatus: (message, isError) => setStatus(message, isError),
+  openPace: () => settings.open('', { focusPace: true }),
+});
 
-$('activity').addEventListener('change', (event) => {
-  const activity = event.target.value;
-  updateCriteria({ activity, distanceKm: ACTIVITIES[activity].defaultKm });
-});
-$('shape').addEventListener('change', (event) => {
-  updateCriteria({ shape: event.target.value });
-  if (isPointToPoint() && state.start && !state.end) {
-    document.querySelector('input[name="placing"][value="end"]').checked = true;
-    setStatus('Touchez la carte pour placer l\'arrivée.');
-  }
-});
-$('distance').addEventListener('input', (event) => updateCriteria({ distanceKm: Number(event.target.value) }));
-$('elevation').addEventListener('change', (event) => updateCriteria({ elevation: event.target.value }));
-$('surface').addEventListener('change', (event) => updateCriteria({ surface: event.target.value }));
-$('avoid-major-roads').addEventListener('change', (event) => updateCriteria({ avoidMajorRoads: event.target.checked }));
-$('proposals-minus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals - 1 }));
-$('proposals-plus').addEventListener('click', () => updateCriteria({ proposals: state.criteria.proposals + 1 }));
-$('limit-gain').addEventListener('change', (event) => updateCriteria({ maxGain: event.target.checked ? lastMaxGain : null }));
-$('gain-minus').addEventListener('click', () => updateCriteria({ maxGain: Math.max(GAIN_STEP, state.criteria.maxGain - GAIN_STEP) }));
-$('gain-plus').addEventListener('click', () => updateCriteria({ maxGain: state.criteria.maxGain + GAIN_STEP }));
 $('locate').addEventListener('click', () => centerOnMe());
 $('quick-generate').addEventListener('click', () => {
   if (state.controller) return; // le calcul en cours s'annule avec « Annuler »
@@ -404,28 +165,12 @@ $('quick-generate').addEventListener('click', () => {
 });
 $('cancel-generate').addEventListener('click', () => state.controller?.abort());
 
-let toastTimer = null;
-
-function hideToast() {
-  clearTimeout(toastTimer);
-  $('toast').hidden = true;
-}
-
-/** Erreur affichée dans une bulle juste au-dessus du bouton « Générer ». */
-function showToast(message) {
-  $('toast-text').textContent = message;
-  $('toast').hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, 10_000);
-}
-$('toast-close').addEventListener('click', hideToast);
-
 /** Messages d'information dans le panneau ; les erreurs, dans la bulle près du bouton « Générer ». */
 function setStatus(message, isError = false) {
   const status = $('status');
   if (isError && message) {
     // La bulle doit rester visible : la feuille ne doit ni masquer ni pousser hors de l'écran le bouton.
-    if (sheetState !== 'mid') snapTo('mid', { fit: false });
+    if (getSheetState() !== 'mid') snapTo('mid', { fit: false });
     showToast(message);
     status.textContent = '';
     status.classList.remove('error');
@@ -438,39 +183,9 @@ function setStatus(message, isError = false) {
 
 // MARK: - Génération
 
-/** Formes étudiées, dessinées en pointillés pendant le tracé. */
-let outlineLayers = [];
-
-function clearOutlines() {
-  for (const layer of outlineLayers) layer.remove();
-  outlineLayers = [];
-}
-
-function setStep(id, stepState, text) {
-  const item = $(id);
-  item.dataset.state = stepState;
-  if (text) item.querySelector('span').textContent = text;
-}
-
-/** Affiche ou masque l'écran de calcul (étapes + cartes en attente) à la place des critères et résultats. */
 function setGenerating(isGenerating) {
-  const button = $('quick-generate');
-  button.classList.toggle('loading', isGenerating);
-  button.setAttribute('aria-busy', String(isGenerating));
-  $('cancel-generate').hidden = !isGenerating;
-  $('locate').hidden = isGenerating;
-  $('route-view').classList.toggle('generating', isGenerating);
-  $('progress').hidden = !isGenerating;
-  if (isGenerating) {
-    setStep('step-relief', 'active', 'Analyse du relief autour du départ');
-    setStep('step-trace', 'todo', 'Tracé par les chemins');
-    setStep('step-rank', 'todo', 'Classement selon vos critères');
-    $('request-note').textContent = '';
-    $('quick-generate-label').textContent = 'Calcul…';
-  } else {
-    clearOutlines();
-    updateGenerateLabel();
-  }
+  showProgress(isGenerating);
+  if (!isGenerating) updateGenerateLabel();
 }
 
 $('criteria-form').addEventListener('submit', async (event) => {
@@ -489,7 +204,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
   }
   if (isPointToPoint() && !state.end) {
     setCriteriaCollapsed(false);
-    document.querySelector('input[name="placing"][value="end"]').checked = true;
+    placeEndNext();
     setStatus('Touchez la carte pour placer l\'arrivée.', true);
     return;
   }
@@ -502,11 +217,10 @@ $('criteria-form').addEventListener('submit', async (event) => {
   showView('route');
   const controller = new AbortController();
   state.controller = controller;
-  const requestsBefore = requestsToday();
   setStatus('');
   setGenerating(true);
   // La carte doit rester visible pour suivre les formes étudiées.
-  if (sheetState !== 'mid') snapTo('mid', { fit: false });
+  if (getSheetState() !== 'mid') snapTo('mid', { fit: false });
   $('panel-scroll').scrollTo({ top: 0 });
 
   try {
@@ -525,11 +239,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
           );
           setStep('step-trace', 'active');
         } else if (phase === 'trace') {
-          clearOutlines();
-          const color = getComputedStyle(document.documentElement).getPropertyValue('--route').trim();
-          outlineLayers = info.outlines.map((points) =>
-            L.polyline(points, { color, weight: 3, opacity: 0.75, dashArray: '6 10', className: 'outline-draft', interactive: false }).addTo(map),
-          );
+          drawOutlines(info.outlines);
         } else if (phase === 'rank') {
           setStep('step-trace', 'done');
           setStep('step-rank', 'active');
@@ -541,8 +251,6 @@ $('criteria-form').addEventListener('submit', async (event) => {
       },
       onWait: (seconds) => setStep('step-trace', 'active', `Pause de ${seconds} s (limite de 40 itinéraires par minute)`),
     });
-    const used = requestsToday() - requestsBefore;
-    state.lastRequestNote = `${used} requête${used > 1 ? 's' : ''} OpenRouteService pour cette génération · ${requestsToday().toLocaleString('fr-FR')} / ${DAILY_QUOTA.toLocaleString('fr-FR')} aujourd'hui sur cet appareil`;
     showRoutes(routes, state.criteria.activity, { fresh: true });
     const messages = [];
     if (directIsLonger) {
@@ -651,7 +359,7 @@ function refreshDurations() {
   }
   updatePeek();
   const duration = $('detail-duration');
-  const selected = state.routes.find((r) => r.id === state.selectedId);
+  const selected = selectedRoute();
   if (duration && selected) duration.textContent = routeDuration(selected);
 }
 
@@ -662,7 +370,7 @@ $('cards').addEventListener('click', (event) => {
 
 function selectRoute(id) {
   state.selectedId = id;
-  const route = state.routes.find((r) => r.id === id);
+  const route = selectedRoute();
   if (!route) return;
 
   styleRoutes();
@@ -676,49 +384,9 @@ function selectRoute(id) {
   updatePeek();
 }
 
-/** Hauteur (px) du bas de la carte masquée par le panneau et la barre d'onglets (téléphone uniquement). */
-function hiddenMapBottom() {
-  if (mobileQuery.matches) return currentSheetHeight() + tabbarHeight();
-  // Ordinateur, panneau replié : seule la petite carte reste en bas à droite.
-  if (document.querySelector('.layout').classList.contains('map-full')) {
-    return Math.round(window.innerHeight - panel.getBoundingClientRect().top);
-  }
-  return 0;
-}
-
-/** Largeur (px) de la carte masquée à droite par le panneau flottant (ordinateur uniquement). */
-function hiddenMapRight() {
-  if (mobileQuery.matches || document.querySelector('.layout').classList.contains('map-full')) return 0;
-  return Math.round(window.innerWidth - panel.getBoundingClientRect().left);
-}
-
-/** Centre la carte sur un point dans la partie visible, au-dessus du panneau. */
-function centerOnVisible(point, zoom = map.getZoom(), options = {}) {
-  const target = map.project(point, zoom).add([hiddenMapRight() / 2, hiddenMapBottom() / 2]);
-  map.setView(map.unproject(target, zoom), zoom, options);
-}
-
-/** Si le point est caché sous le panneau (ou trop près des bords), le ramène dans la partie visible. */
-function revealPoint(point) {
-  const position = map.latLngToContainerPoint(point);
-  const visibleBottom = map.getSize().y - hiddenMapBottom();
-  const visibleRight = map.getSize().x - hiddenMapRight();
-  if (position.y > visibleBottom - 48 || position.y < 48 || position.x < 24 || position.x > visibleRight - 24) {
-    centerOnVisible(point, map.getZoom(), { animate: true });
-  }
-}
-
-function fitToRoute(id, { animate = false } = {}) {
+function fitToRoute(id, options) {
   const layer = routeLayers.get(id);
-  if (!layer) return;
-  map.invalidateSize();
-  // Sur téléphone, la carte passe sous la feuille : on garde le parcours dans la partie visible.
-  const bottom = mobileQuery.matches ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + 24 : hiddenMapBottom() + 30;
-  map.fitBounds(layer.getBounds(), {
-    paddingTopLeft: [30, 40 + (mobileQuery.matches ? safeArea.top : 0)],
-    paddingBottomRight: [30 + hiddenMapRight(), bottom],
-    animate,
-  });
+  if (layer) fitToLayer(layer, options);
 }
 
 /** Couleurs des tracés (dépendent du thème). */
@@ -733,106 +401,6 @@ function styleRoutes() {
     });
     if (selected) layer.bringToFront();
   }
-}
-
-// MARK: Sens du parcours, repères kilométriques et curseur du profil
-
-let decorations = [];
-let profileMarker = null;
-
-/** Écart entre deux repères kilométriques, selon la longueur du parcours. */
-const kmStep = (km) => (km <= 6 ? 1 : km <= 15 ? 2 : km <= 40 ? 5 : km <= 100 ? 10 : 20);
-
-function decorateRoute(route) {
-  for (const layer of decorations) layer.remove();
-  decorations = [];
-  hideProfileCursor();
-  if (route.coordinates.length < 2) return;
-  const marker = (point, html, size) =>
-    L.marker(point, {
-      icon: L.divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
-      interactive: false,
-      keyboard: false,
-    }).addTo(map);
-
-  const arrowSpacing = route.distance / 7;
-  for (const { point, bearing } of pointsAlong(route.coordinates, route.distance, arrowSpacing, { offset: arrowSpacing / 2 })) {
-    decorations.push(
-      marker(
-        point,
-        `<span class="route-arrow" style="transform: rotate(${Math.round(bearing)}deg)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5l7 13H5z"/></svg></span>`,
-        18,
-      ),
-    );
-  }
-  const step = kmStep(route.distance / 1000) * 1000;
-  for (const { distance: at, point } of pointsAlong(route.coordinates, route.distance, step)) {
-    decorations.push(marker(point, `<span class="km-marker">${Math.round(at / 1000)}</span>`, 24));
-  }
-}
-
-/** Point du parcours et altitude à une distance donnée (mètres, distance officielle). */
-function routePointAt(route, at) {
-  const cumulative = cumulativeDistances(route.coordinates);
-  const scale = cumulative.at(-1) > 0 ? route.distance / cumulative.at(-1) : 1;
-  const found = pointAtDistance(route.coordinates, at / scale, cumulative);
-  let elevation = null;
-  const profile = route.profile;
-  if (profile.length > 1) {
-    const i = Math.max(1, profile.findIndex((p) => p.distance >= at));
-    const [p0, p1] = [profile[i - 1], profile[i] ?? profile[i - 1]];
-    const t = p1.distance > p0.distance ? (at - p0.distance) / (p1.distance - p0.distance) : 0;
-    elevation = p0.elevation + (p1.elevation - p0.elevation) * Math.min(1, Math.max(0, t));
-  }
-  return { point: found?.point, elevation };
-}
-
-function hideProfileCursor() {
-  profileMarker?.remove();
-  profileMarker = null;
-  const cursor = document.querySelector('.chart-cursor');
-  if (cursor) cursor.hidden = true;
-}
-
-/** Toucher ou survoler le profil : un curseur sur le graphique, le point correspondant sur la carte. */
-function bindProfileCursor(route) {
-  const plot = document.querySelector('#details .chart-plot');
-  if (!plot || route.profile.length < 2) return;
-  const cursor = plot.querySelector('.chart-cursor');
-  const tip = cursor.querySelector('.chart-tip');
-  const total = route.profile.at(-1).distance;
-
-  const move = (event) => {
-    const rect = plot.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    const at = ratio * total;
-    const { point, elevation } = routePointAt(route, at);
-    cursor.hidden = false;
-    cursor.style.left = `${(ratio * 100).toFixed(2)}%`;
-    cursor.classList.toggle('flip', ratio > 0.6);
-    tip.textContent = `${formatDistance(at)} · ${formatElevation(elevation)}`;
-    if (!point) return;
-    if (profileMarker) profileMarker.setLatLng(point);
-    else {
-      profileMarker = L.marker(point, {
-        icon: L.divIcon({ className: '', html: '<span class="profile-marker"></span>', iconSize: [18, 18], iconAnchor: [9, 9] }),
-        interactive: false,
-        keyboard: false,
-        zIndexOffset: 800,
-      }).addTo(map);
-    }
-    revealPoint(point);
-  };
-  plot.addEventListener('pointerdown', (event) => {
-    plot.setPointerCapture(event.pointerId);
-    move(event);
-  });
-  plot.addEventListener('pointermove', (event) => {
-    if (event.pointerType === 'mouse' || plot.hasPointerCapture(event.pointerId)) move(event);
-  });
-  plot.addEventListener('pointerleave', (event) => {
-    if (event.pointerType === 'mouse') hideProfileCursor();
-  });
 }
 
 // MARK: Détail
@@ -913,7 +481,6 @@ function renderDetails(route) {
   $('quick-save').setAttribute('aria-label', saved ? 'Déjà dans mes parcours' : 'Enregistrer dans mes parcours');
 }
 
-const selectedRoute = () => state.routes.find((r) => r.id === state.selectedId);
 $('quick-gpx').addEventListener('click', () => selectedRoute() && exportGpx(selectedRoute()));
 $('quick-save').addEventListener('click', () => selectedRoute() && saveFavorite(selectedRoute()));
 $('show-detail').addEventListener('click', () => {
@@ -972,10 +539,8 @@ const settings = initSettings({
   onBaseLayerChange: setBaseLayer,
   onThemeChange: styleRoutes,
   onResetCriteria: () => {
-    state.criteria = sanitizeCriteria({});
-    storage.set(KEYS.criteria, state.criteria);
     markResultsStale();
-    syncForm();
+    replaceCriteria({});
   },
   getSpeeds: () => state.criteria.speeds,
   setSpeed: (activity, speed) => {
@@ -992,7 +557,7 @@ const VIEW_TITLES = { library: 'Mes parcours', account: 'Mon compte', settings: 
 
 /** Texte de la barre d'aperçu affichée quand le panneau est réduit. */
 function updatePeek() {
-  const route = state.routes.find((r) => r.id === state.selectedId);
+  const route = selectedRoute();
   const view = currentView();
   if (view !== 'route') {
     $('panel-peek-text').textContent = VIEW_TITLES[view] ?? '';
@@ -1003,218 +568,15 @@ function updatePeek() {
     : criteriaSummary();
 }
 
-const mobileQuery = matchMedia('(max-width: 899px)');
-const panel = $('panel');
-const SHEET_STATES = ['peek', 'mid', 'full'];
-/** Position du panneau : « peek » (réduit à une barre), « mid » (mi-hauteur) ou « full » (presque plein écran). */
-let sheetState = normalizeSheetState(storage.get(KEYS.panelCollapsed, 'mid'));
-
-function normalizeSheetState(value) {
-  if (value === true) return 'peek'; // ancienne valeur enregistrée
-  if (value === false) return 'mid';
-  return SHEET_STATES.includes(value) ? value : 'mid';
-}
-
-/** Marges de sécurité de l'écran (encoche, barre d'accueil), mesurées une fois. */
-const safeArea = (() => {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
-  document.body.append(probe);
-  const { paddingTop, paddingBottom } = getComputedStyle(probe);
-  probe.remove();
-  return { top: parseFloat(paddingTop) || 0, bottom: parseFloat(paddingBottom) || 0 };
-})();
-
-/**
- * Place occupée en bas de l'écran par la barre d'onglets. Sur téléphone, elle flotte au-dessus du bord :
- * on compte de son haut jusqu'au bas de l'écran, plus un petit espace avant la feuille.
- */
-const SHEET_GAP = 0; // la feuille est posée sur la barre : les deux forment une seule carte
-const tabbarHeight = () =>
-  mobileQuery.matches ? Math.round(window.innerHeight - $('tabbar').getBoundingClientRect().top) + SHEET_GAP : $('tabbar').offsetHeight;
-
-/** Hauteur du contenu affiché dans la feuille (poignée comprise) ; dernière mesure si la feuille est réduite. */
-let contentHeight = Infinity;
-function measureContent() {
-  const scroll = $('panel-scroll');
-  const view = [...scroll.children].find((element) => !element.hidden);
-  if (!view || scroll.offsetParent === null) return contentHeight;
-  const style = getComputedStyle(scroll);
-  contentHeight = Math.ceil(
-    view.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + $('panel-toggle').offsetHeight + 8,
-  );
-  return contentHeight;
-}
-
-/**
- * Hauteurs (px) des trois positions de la feuille, posée sur la barre d'onglets.
- * La feuille ne monte jamais plus haut que son contenu : peu de contenu, feuille basse.
- */
-function sheetHeights() {
-  const available = window.innerHeight - tabbarHeight();
-  const fit = Math.max(160, measureContent());
-  return {
-    peek: 78,
-    mid: Math.min(Math.round(available * 0.55), fit),
-    full: Math.min(Math.round(available - safeArea.top - 48), fit), // laisse visibles les crédits de la carte
-  };
-}
-
-function currentSheetHeight() {
-  return parseFloat(panel.style.getPropertyValue('--sheet-h')) || sheetHeights()[sheetState];
-}
-
-/** Applique une hauteur de feuille ; sans animation pendant que le doigt la déplace. */
-function setSheetHeight(height, { animate = true } = {}) {
-  panel.classList.toggle('dragging', !animate);
-  panel.style.setProperty('--sheet-h', `${Math.round(height)}px`);
-  // La feuille repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
-  panel.style.bottom = `${tabbarHeight()}px`;
-  document.querySelector('.layout').classList.toggle('map-full', height <= sheetHeights().peek + 12);
-  // Les boutons « Générer » et de localisation suivent le haut de la feuille…
-  const actions = $('sheet-actions');
-  actions.classList.toggle('dragging', !animate);
-  actions.style.bottom = `${Math.round(height + tabbarHeight() + 12)}px`;
-  // … et s'effacent quand elle monte jusqu'en haut de l'écran.
-  const opacity = Math.max(0, Math.min(1, (window.innerHeight - tabbarHeight() - height - 90 - safeArea.top) / 50));
-  actions.style.opacity = String(opacity);
-  actions.style.pointerEvents = opacity < 0.5 ? 'none' : '';
-}
-
-/** Ordinateur : « Générer » se place juste au-dessus de la carte flottante (panneau + menu). */
-function placeDesktopActions() {
-  const actions = $('sheet-actions');
-  if (mobileQuery.matches) {
-    actions.style.right = '';
-    actions.style.width = '';
-    return;
-  }
-  document.documentElement.style.setProperty('--tabbar-h', `${$('tabbar').offsetHeight}px`);
-  const rect = panel.getBoundingClientRect();
-  actions.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
-  actions.style.width = `${Math.round(rect.width)}px`;
-  actions.style.bottom = `${Math.round(window.innerHeight - rect.top + 12)}px`;
-}
-new ResizeObserver(() => placeDesktopActions()).observe(panel);
-window.addEventListener('resize', () => placeDesktopActions());
-
-/** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */
-function snapTo(position, { save = true, fit = true } = {}) {
-  sheetState = position;
-  const collapsed = position === 'peek';
-  const toggle = $('panel-toggle');
-  toggle.setAttribute('aria-expanded', String(!collapsed));
-  toggle.setAttribute(
-    'aria-label',
-    collapsed ? 'Afficher le panneau des critères et résultats' : 'Réduire le panneau pour voir la carte en plein écran',
-  );
-  if (mobileQuery.matches) {
-    setSheetHeight(sheetHeights()[position]);
-  } else {
-    panel.style.removeProperty('--sheet-h');
-    panel.style.bottom = '';
-    for (const prop of ['opacity', 'pointerEvents', 'bottom']) $('sheet-actions').style[prop] = '';
-    panel.classList.remove('dragging');
-    document.querySelector('.layout').classList.toggle('map-full', collapsed);
-    placeDesktopActions();
-  }
-  updatePeek();
-  if (save) storage.set(KEYS.panelCollapsed, position);
-  // Une fois l'animation terminée, la carte se recadre sur le parcours, au-dessus de la feuille.
-  if (fit && position !== 'full') {
-    setTimeout(() => {
-      if (sheetState !== position) return; // un autre geste a eu lieu entre-temps
-      map.invalidateSize();
-      if (selectedRouteId()) fitToRoute(selectedRouteId(), { animate: mobileQuery.matches });
-      else if (state.start) revealPoint(state.start);
-    }, 340);
-  }
-}
-
-const selectedRouteId = () => (state.routes.some((r) => r.id === state.selectedId) ? state.selectedId : null);
-
-// Glisser la poignée : la feuille suit le doigt, puis se cale sur la position la plus proche
-// en tenant compte de l'élan (un petit coup rapide suffit à changer de position).
-{
-  const toggle = $('panel-toggle');
-  let drag = null;
-  let suppressClick = false;
-
-  const nearestState = (height) => {
-    const heights = sheetHeights();
-    return SHEET_STATES.reduce((best, s) => (Math.abs(heights[s] - height) < Math.abs(heights[best] - height) ? s : best), 'mid');
-  };
-
-  toggle.addEventListener('pointerdown', (event) => {
-    if (!mobileQuery.matches) return;
-    toggle.setPointerCapture(event.pointerId);
-    drag = {
-      startY: event.clientY,
-      startHeight: currentSheetHeight(),
-      startState: sheetState,
-      moved: false,
-      samples: [{ y: event.clientY, t: event.timeStamp }],
-    };
-  });
-
-  toggle.addEventListener('pointermove', (event) => {
-    if (!drag) return;
-    const dy = event.clientY - drag.startY;
-    if (!drag.moved && Math.abs(dy) < 4) return;
-    drag.moved = true;
-    const { peek, full } = sheetHeights();
-    let height = drag.startHeight - dy;
-    // Résistance élastique au-delà des limites.
-    if (height > full) height = full + (height - full) * 0.25;
-    if (height < peek) height = peek - (peek - height) * 0.25;
-    setSheetHeight(height, { animate: false });
-    drag.samples.push({ y: event.clientY, t: event.timeStamp });
-    if (drag.samples.length > 6) drag.samples.shift();
-  });
-
-  const endDrag = (event) => {
-    if (!drag) return;
-    const { moved, samples, startState } = drag;
-    drag = null;
-    if (!moved) return; // simple toucher : géré par « click »
-    suppressClick = true;
-    const first = samples[0];
-    const last = { y: event.clientY, t: event.timeStamp };
-    const velocity = last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0; // px/ms, positif vers le bas
-    if (Math.abs(velocity) > 0.45) {
-      // Geste vif : position suivante dans le sens du geste.
-      const index = SHEET_STATES.indexOf(startState) + (velocity > 0 ? -1 : 1);
-      snapTo(SHEET_STATES[Math.max(0, Math.min(SHEET_STATES.length - 1, index))]);
-    } else {
-      // Geste lent : position la plus proche de l'endroit où la feuille a été lâchée.
-      snapTo(nearestState(currentSheetHeight()));
-    }
-  };
-  toggle.addEventListener('pointerup', endDrag);
-  toggle.addEventListener('pointercancel', endDrag);
-
-  toggle.addEventListener('click', () => {
-    if (suppressClick) {
-      suppressClick = false;
-      return;
-    }
-    snapTo(sheetState === 'peek' ? 'mid' : 'peek');
-  });
-
-  // Rotation de l'écran, clavier virtuel, passage téléphone ↔ ordinateur : on recale le panneau.
-  window.addEventListener('resize', () => snapTo(sheetState, { save: false, fit: false }));
-  mobileQuery.addEventListener('change', () => snapTo(sheetState, { save: false }));
-}
-// Le contenu change (résultats, sous-écran, autre onglet…) : la feuille suit sa hauteur.
-{
-  const refit = () => {
-    if (!mobileQuery.matches || sheetState === 'peek' || panel.classList.contains('dragging')) return;
-    const target = sheetHeights()[sheetState];
-    if (Math.abs(target - currentSheetHeight()) > 4) setSheetHeight(target);
-  };
-  const observer = new ResizeObserver(() => requestAnimationFrame(refit));
-  for (const view of $('panel-scroll').children) observer.observe(view);
-}
+initSheet({
+  onSnap: updatePeek,
+  // Le panneau a fini de bouger : la carte se recadre sur le parcours (ou le départ), au-dessus de lui.
+  onSettled: () => {
+    map.invalidateSize();
+    if (selectedRoute()) fitToRoute(state.selectedId, { animate: mobileQuery.matches });
+    else if (state.start) revealPoint(state.start);
+  },
+});
 
 // MARK: - Adresses de départ et d'arrivée
 
@@ -1227,7 +589,7 @@ addressFields.start = initAddressField({
     setPoint('start', point, { label });
     setStatus('');
     if (isPointToPoint() && !state.end) {
-      document.querySelector('input[name="placing"][value="end"]').checked = true;
+      placeEndNext();
       $('end-address').focus();
     }
     showPoints(isPointToPoint() ? [state.start, state.end] : [state.start]);
@@ -1255,16 +617,12 @@ const account = initAccount({
   setFavorites: (favorites) => {
     state.favorites = favorites.filter(isValidFavorite);
     storage.set(KEYS.favorites, state.favorites, { silent: true });
-    const shown = state.routes.find((r) => r.id === state.selectedId);
+    const shown = selectedRoute();
     if (shown) renderDetails(shown);
     if (currentView() === 'library') library.refresh();
   },
   applySettings: (row) => {
-    if (row.criteria) {
-      state.criteria = sanitizeCriteria(row.criteria);
-      storage.set(KEYS.criteria, state.criteria, { silent: true });
-      syncForm();
-    }
+    if (row.criteria) replaceCriteria(row.criteria, { silent: true });
     if (row.ors_api_key) storage.set(KEYS.apiKey, row.ors_api_key, { silent: true });
     if (row.theme) {
       storage.set(KEYS.theme, row.theme, { silent: true });
@@ -1318,7 +676,7 @@ $('tabbar').addEventListener(
     // Depuis « Mon compte », l'onglet Réglages ramène aux réglages.
     if (tab.dataset.tab === 'settings' && currentView() === 'account') return;
     event.stopPropagation(); // l'action habituelle de l'onglet n'est pas exécutée
-    snapTo(sheetState === 'peek' ? 'mid' : 'peek');
+    toggleSheet();
   },
   true,
 );
@@ -1328,7 +686,7 @@ onViewChange((view) => {
   // « Générer » n'a de sens que dans la vue Parcours.
   $('sheet-actions').classList.toggle('route-only-hidden', view !== 'route');
   $('panel-scroll').scrollTo({ top: 0 });
-  if (sheetState === 'peek') snapTo('mid', { fit: false });
+  if (getSheetState() === 'peek') snapTo('mid', { fit: false });
   updatePeek();
 });
 
@@ -1354,9 +712,8 @@ $('replay-onboarding').addEventListener('click', () => onboarding.start());
 
 // MARK: - Démarrage
 
-buildForm();
 syncForm();
-snapTo(sheetState, { save: false, fit: false });
+snapTo(getSheetState(), { save: false, fit: false });
 if (onboarding.needed && !openedFromLink) onboarding.start();
 else watchMyPosition();
 
