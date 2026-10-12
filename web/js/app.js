@@ -16,6 +16,7 @@ import { initOnboarding } from './onboarding.js';
 import { DAILY_QUOTA, requestsToday } from './ors.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
+import { routeDataFromHash } from './share-link.js';
 import { KEYS, applyTheme, storage } from './storage.js';
 import { currentView, onViewChange, showView } from './views.js';
 
@@ -1243,6 +1244,8 @@ addressFields.end = initAddressField({
 
 // MARK: - Compte
 
+// Arrivée par un lien de parcours : on montre le parcours, pas l'accueil (lu avant que le lien soit effacé).
+const openedFromLink = Boolean(routeDataFromHash(location.hash));
 const account = initAccount({
   getFavorites: () => state.favorites,
   setFavorites: (favorites) => {
@@ -1350,5 +1353,5 @@ $('replay-onboarding').addEventListener('click', () => onboarding.start());
 buildForm();
 syncForm();
 snapTo(sheetState, { save: false, fit: false });
-if (onboarding.needed) onboarding.start();
+if (onboarding.needed && !openedFromLink) onboarding.start();
 else watchMyPosition();

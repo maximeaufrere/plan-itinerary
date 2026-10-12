@@ -3,6 +3,7 @@ import * as cloud from './cloud.js';
 import { ACTIVITIES } from './criteria.js';
 import { fromFavorite, toFavorite } from './favorites.js';
 import { icons } from './icons.js';
+import { routeDataFromHash, decodeRouteData, routeLink } from './share-link.js';
 import { KEYS, storage } from './storage.js';
 import { diffFavorites, mergeFavoriteLists, newerSettings } from './sync.js';
 import { currentView, showView } from './views.js';
@@ -58,6 +59,8 @@ export function initAccount(hooks) {
 
   /** Sous-titre de la ligne « Compte » des réglages. */
   function renderRow() {
+    // Comptes non configurés (config.js vide) : la ligne ne mènerait nulle part, on la cache.
+    $('open-account').hidden = !cloud.cloudEnabled;
     $('account-row-text').textContent = !cloud.cloudEnabled
       ? 'Synchronisation entre appareils : bientôt disponible'
       : user
@@ -313,31 +316,47 @@ export function initAccount(hooks) {
     }
   }
 
+  /**
+   * Partage par lien. Connecté : lien court vers le parcours enregistré en ligne.
+   * Sinon : le parcours est encodé dans le lien lui-même (aucun compte ni serveur nécessaire).
+   */
   async function shareRoute(route, { activity, name }) {
-    if (!requireUser('Connectez-vous pour partager vos parcours par lien.')) return;
     const title = window.prompt('Nom du parcours partagé', name);
     if (title === null) return;
+    const label = title.trim() || name;
     try {
       hooks.setStatus('Création du lien de partage…');
-      const url = await cloud.shareRoute({
-        name: title.trim() || name,
-        activity,
-        route: toFavorite(route, { name: title, activity }).route,
-      });
+      const url = user
+        ? await cloud.shareRoute({ name: label, activity, route: toFavorite(route, { name: label, activity }).route })
+        : await routeLink(route, { name: label, activity });
       if (navigator.share) {
         try {
-          await navigator.share({ title: title || name, text: `Parcours ${ACTIVITIES[activity]?.label.toLowerCase() ?? ''} : ${title || name}`, url });
+          await navigator.share({ title: label, text: `Parcours ${ACTIVITIES[activity]?.label.toLowerCase() ?? ''} : ${label}`, url });
           hooks.setStatus('');
           return;
         } catch (error) {
           if (error.name === 'AbortError') return hooks.setStatus('');
         }
       }
-      await copyLink(url);
-      hooks.setStatus(`Lien copié : ${url}`);
+      hooks.setStatus((await copyLink(url)) ? 'Lien du parcours copié.' : '');
     } catch (error) {
       hooks.setStatus(`Partage impossible : ${error.message}`, true);
     }
+  }
+
+  /** Ouvre un parcours reçu par lien sans compte (#trace=…). */
+  async function openTraceLink() {
+    const data = routeDataFromHash(location.hash);
+    if (!data) return false;
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      const { route, activity } = await decodeRouteData(data);
+      hooks.openRoute(route, activity);
+      hooks.setStatus(`Parcours partagé : « ${route.name} ». Enregistrez-le dans vos favoris pour le garder.`);
+    } catch (error) {
+      hooks.setStatus(`Impossible d'ouvrir le parcours partagé : ${error.message}`, true);
+    }
+    return true;
   }
 
   /** Ouvre un parcours partagé reçu par lien (?parcours=…). */
@@ -388,7 +407,8 @@ export function initAccount(hooks) {
     });
   }
   syncAuthMode();
-  openSharedLink();
+  openTraceLink().then((opened) => opened || openSharedLink());
+  window.addEventListener('hashchange', openTraceLink);
 
   renderRow();
 
