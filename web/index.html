@@ -35,6 +35,12 @@
         <svg class="icon arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </button>
       <button type="button" id="cancel-generate" class="map-pill" hidden>Annuler</button>
+      <p id="edit-hint" class="edit-hint" role="status" aria-live="polite" hidden></p>
+      <button type="button" id="edit-done" class="quick-generate" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Terminé</span>
+      </button>
+      <button type="button" id="edit-undo" class="map-pill" hidden>Tracé d'origine</button>
       <button type="button" id="locate" class="map-button locate-button" aria-label="Centrer la carte sur ma position">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7.5 3 3 7.5z"/></svg>
       </button>

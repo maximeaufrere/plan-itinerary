@@ -43,6 +43,7 @@ const APP_FILES = [
   'js/planner.js',
   'js/progress.js',
   'js/route-decor.js',
+  'js/route-edit.js',
   'js/settings.js',
   'js/share-link.js',
   'js/share.js',

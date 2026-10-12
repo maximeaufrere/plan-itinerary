@@ -1622,14 +1622,14 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 .details .stats-4 .stat strong { font-size: 0.98rem; }
 .profile-card header .muted { font-size: 0.78rem; }
 .legend-extra { color: var(--muted); }
-.tile-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tile-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .tile-actions button {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 64px;
+  gap: 8px;
+  min-height: 48px;
   border: 0;
   background: var(--accent-soft);
   color: var(--accent);
@@ -2128,4 +2128,34 @@ a.button,
     max-width: 50vw;
     border-radius: var(--radius-control);
   }
+}
+
+/* Ajustement du tracé : poignées à faire glisser sur la carte */
+.edit-handle {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: #fff;
+  border: 3px solid var(--route);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  cursor: grab;
+}
+.leaflet-dragging .edit-handle { cursor: grabbing; }
+
+/* Consigne pendant l'ajustement, au-dessus des boutons « Terminé » et « Tracé d'origine » */
+.edit-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--float-shadow);
+  border-radius: var(--radius-control);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
 }

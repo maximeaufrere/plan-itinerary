@@ -76,3 +76,33 @@ test('hors ligne : l\'app s\'ouvre et les favoris restent consultables', async (
   await expect(page.locator('#toast')).toContainText('hors ligne');
   expect(errors).toEqual([]);
 });
+
+test('ajuster le tracé : une poignée déplacée recalcule le parcours (1 requête), « Tracé d\'origine » le rétablit', async ({ page, context }) => {
+  const calls = await mockNetwork(context);
+  await returningUser(context);
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await generate(page);
+  await page.click('#show-detail');
+  const before = await page.locator('#details .detail-title').innerText();
+  const requests = calls.directions;
+
+  await page.click('#edit-route');
+  await expect(page.locator('#edit-done')).toBeVisible();
+  await expect(page.locator('#quick-generate')).toBeHidden();
+  const handle = page.locator('.edit-handle').nth(1);
+  const box = await handle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 60, box.y - 80, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => calls.directions).toBe(requests + 1);
+  await expect(page.locator('#edit-hint')).toContainText('Tracé modifié');
+  await expect(page.locator('#details .detail-title')).not.toHaveText(before);
+
+  await page.click('#edit-undo');
+  await expect(page.locator('#details .detail-title')).toHaveText(before);
+  await expect(page.locator('.edit-handle')).toHaveCount(0);
+  await expect(page.locator('#quick-generate')).toBeVisible();
+  expect(errors).toEqual([]);
+});

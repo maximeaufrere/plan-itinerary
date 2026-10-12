@@ -27,6 +27,7 @@ import { getMyPosition, initMyPosition, isMyPosition, watchMyPosition } from './
 import { initOnboarding } from './onboarding.js';
 import { drawOutlines, setStep, showProgress } from './progress.js';
 import { bindProfileCursor, decorateRoute } from './route-decor.js';
+import { initRouteEdit } from './route-edit.js';
 import { initSettings } from './settings.js';
 import { shareOrDownload } from './share.js';
 import { routeDataFromHash } from './share-link.js';
@@ -97,6 +98,7 @@ function syncStartRing() {
 }
 
 map.on('click', (event) => {
+  if (routeEdit.active) return; // pendant l'ajustement, toucher la carte ne déplace pas le départ
   const point = [event.latlng.lat, event.latlng.lng];
   if (isPointToPoint() && placing() === 'end') {
     setPoint('end', point);
@@ -286,6 +288,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
  *   (le bouton propose alors « Autres parcours »)
  */
 function showRoutes(routes, activity, { fresh = false } = {}) {
+  routeEdit.stop();
   showView('route');
   state.routes = routes;
   state.routesActivity = activity;
@@ -368,14 +371,14 @@ $('cards').addEventListener('click', (event) => {
   if (card) selectRoute(card.dataset.id);
 });
 
-function selectRoute(id) {
+function selectRoute(id, { fit = true } = {}) {
   state.selectedId = id;
   const route = selectedRoute();
   if (!route) return;
 
   styleRoutes();
   decorateRoute(route);
-  fitToRoute(id);
+  if (fit) fitToRoute(id);
 
   for (const card of $('cards').children) {
     card.setAttribute('aria-selected', String(card.dataset.id === id));
@@ -462,6 +465,7 @@ function renderDetails(route) {
       <button type="button" id="save-favorite" ${saved ? 'disabled' : ''}>${saved ? icons.bookmarkFilled : icons.bookmark}<span>${saved ? 'Enregistré' : 'Enregistrer'}</span></button>
       <button type="button" id="share-route">${icons.share}<span>Partager</span></button>
       <button type="button" id="log-outing">${icons.check}<span>Marquer fait</span></button>
+      <button type="button" id="edit-route">${icons.pencil}<span>Ajuster</span></button>
     </div>`;
   $('export-gpx').addEventListener('click', () => exportGpx(route));
   $('save-favorite').addEventListener('click', () => saveFavorite(route));
@@ -473,6 +477,10 @@ function renderDetails(route) {
       duration: estimatedDuration(route, state.routesActivity, state.criteria.speeds),
     }),
   );
+  $('edit-route').addEventListener('click', () => {
+    snapTo('peek', { fit: false });
+    routeEdit.start();
+  });
   bindProfileCursor(route);
 
   // Actions rapides, sous les propositions.
@@ -526,6 +534,33 @@ function removeFavorite(id) {
   const shown = state.routes.find((r) => r.id === id);
   if (shown && shown.id === state.selectedId) renderDetails(shown);
 }
+
+// MARK: - Ajustement à la main
+
+/** Remplace le parcours affiché par une variante (même place dans la liste, même étiquette). */
+function replaceRoute(route, previous) {
+  const label = state.labels?.get(previous.id);
+  if (label) state.labels.set(route.id, label);
+  const replacement = { ...route, name: previous.name, score: previous.score, overMaxGain: previous.overMaxGain };
+  state.routes = state.routes.map((r) => (r.id === previous.id ? replacement : r));
+  renderRoutes();
+  selectRoute(replacement.id, { fit: false });
+}
+
+const routeEdit = initRouteEdit({
+  getRoute: selectedRoute,
+  getActivity: () => state.routesActivity,
+  getApiKey: () => storage.get(KEYS.apiKey, ''),
+  replaceRoute,
+  setStatus,
+  onToggle: (editing) => {
+    $('edit-done').hidden = !editing;
+    $('edit-undo').hidden = !editing;
+    $('quick-generate').hidden = editing;
+    $('locate').hidden = editing;
+    document.body.classList.toggle('editing-route', editing);
+  },
+});
 
 // MARK: - Réglages
 

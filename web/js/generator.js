@@ -301,6 +301,14 @@ function assemble(batch) {
  * si aucun ne la respecte, on garde les moins vallonnés et on le signale.
  * @returns {{ routes: object[], maxGainUnmet?: boolean, overMaxGain?: number }}
  */
+/**
+ * Itinéraire passant par des points donnés, dans l'ordre (ajustement d'un parcours à la main) : 1 requête.
+ */
+export async function traceThrough({ points, activity, apiKey, signal, fetchRoute = orsFetchRoute }) {
+  const raw = await fetchRoute({ apiKey, profile: ACTIVITIES[activity].profile, points, signal });
+  return toRoute(raw, `route-${nextRouteId++}`);
+}
+
 export function selectRoutes(candidates, criteria) {
   const sorted = [...candidates].sort((a, b) => a.score - b.score);
   if (criteria.maxGain == null) return { routes: sorted.slice(0, criteria.proposals) };
