@@ -1,6 +1,7 @@
 // Comptes utilisateurs : connexion, synchronisation, partage de parcours et historique des sorties.
 import * as cloud from './cloud.js';
 import { ACTIVITIES } from './criteria.js';
+import { $, escapeHtml } from './dom.js';
 import { fromFavorite, toFavorite } from './favorites.js';
 import { icons } from './icons.js';
 import { routeDataFromHash, decodeRouteData, routeLink } from './share-link.js';
@@ -8,8 +9,6 @@ import { KEYS, storage } from './storage.js';
 import { diffFavorites, mergeFavoriteLists, newerSettings } from './sync.js';
 import { currentView, showView } from './views.js';
 
-const $ = (id) => document.getElementById(id);
-const escapeHtml = (text) => String(text).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 const SETTINGS_KEYS = [KEYS.criteria, KEYS.apiKey, KEYS.theme, KEYS.baseLayer];
 const MIN_PASSWORD_LENGTH = 8;
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });

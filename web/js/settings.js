@@ -1,4 +1,5 @@
 import { ACTIVITIES, SPEED_RANGES } from './criteria.js';
+import { $ } from './dom.js';
 import { isValidFavorite } from './favorites.js';
 import { formatPace } from './format.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
@@ -15,7 +16,6 @@ const TEST_POINTS = [
   [48.8606, 2.3376],
 ];
 
-const $ = (id) => document.getElementById(id);
 
 /**
  * Vérifie une clé OpenRouteService avec un itinéraire minuscule.

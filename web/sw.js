@@ -24,6 +24,7 @@ const APP_FILES = [
   'js/cloud.js',
   'js/config.js',
   'js/criteria.js',
+  'js/dom.js',
   'js/favorites.js',
   'js/format.js',
   'js/generator.js',

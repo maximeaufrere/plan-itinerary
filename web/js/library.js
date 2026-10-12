@@ -2,6 +2,7 @@
 // Sans compte, les sorties sont gardées sur l'appareil ; avec un compte, elles sont aussi en ligne.
 import * as cloud from './cloud.js';
 import { ACTIVITIES } from './criteria.js';
+import { $, escapeHtml } from './dom.js';
 import { fromFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation } from './format.js';
 import { icons } from './icons.js';
@@ -9,8 +10,6 @@ import { KEYS, storage } from './storage.js';
 import { filterOutings, outingStats, randomId } from './sync.js';
 import { routeThumbnail } from './thumbnail.js';
 
-const $ = (id) => document.getElementById(id);
-const escapeHtml = (text) => String(text).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 const today = () => new Date().toISOString().slice(0, 10);
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
 const formatDate = (iso) => dateFormat.format(new Date(`${String(iso).slice(0, 10)}T12:00:00`));

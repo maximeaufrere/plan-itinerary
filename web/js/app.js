@@ -2,6 +2,7 @@ import { initAccount } from './account.js';
 import { initAddressField } from './address.js';
 import { elevationChart, sparkline } from './chart.js';
 import { ACTIVITIES, ELEVATION_PREFERENCES, SHAPES, SURFACES, estimatedDuration, sanitizeCriteria } from './criteria.js';
+import { $, escapeHtml } from './dom.js';
 import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPercent } from './format.js';
 import { generateRoutes } from './generator.js';
@@ -22,14 +23,12 @@ import { currentView, onViewChange, showView } from './views.js';
 
 /* global L */
 
-const $ = (id) => document.getElementById(id);
 
 // Pas de zoom de la page (la carte, elle, se zoome toujours) : Safari sur iPhone ignore « user-scalable=no »,
 // on bloque donc ses gestes de pincement ; le double-toucher est bloqué en CSS (touch-action).
 for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
   document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
 }
-const escapeHtml = (text) => String(text).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 
 const state = {
   criteria: sanitizeCriteria(storage.get(KEYS.criteria, {})),

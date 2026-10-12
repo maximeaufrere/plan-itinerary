@@ -1,8 +1,8 @@
 // Mise en route : 1) point de départ (ma position ou non), 2) clé OpenRouteService.
+import { $ } from './dom.js';
 import { testApiKey } from './settings.js';
 import { KEYS, storage } from './storage.js';
 
-const $ = (id) => document.getElementById(id);
 
 /**
  * @param {object} hooks
