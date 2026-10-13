@@ -109,12 +109,10 @@
         <dt>Dénivelé <small class="muted">(Plus de critères)</small></dt>
         <dd>
           <strong>Libre</strong>, <strong>Plat</strong> (0 à 6 m de montée par km), <strong>Vallonné</strong> (8 à 20 m/km)
-          ou <strong>Montagne</strong> (25 m/km et plus). Les parcours dans la plage passent en premier ; si le relief
-          autour du départ ne le permet pas, l'app le signale et propose les plus proches. Juste en dessous, <strong>Limiter le D+ total</strong> écarte les
+          ou <strong>Montagne</strong> (25 m/km et plus). Les parcours dans la plage passent en premier. Juste en dessous, <strong>Limiter le D+ total</strong> écarte les
           parcours dont le total des montées dépasse la limite (réglable par pas de 50 m avec − et +) ; si aucun ne
-          passe, l'app fait un second essai avec les formes estimées les plus plates, puis propose les moins vallonnés
-          avec le badge « D+ &gt; max ». En montagne, une grande boucle doit souvent franchir du relief : un
-          <strong>aller-retour</strong> peut, lui, suivre une vallée.
+          passe, l'app fait un second essai avec les formes estimées les plus plates. En montagne, une grande boucle doit
+          souvent franchir du relief : un <strong>aller-retour</strong> peut, lui, suivre une vallée.
         </dd>
 
         <dt>Revêtement <small class="muted">(Plus de critères)</small></dt>
@@ -137,6 +135,14 @@
           kilomètre (ex. <strong>5'30/km</strong>), à vélo en km/h. Elle sert uniquement à estimer la durée.
         </dd>
       </dl>
+      <p class="guide-tip">
+        <strong>Critères impossibles à tenir.</strong> L'app ne propose jamais un parcours trop éloigné de votre demande
+        (distance à plus de 15 %, D+ au-dessus de la limite, relief hors de la plage choisie). Si aucun ne convient, elle
+        l'explique à la place des propositions : par exemple « Parcours trop court : les chemins autour du départ ne
+        donnent que des tracés de 6 à 7 km », ou « Limite de D+ trop basse pour le relief », avec des pistes pour y
+        remédier. Les critères contradictoires (« Montagne » avec une petite limite de D+, arrivée trop loin pour la
+        distance) sont signalés tout de suite, sans calcul.
+      </p>
       <p class="guide-tip">
         Ces critères servent à <strong>classer</strong> les parcours trouvés : le premier proposé est celui qui
         respecte le mieux l'ensemble. Si aucun ne vous convient, générez à nouveau : avec les mêmes critères, l'app propose d'autres directions en réutilisant ce qu'elle a déjà calculé, ce qui économise des requêtes.

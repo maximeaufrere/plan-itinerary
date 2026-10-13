@@ -10,6 +10,9 @@ const start = [45.7640, 4.8357];
 
 beforeEach(() => resetSession());
 
+/** Tirage reproductible, pour que les formes dessinées soient toujours les mêmes. */
+const seeded = (seed = 42) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
 /**
  * Faux ORS : le tracé suit les points envoyés (avec un point au milieu de chaque tronçon), la distance vaut
  * `detour` fois la ligne droite, et `climbFor(milieu)` donne l'altitude gagnée au milieu de chaque tronçon.
@@ -178,12 +181,16 @@ test('aller-retour : plusieurs demi-tours enchaînés dans la même requête', a
 test('classe les propositions selon le dénivelé souhaité', async () => {
   const criteria = { ...defaultCriteria(), elevation: 'flat', proposals: 2 };
   // Relief à l'est du départ seulement.
-  const { fetchRoute } = fakeOrs({ climbFor: ([, lon]) => (lon > start[1] ? 150 : 2) });
+  const east = ([, lon]) => lon > start[1] + 0.012;
+  const { fetchRoute } = fakeOrs({ climbFor: (p) => (east(p) ? 150 : 2) });
+  const terrain = { load: async () => {}, elevationAt: (p) => (east(p) ? 200 + (p[1] - start[1]) * 20_000 : 200) };
 
-  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
+  const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain, random: seeded() });
 
-  assert.equal(routes.length, 2);
-  assert.ok(routes[0].ascent <= routes[1].ascent);
+  assert.ok(routes.length >= 1);
+  // Seules les boucles restées à l'ouest (plates) sont proposées, les plus plates d'abord.
+  for (const route of routes) assert.ok(route.ascent / (route.distance / 1000) <= 10, `${route.ascent}`);
+  if (routes.length > 1) assert.ok(routes[0].ascent <= routes[1].ascent);
 });
 
 test('une erreur de clé arrête la génération', async () => {
@@ -233,8 +240,21 @@ test('GPX valide avec altitudes et nom échappé', () => {
   assert.match(gpx, /<name>Course &lt;test&gt; &amp; co<\/name>/);
 });
 
-test('A → B : propose le trajet direct s\'il est déjà plus long que la distance visée', async () => {
+test('A → B : arrivée trop loin pour la distance : expliqué sans aucune requête', async () => {
   const end = destination(start, 8000, 45);
+  const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 5, proposals: 3 };
+  const { calls, fetchRoute } = fakeOrs();
+
+  const result = await generateRoutes({ start, end, criteria, apiKey: 'k', fetchRoute, terrain: null });
+
+  assert.equal(calls.length, 0);
+  assert.deepEqual(result.routes, []);
+  assert.equal(result.impossible[0].kind, 'distance');
+  assert.match(result.impossible[0].text, /8,0 km à vol d'oiseau/);
+});
+
+test('A → B : propose le trajet direct s\'il est un peu plus long que la distance visée', async () => {
+  const end = destination(start, 4300, 45); // 5,4 km par la route pour 5 demandés
   const criteria = { ...defaultCriteria(), shape: 'point_to_point', distanceKm: 5, proposals: 3 };
   const { calls, fetchRoute } = fakeOrs();
 
@@ -335,12 +355,13 @@ test('D+ max : les parcours au-dessus de la limite sont écartés', async () => 
   assert.equal(loopsIn(calls[0]), 2 * criteria.proposals + 2);
 });
 
-test('D+ max impossible à respecter : les moins vallonnés, signalés', () => {
+test('D+ max impossible à respecter : aucun parcours, la cause et le moins vallonné trouvé', () => {
   const route = (id, ascent) => ({ id, ascent, score: 0, distance: 10_000 });
-  const { routes, maxGainUnmet } = selectRoutes([route('a', 500), route('b', 250), route('c', 380)], { ...defaultCriteria(), proposals: 2, maxGain: 100 });
-  assert.equal(maxGainUnmet, true);
-  assert.deepEqual(routes.map((r) => r.id), ['b', 'c']);
-  assert.ok(routes.every((r) => r.overMaxGain));
+  const { routes, impossible } = selectRoutes([route('a', 500), route('b', 250), route('c', 380)], { ...defaultCriteria(), proposals: 2, maxGain: 100 });
+  assert.deepEqual(routes, []);
+  assert.equal(impossible.length, 1);
+  assert.equal(impossible[0].kind, 'maxGain');
+  assert.match(impossible[0].text, /moins vallonné trouvé monte de 250 m/);
 });
 
 test('sans limite de D+, rien n\'est écarté', () => {
@@ -366,11 +387,34 @@ test('distance : au-delà de ±10 %, un parcours passe derrière, même mieux no
   assert.ok(score(tooLong, criteria) > score(onTarget, criteria));
 });
 
-test('relief introuvable autour du départ : signalé', () => {
-  const route = (id, ascent) => ({ id, ascent, score: ascent, distance: 10_000 });
+test('relief introuvable : aucun parcours, cause expliquée ; sinon seuls les parcours conformes', () => {
+  const route = (id, ascent, distance = 10_000) => ({ id, ascent, score: ascent, distance });
   const flat = { ...defaultCriteria(), elevation: 'flat', proposals: 2 };
-  assert.equal(selectRoutes([route('a', 200), route('b', 150)], flat).reliefUnmet, true);
-  assert.equal(selectRoutes([route('a', 200), route('b', 40)], flat).reliefUnmet, undefined);
+  const none = selectRoutes([route('a', 200), route('b', 150)], flat);
+  assert.deepEqual(none.routes, []);
+  assert.match(none.impossible[0].text, /Dénivelé trop fort pour un parcours plat : le moins vallonné monte de 15 m par km/);
+  const some = selectRoutes([route('a', 200), route('b', 40)], flat);
+  assert.deepEqual(some.routes.map((r) => r.id), ['b']);
+  assert.equal(some.discarded, 1);
+
+  const hilly = { ...defaultCriteria(), elevation: 'hilly' };
+  assert.match(selectRoutes([route('a', 90)], hilly).impossible[0].text, /Dénivelé trop faible pour un parcours montagneux/);
+});
+
+test('distance impossible : trop court, expliqué', () => {
+  const route = (id, distance) => ({ id, ascent: 50, score: 0, distance });
+  const { routes, impossible } = selectRoutes([route('a', 6100), route('b', 7000)], { ...defaultCriteria(), distanceKm: 10 });
+  assert.deepEqual(routes, []);
+  assert.match(impossible[0].text, /Parcours trop court/);
+});
+
+test('critères contradictoires : relevés avant tout calcul', async () => {
+  const { calls, fetchRoute } = fakeOrs();
+  const criteria = { ...defaultCriteria(), distanceKm: 10, elevation: 'hilly', maxGain: 200 };
+  const result = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
+  assert.equal(calls.length, 0);
+  assert.equal(result.impossible[0].kind, 'contradiction');
+  assert.match(result.impossible[0].text, /au moins 250 m/);
 });
 
 test('boucles allongées : partent du départ et y reviennent, longues et étroites, à la bonne taille', async () => {
@@ -394,9 +438,9 @@ test('D+ max : si aucun tracé ne passe, second essai avec les formes estimées 
   const { calls, fetchRoute } = fakeOrs({ climbFor: (mid) => (inValley(mid) ? 2 : 400) });
   const criteria = { ...defaultCriteria(), distanceKm: 8, proposals: 1, maxGain: 150 };
 
-  const { routes, maxGainUnmet } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain });
+  const { routes, impossible } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain, random: seeded(7) });
 
   assert.ok(calls.length <= 3, `${calls.length} requêtes`);
-  assert.equal(maxGainUnmet, undefined, 'une forme dans la vallée a été trouvée');
+  assert.equal(impossible, undefined, 'une forme dans la vallée a été trouvée');
   assert.ok(routes[0].ascent <= 150, `${routes[0].ascent}`);
 });

@@ -147,3 +147,22 @@ test('« Modifier » ouvre une nouvelle recherche à part ; la flèche ramène a
   await expect(page.locator('#new-search-header')).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test('critères impossibles : aucune proposition, les causes à la place, sans requête', async ({ page, context }) => {
+  const calls = await mockNetwork(context);
+  await returningUser(context, { criteria: { activity: 'running', distanceKm: 10, elevation: 'hilly', maxGain: 100 } });
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await expect(page.locator('.start-marker')).toBeVisible();
+  await page.click('#quick-generate');
+  await expect(page.locator('#unmet')).toBeVisible();
+  await expect(page.locator('#unmet-reasons')).toContainText('au moins 250 m');
+  await expect(page.locator('#results')).toBeHidden();
+  expect(calls.directions).toBe(0);
+
+  // Changer un critère efface l'explication.
+  await page.click('#open-more');
+  await page.click('#elevation label:nth-child(1)');
+  await expect(page.locator('#unmet')).toBeHidden();
+  expect(errors).toEqual([]);
+});

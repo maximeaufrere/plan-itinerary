@@ -1354,15 +1354,6 @@ html:has(body.no-page-zoom), body.no-page-zoom { touch-action: pan-x pan-y; }
 .quick-generate:hover .arrow { transform: translateX(3px); }
 
 .list-label small { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 500; color: var(--muted); line-height: 1.3; }
-.over-limit {
-  justify-self: start;
-  margin-top: 4px;
-  padding: 2px 8px;
-  background: color-mix(in srgb, var(--warning) 16%, transparent);
-  color: var(--warning);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
 
 /* ==========================================================================
    Écrans : accueil, « Plus de critères », calcul, propositions,
@@ -1977,7 +1968,6 @@ a.button,
 .tag,
 .card-tag,
 .badge,
-.over-limit,
 .stepper,
 .switch,
 .quick-generate,
@@ -2246,3 +2236,17 @@ a.button,
   height: 1px;
   background: var(--border);
 }
+
+/* Génération impossible : les causes, au-dessus des critères */
+.unmet-card {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warning) 40%, transparent);
+}
+.unmet-card[hidden] { display: none; }
+.unmet-card h2 { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text); }
+.unmet-card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; line-height: 1.4; color: var(--text); }

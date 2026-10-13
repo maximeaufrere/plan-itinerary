@@ -2,7 +2,7 @@
 import { initAccount } from './account.js';
 import { initAddressField } from './address.js';
 import { elevationChart, sparkline } from './chart.js';
-import { ACTIVITIES, estimatedDuration, gainPerKmGap } from './criteria.js';
+import { ACTIVITIES, estimatedDuration } from './criteria.js';
 import {
   criteriaSummary,
   initCriteriaForm,
@@ -159,6 +159,7 @@ initCriteriaForm({
   // Les propositions affichées ne correspondent plus aux critères : « Générer » redevient la seule action.
   onChange: (changes) => {
     if (!('speeds' in changes)) markResultsStale();
+    hideUnmet();
   },
   onSync: () => updatePeek(),
   setStatus: (message, isError) => setStatus(message, isError),
@@ -206,6 +207,17 @@ function noveltyMeasure() {
   return cells.size ? (coordinates) => noveltyShare(coordinates, cells) : null;
 }
 
+/** Génération impossible : les causes à la place des propositions, critères ouverts pour les changer. */
+function showUnmet(reasons) {
+  $('unmet-reasons').innerHTML = reasons.map((reason) => `<li>${escapeHtml(reason.text)}</li>`).join('');
+  $('unmet').hidden = false;
+  setCriteriaCollapsed(false);
+  $('panel-scroll').scrollTo({ top: 0 });
+}
+const hideUnmet = () => {
+  $('unmet').hidden = true;
+};
+
 function setGenerating(isGenerating) {
   showProgress(isGenerating);
   if (!isGenerating) updateGenerateLabel();
@@ -238,6 +250,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
   }
 
   showView('route');
+  hideUnmet();
   const controller = new AbortController();
   state.controller = controller;
   setStatus('');
@@ -247,7 +260,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
   $('panel-scroll').scrollTo({ top: 0 });
 
   try {
-    const { routes, directIsLonger, maxGainUnmet, overMaxGain, reliefUnmet } = await generateRoutes({
+    const { routes, directIsLonger, impossible, discarded } = await generateRoutes({
       start: state.start,
       end: isPointToPoint() ? state.end : null,
       criteria: state.criteria,
@@ -275,33 +288,20 @@ $('criteria-form').addEventListener('submit', async (event) => {
       },
       onWait: (seconds) => setStep('step-trace', 'active', `Pause de ${seconds} s (limite de 40 itinéraires par minute)`),
     });
+    if (impossible) {
+      showUnmet(impossible);
+      return;
+    }
     showRoutes(routes, state.criteria.activity, { fresh: true });
     const messages = [];
     if (directIsLonger) {
       messages.push(`Le trajet direct (${formatDistance(routes[0].distance)}) est déjà plus long que la distance visée : c'est lui qui est proposé.`);
     }
-    if (overMaxGain && routes.length < state.criteria.proposals && !maxGainUnmet) {
+    if (discarded && routes.length < state.criteria.proposals) {
       messages.push(
-        `${overMaxGain} parcours écarté${overMaxGain > 1 ? 's' : ''} : plus de ${formatElevation(state.criteria.maxGain)} de D+. ` +
-          '« Autres parcours » en cherche d\'autres.',
-      );
-    }
-    if (reliefUnmet && !maxGainUnmet) {
-      const perKm = (r) => r.ascent / Math.max(r.distance / 1000, 0.1);
-      const closest = routes.reduce((a, b) => (gainPerKmGap(perKm(b), state.criteria.elevation) < gainPerKmGap(perKm(a), state.criteria.elevation) ? b : a));
-      const best = Math.round(perKm(closest));
-      const wanted = { flat: 'plat', rolling: 'vallonné', hilly: 'montagneux' }[state.criteria.elevation];
-      messages.push(
-        `Pas de parcours vraiment ${wanted} autour de ce départ : le plus proche fait ${best} m de D+ par km. ` +
-          'Essayez une autre distance ou un autre départ.',
-      );
-    }
-    if (maxGainUnmet) {
-      messages.push(
-        `Aucun parcours trouvé sous ${formatElevation(state.criteria.maxGain)} de D+ : voici les moins vallonnés (badge « D+ > max »). ` +
-          (state.criteria.shape === 'loop'
-            ? 'Une boucle doit souvent franchir du relief : essayez un aller-retour, qui peut suivre une vallée, ou une distance plus courte.'
-            : 'Essayez une distance plus courte ou un autre départ.'),
+        `Seulement ${routes.length} parcours respecte${routes.length > 1 ? 'nt' : ''} vos critères : ` +
+          `${discarded} tracé${discarded > 1 ? 's' : ''} trop éloigné${discarded > 1 ? 's' : ''} de la distance ou du dénivelé demandés ` +
+          `${discarded > 1 ? 'ont été écartés' : 'a été écarté'}. « Autres parcours » en cherche d'autres.`,
       );
     }
     setStatus(messages.join(' '));
@@ -323,6 +323,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
  */
 function showRoutes(routes, activity, { fresh = false } = {}) {
   routeEdit.stop();
+  hideUnmet();
   $('export-help').hidden = true;
   showView('route');
   state.routes = routes;
@@ -384,7 +385,6 @@ function renderRoutes() {
         <span>↗ ${formatElevation(route.ascent)} · <span class="card-duration">${routeDuration(route)}</span></span>
         ${detail ? `<span class="card-detail">${escapeHtml(detail)}</span>` : ''}
         ${route.novelty != null ? `<span class="card-novelty${route.novelty < 0.2 ? ' known' : ''}">${noveltyText(route.novelty)}</span>` : ''}
-        ${route.overMaxGain ? '<span class="over-limit">D+ &gt; max</span>' : ''}
         ${sparkline(route.profile)}
       </button>`;
     })
@@ -562,7 +562,7 @@ function saveFavorite(route) {
   }
   state.favorites = favorites;
   // L'itinéraire affiché devient le favori (même identifiant), pour refléter l'état « enregistré ».
-  const saved = { ...fromFavorite(favorite), name: favorite.name, score: route.score, overMaxGain: route.overMaxGain };
+  const saved = { ...fromFavorite(favorite), name: favorite.name, score: route.score };
   const label = state.labels?.get(route.id);
   if (label) state.labels.set(saved.id, label);
   state.routes = state.routes.map((r) => (r.id === route.id ? saved : r));
@@ -584,7 +584,7 @@ function removeFavorite(id) {
 function replaceRoute(route, previous) {
   const label = state.labels?.get(previous.id);
   if (label) state.labels.set(route.id, label);
-  const replacement = { ...route, name: previous.name, score: previous.score, overMaxGain: previous.overMaxGain };
+  const replacement = { ...route, name: previous.name, score: previous.score };
   state.routes = state.routes.map((r) => (r.id === previous.id ? replacement : r));
   renderRoutes();
   selectRoute(replacement.id, { fit: false });

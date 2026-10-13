@@ -1,5 +1,6 @@
 import { majorRoadShare, overlapRatio, surfaceShares } from './analysis.js';
-import { ACTIVITIES, DISTANCE_TOLERANCE, gainPerKmGap, score } from './criteria.js';
+import { ACTIVITIES, DISTANCE_TOLERANCE, score } from './criteria.js';
+import { DISTANCE_LIMIT, diagnose, precheck, routeIssues } from './feasibility.js';
 import { cumulativeDistances, elevationGainAndLoss } from './geo.js';
 import { fetchRoute as orsFetchRoute, splitRoute } from './ors.js';
 import { DETOUR_FACTOR, detourShapes, longLoopShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
@@ -40,7 +41,7 @@ export function resetSession() {
  *
  * Si aucune boucle n'a pu être tracée ainsi, on se rabat sur les boucles générées par OpenRouteService.
  *
- * @returns {Promise<{routes: object[], directIsLonger?: boolean, maxGainUnmet?: boolean}>}
+ * @returns {Promise<{routes: object[], directIsLonger?: boolean, impossible?: {kind: string, text: string}[], discarded?: number}>}
  */
 export async function generateRoutes({
   start,
@@ -56,6 +57,10 @@ export async function generateRoutes({
   random = Math.random,
   novelty = null,
 }) {
+  // Critères contradictoires : on l'explique tout de suite, sans dépenser de requête.
+  const contradictions = precheck({ start, end, criteria });
+  if (contradictions.length) return { routes: [], impossible: contradictions };
+
   const profile = ACTIVITIES[criteria.activity].profile;
   const target = criteria.distanceKm * 1000;
   const request = (points, roundTrip) => fetchRoute({ apiKey, profile, points, roundTrip, signal, onWait });
@@ -84,7 +89,8 @@ export async function generateRoutes({
     direct = await request([start, end]);
   }
   if (direct && direct.distance >= target * (1 - DISTANCE_TOLERANCE)) {
-    // Impossible de faire plus court que le trajet direct.
+    // Impossible de faire plus court que le trajet direct : on le propose s'il reste proche de la distance visée.
+    if (direct.distance > target * (1 + DISTANCE_LIMIT)) return { routes: [], impossible: diagnose([], criteria, { direct }) };
     return { routes: [finish(direct)], directIsLonger: true };
   }
 
@@ -174,7 +180,8 @@ export async function generateRoutes({
     direct,
     ratio: traced.ratio,
     remaining,
-    leftovers: candidates.filter((route) => !result.routes.includes(route)),
+    // Seuls les parcours qui respectent les critères pourront servir à « Autres parcours ».
+    leftovers: candidates.filter((route) => !result.routes.includes(route) && routeIssues(route, criteria).length === 0),
   };
   return result;
 }
@@ -339,11 +346,6 @@ function assemble(batch) {
 }
 
 /**
- * Garde les meilleurs candidats. Avec une limite de D+, ceux qui la dépassent sont écartés ;
- * si aucun ne la respecte, on garde les moins vallonnés et on le signale.
- * @returns {{ routes: object[], maxGainUnmet?: boolean, overMaxGain?: number }}
- */
-/**
  * Itinéraire passant par des points donnés, dans l'ordre (ajustement d'un parcours à la main) : 1 requête.
  */
 export async function traceThrough({ points, activity, apiKey, signal, novelty = null, fetchRoute = orsFetchRoute }) {
@@ -353,27 +355,17 @@ export async function traceThrough({ points, activity, apiKey, signal, novelty =
   return route;
 }
 
+/**
+ * Garde les meilleurs candidats parmi ceux qui respectent les critères (distance, limite de D+, relief) ;
+ * si aucun ne les respecte, aucun parcours n'est proposé et les causes sont expliquées.
+ * @returns {{ routes: object[], impossible?: {kind: string, text: string}[], discarded?: number }}
+ */
 export function selectRoutes(candidates, criteria) {
-  const result = pickRoutes(candidates, criteria);
-  // Relief demandé introuvable (plus de 3 m/km d'écart même pour le meilleur) : on le signale.
-  const gaps = result.routes
-    .filter((route) => route.ascent != null)
-    .map((route) => gainPerKmGap(route.ascent / Math.max(route.distance / 1000, 0.1), criteria.elevation));
-  if (gaps.length && Math.min(...gaps) > 3) result.reliefUnmet = true;
-  return result;
-}
-
-function pickRoutes(candidates, criteria) {
-  const sorted = [...candidates].sort((a, b) => a.score - b.score);
-  if (criteria.maxGain == null) return { routes: sorted.slice(0, criteria.proposals) };
-
-  for (const route of sorted) route.overMaxGain = route.ascent != null && route.ascent > criteria.maxGain;
-  const within = sorted.filter((route) => !route.overMaxGain);
-  if (within.length) {
-    return { routes: within.slice(0, criteria.proposals), overMaxGain: sorted.length - within.length };
-  }
-  const leastHilly = [...sorted].sort((a, b) => a.ascent - b.ascent);
-  return { routes: leastHilly.slice(0, criteria.proposals), maxGainUnmet: true };
+  // Les parcours trop éloignés des critères ne sont jamais proposés.
+  const valid = candidates.filter((route) => routeIssues(route, criteria).length === 0);
+  if (!valid.length) return { routes: [], impossible: diagnose(candidates, criteria) };
+  const routes = [...valid].sort((a, b) => a.score - b.score).slice(0, criteria.proposals);
+  return { routes, discarded: candidates.length - valid.length };
 }
 
 /** Répète `attempt(scale)` en corrigeant l'échelle selon l'écart à la distance visée ; garde le meilleur essai. */
