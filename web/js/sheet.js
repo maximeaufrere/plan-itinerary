@@ -85,7 +85,11 @@ function setSheetHeight(height, { animate = true } = {}) {
   actions.style.pointerEvents = opacity < 0.5 ? 'none' : '';
 }
 
-/** Ordinateur : « Générer » se place juste au-dessus de la carte flottante (panneau + menu). */
+/**
+ * Ordinateur : « Générer » reste collé en bas de la colonne (toujours au même endroit) ;
+ * panneau replié, il se place juste au-dessus de la petite carte restante.
+ */
+const DESKTOP_INSET = 22; // marge intérieure de la colonne
 function placeDesktopActions() {
   const actions = $('sheet-actions');
   if (mobileQuery.matches) {
@@ -95,9 +99,15 @@ function placeDesktopActions() {
   }
   document.documentElement.style.setProperty('--tabbar-h', `${$('tabbar').offsetHeight}px`);
   const rect = panel.getBoundingClientRect();
-  actions.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
-  actions.style.width = `${Math.round(rect.width)}px`;
-  actions.style.bottom = `${Math.round(window.innerHeight - rect.top + 12)}px`;
+  if (layout.classList.contains('map-full')) {
+    actions.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
+    actions.style.width = `${Math.round(rect.width)}px`;
+    actions.style.bottom = `${Math.round(window.innerHeight - rect.top + 12)}px`;
+  } else {
+    actions.style.right = `${Math.round(window.innerWidth - rect.right + DESKTOP_INSET)}px`;
+    actions.style.width = `${Math.round(rect.width - DESKTOP_INSET * 2)}px`;
+    actions.style.bottom = `${Math.round(window.innerHeight - rect.bottom + 16)}px`;
+  }
 }
 
 /** Amène le panneau dans une position (téléphone) ou l'ouvre / le ferme (ordinateur). */

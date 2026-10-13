@@ -961,7 +961,7 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .duration-row { display: flex; gap: 10px; }
 .duration-row .unit-input { height: 44px; }
 
-/* Actions sous un parcours : grille 2 × 2 */
+/* Actions sous un parcours : une rangée de 3 */
 
 button.secondary.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 
@@ -1592,7 +1592,7 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
   font-size: 0.75rem;
   font-weight: 800;
 }
-.card[aria-selected="true"] .card-tag, .detail-head .card-tag {
+.card[aria-selected="true"] .card-tag {
   background: color-mix(in srgb, var(--route) 14%, transparent);
   color: color-mix(in srgb, var(--route) 70%, var(--text));
 }
@@ -1606,23 +1606,21 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 .result-actions .secondary { min-height: 50px; padding: 0 16px; }
 
 /* Détail d'un parcours */
-.detail-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-.detail-head > div { display: grid; gap: 6px; }
-.detail-title { margin: 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
-.detail-count { padding-bottom: 4px; font-size: 0.85rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .details .stats-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .details .stats-4 .stat { padding: 9px 10px; }
 .details .stats-4 .stat strong { font-size: 0.98rem; }
 .profile-card header .muted { font-size: 0.78rem; }
 .legend-extra { color: var(--muted); }
-.tile-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tile-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .tile-actions button {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 48px;
+  gap: 4px;
+  min-height: 60px;
+  padding: 8px 4px;
+  white-space: nowrap;
   border: 0;
   background: var(--accent-soft);
   color: var(--accent);
@@ -2030,9 +2028,24 @@ a.button,
     background: var(--bg);
     box-shadow: 0 -10px 30px rgb(27 38 32 / 0.14);
     transition: none;
-    max-height: calc(100dvh - var(--dock-margin) * 2 - var(--tabbar-h, 65px) - 76px);
+    /* Colonne fixe sur toute la hauteur : le panneau ne change plus de taille d'un écran à l'autre. */
+    top: var(--dock-margin);
+    max-height: none;
   }
-  .panel-scroll { flex: 0 1 auto; min-width: 0; padding: 4px 22px 22px; }
+  .panel-scroll { flex: 1 1 auto; min-width: 0; padding: 4px 22px 22px; }
+  /* Vue Parcours : « Générer » est collé en bas de la colonne, le contenu défile au-dessus de lui. */
+  .layout:not(.map-full) .panel:has(#route-view:not([hidden])) .panel-scroll { padding-bottom: 92px; }
+  .layout:not(.map-full) .panel:has(#route-view:not([hidden]))::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 84px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 0%, transparent), var(--bg) 45%);
+    pointer-events: none;
+  }
+  .layout:not(.map-full) .sheet-actions .quick-generate { flex: 1; justify-content: center; }
 
   /* Poignée en haut (comme sur téléphone) : un clic replie ou rouvre le panneau */
   .panel-handle {
@@ -2053,7 +2066,7 @@ a.button,
   .grabber { display: block; width: 44px; height: 5px; border-radius: 3px; background: var(--border); }
   .tab-chevron { display: none; }
   .panel-peek { display: none; }
-  .layout.map-full .panel { flex-basis: auto; }
+  .layout.map-full .panel { flex-basis: auto; top: auto; }
   .layout.map-full .panel-scroll { display: none; }
   .layout.map-full .panel-peek {
     display: flex;

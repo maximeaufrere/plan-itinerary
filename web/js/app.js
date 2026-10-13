@@ -360,6 +360,7 @@ function markResultsStale() {
 const routeDuration = (route) => formatDuration(estimatedDuration(route, state.routesActivity, state.criteria.speeds));
 const routeName = (route) => route.name ?? `${ACTIVITIES[state.routesActivity].label} ${formatDistance(route.distance)}`;
 /** Étiquette d'une proposition (« La plus plate »…) ou nom d'un parcours enregistré. */
+const hoverQuery = matchMedia('(hover: hover)');
 const routeTag = (route) => (route.name ? escapeHtml(route.name) : escapeHtml(state.labels?.get(route.id)?.tag ?? ''));
 
 function renderRoutes() {
@@ -400,9 +401,6 @@ function refreshDurations() {
     card.querySelector('.card-duration').textContent = routeDuration(route);
   }
   updatePeek();
-  const duration = $('detail-duration');
-  const selected = selectedRoute();
-  if (duration && selected) duration.textContent = routeDuration(selected);
 }
 
 $('cards').addEventListener('click', (event) => {
@@ -472,19 +470,11 @@ const isSaved = (route) => state.favorites.some((f) => f.id === route.id);
 
 function renderDetails(route) {
   const stat = (label, value) => `<div class="stat"><small>${label}</small><strong>${value}</strong></div>`;
-  const index = state.routes.findIndex((r) => r.id === route.id);
   const saved = isSaved(route);
   const chart = elevationChart(route.profile);
-  const tag = routeTag(route);
   const daylight = daylightNote(route.coordinates[0], estimatedDuration(route, state.routesActivity, state.criteria.speeds));
+  // Étiquette, distance et durée sont déjà sur la proposition sélectionnée : le détail commence aux chiffres.
   $('details').innerHTML = `
-    <div class="detail-head">
-      <div>
-        ${tag ? `<span class="card-tag">${tag}</span>` : ''}
-        <h3 class="detail-title">${formatDistance(route.distance)} · <span id="detail-duration">${routeDuration(route)}</span></h3>
-      </div>
-      ${state.routes.length > 1 ? `<span class="detail-count">${index + 1} sur ${state.routes.length}</span>` : ''}
-    </div>
     ${daylight ? `<p class="daylight${daylight.warn ? ' warn' : ''}">${icons.sun}<span>${daylight.text}</span></p>` : ''}
     <div class="stats stats-4">
       ${stat('D+', formatElevation(route.ascent))}
@@ -495,19 +485,17 @@ function renderDetails(route) {
     ${
       chart
         ? `<div class="profile-card">
-            <header><span>Profil</span><span class="muted">Touchez pour situer sur la carte</span></header>
+            <header><span>Profil</span><span class="muted">${hoverQuery.matches ? 'Survolez' : 'Touchez'} pour situer sur la carte</span></header>
             ${chart}
           </div>`
         : ''
     }
     ${surfaceBreakdown(route)}
     <div class="tile-actions">
-      <button type="button" id="save-favorite" ${saved ? 'disabled' : ''}>${saved ? icons.bookmarkFilled : icons.bookmark}<span>${saved ? 'Enregistré' : 'Enregistrer'}</span></button>
       <button type="button" id="share-route">${icons.share}<span>Partager</span></button>
       <button type="button" id="log-outing">${icons.check}<span>Marquer fait</span></button>
       <button type="button" id="edit-route">${icons.pencil}<span>Ajuster</span></button>
     </div>`;
-  $('save-favorite').addEventListener('click', () => saveFavorite(route));
   $('share-route').addEventListener('click', () => account.shareRoute(route, { activity: state.routesActivity, name: routeName(route) }));
   $('log-outing').addEventListener('click', () =>
     library.logOuting(route, {
@@ -521,11 +509,30 @@ function renderDetails(route) {
     routeEdit.start();
   });
   bindProfileCursor(route);
+  keepMapVisibleWhileScrubbing();
 
   // Actions rapides, sous les propositions.
   $('quick-save').innerHTML = saved ? icons.bookmarkFilled : icons.bookmark;
   $('quick-save').disabled = saved;
   $('quick-save').setAttribute('aria-label', saved ? 'Déjà dans mes parcours' : 'Enregistrer dans mes parcours');
+}
+
+/**
+ * Téléphone : toucher le profil quand la feuille couvre toute la carte la redescend à mi-hauteur,
+ * profil en haut de la feuille, pour voir sur la carte le point situé par le doigt.
+ */
+function keepMapVisibleWhileScrubbing() {
+  const plot = document.querySelector('#details .chart-plot');
+  plot?.addEventListener('pointerdown', () => {
+    if (!mobileQuery.matches || getSheetState() !== 'full') return;
+    const scroll = $('panel-scroll');
+    const card = plot.closest('.profile-card');
+    const top = scroll.scrollTop + card.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 8;
+    snapTo('mid');
+    scroll.scrollTop = top;
+    // La feuille rapetisse pendant l'animation : on recale une fois la hauteur atteinte.
+    setTimeout(() => (scroll.scrollTop = top), 420);
+  });
 }
 
 $('quick-gpx').addEventListener('click', async () => {

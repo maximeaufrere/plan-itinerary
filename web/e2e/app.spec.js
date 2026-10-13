@@ -23,8 +23,8 @@ test('générer une boucle, voir le détail, l\'enregistrer en favori', async ({
   await expect(page.locator('#details .chart-plot')).toBeVisible();
 
   page.once('dialog', (dialog) => dialog.accept('Boucle des berges'));
-  await page.click('#save-favorite');
-  await expect(page.locator('#save-favorite')).toBeDisabled();
+  await page.click('#quick-save');
+  await expect(page.locator('#quick-save')).toBeDisabled();
 
   await page.click('#tab-library');
   await expect(page.locator('#favorites-list')).toContainText('Boucle des berges');
@@ -62,7 +62,7 @@ test('hors ligne : l\'app s\'ouvre et les favoris restent consultables', async (
   await page.goto('./');
   await generate(page);
   page.once('dialog', (dialog) => dialog.accept('Favori hors ligne'));
-  await page.click('#save-favorite');
+  await page.click('#quick-save');
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload(); // la page est maintenant servie par le service worker, qui a tout gardé
 
@@ -84,7 +84,7 @@ test('ajuster le tracé : une poignée déplacée recalcule le parcours (1 requ�
   await page.goto('./');
   await generate(page);
   await page.click('#show-detail');
-  const before = await page.locator('#details .detail-title').innerText();
+  const before = await page.locator('.card[aria-selected="true"] strong').innerText();
   const requests = calls.directions;
 
   await page.click('#edit-route');
@@ -98,10 +98,10 @@ test('ajuster le tracé : une poignée déplacée recalcule le parcours (1 requ�
   await page.mouse.up();
   await expect.poll(() => calls.directions).toBe(requests + 1);
   await expect(page.locator('#edit-hint')).toContainText('Tracé modifié');
-  await expect(page.locator('#details .detail-title')).not.toHaveText(before);
+  await expect(page.locator('.card[aria-selected="true"] strong')).not.toHaveText(before);
 
   await page.click('#edit-undo');
-  await expect(page.locator('#details .detail-title')).toHaveText(before);
+  await expect(page.locator('.card[aria-selected="true"] strong')).toHaveText(before);
   await expect(page.locator('.edit-handle')).toHaveCount(0);
   await expect(page.locator('#quick-generate')).toBeVisible();
   expect(errors).toEqual([]);
