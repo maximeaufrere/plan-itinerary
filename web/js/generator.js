@@ -2,7 +2,7 @@ import { majorRoadShare, overlapRatio, surfaceShares } from './analysis.js';
 import { ACTIVITIES, DISTANCE_TOLERANCE, gainPerKmGap, score } from './criteria.js';
 import { cumulativeDistances, elevationGainAndLoss } from './geo.js';
 import { fetchRoute as orsFetchRoute, splitRoute } from './ors.js';
-import { DETOUR_FACTOR, detourShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
+import { DETOUR_FACTOR, detourShapes, longLoopShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
 import { defaultTerrain } from './terrain.js';
 
 /** Nombre maximal de requêtes pour une boucle de secours générée par ORS. */
@@ -100,7 +100,10 @@ export async function generateRoutes({
   } else {
     let shapes;
     if (criteria.shape === 'point_to_point') shapes = detourShapes(start, end, target);
-    else if (criteria.shape === 'loop') shapes = loopShapes(start, target, { random, count: strictRelief ? 60 : undefined });
+    // Relief exigé : boucles rondes et boucles allongées (qui peuvent suivre une vallée), à parts égales.
+    else if (criteria.shape === 'loop' && strictRelief) {
+      shapes = [...loopShapes(start, target, { random, count: 36 }), ...longLoopShapes(start, target, { random, count: 36 })];
+    } else if (criteria.shape === 'loop') shapes = loopShapes(start, target, { random });
     else shapes = outAndBackShapes(start, target, { random, count: strictRelief ? 36 : undefined });
     await rateShapes(shapes, criteria, terrain, signal);
     ranked = rankShapes(shapes, candidateCount, { strict: strictRelief });
@@ -119,6 +122,30 @@ export async function generateRoutes({
     onProgress: (done, total) => onProgress?.(done + pool.length, total + pool.length),
   });
   const candidates = [...pool, ...traced.routes.map(finish)];
+  let { remaining } = traced;
+
+  // Limite de D+ : si aucun tracé ne la respecte, second essai (une requête de plus) avec les formes restantes
+  // les plus plates, s'il en reste qui ont une chance raisonnable de passer sous la limite.
+  const allOver = candidates.length > 0 && candidates.every((route) => route.ascent != null && route.ascent > criteria.maxGain);
+  if (criteria.maxGain != null && allOver && !traced.fatal) {
+    const hopeful = remaining
+      .filter((shape) => shape.preview?.gain != null && shape.preview.gain * DETOUR_FACTOR <= criteria.maxGain * 2)
+      .sort((a, b) => a.preview.gain - b.preview.gain);
+    if (hopeful.length) {
+      onPhase?.('trace', { outlines: hopeful.slice(0, candidateCount).map((shape) => shape.points(1)) });
+      const second = await traceShapes({
+        ranked: hopeful,
+        wanted: Math.min(candidateCount, hopeful.length),
+        target,
+        request,
+        ratio: traced.ratio,
+        signal,
+        onProgress: (done, total) => onProgress?.(done + candidates.length, total + candidates.length),
+      });
+      candidates.push(...second.routes.map(finish));
+      remaining = remaining.filter((shape) => !hopeful.slice(0, hopeful.length - second.remaining.length).includes(shape));
+    }
+  }
 
   if (!traced.fatal && candidates.length === 0 && criteria.shape === 'loop') {
     const baseSeed = Math.floor(random() * 10_000);
@@ -141,7 +168,7 @@ export async function generateRoutes({
     key,
     direct,
     ratio: traced.ratio,
-    remaining: traced.remaining,
+    remaining,
     leftovers: candidates.filter((route) => !result.routes.includes(route)),
   };
   return result;

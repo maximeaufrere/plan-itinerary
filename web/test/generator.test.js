@@ -372,3 +372,31 @@ test('relief introuvable autour du départ : signalé', () => {
   assert.equal(selectRoutes([route('a', 200), route('b', 150)], flat).reliefUnmet, true);
   assert.equal(selectRoutes([route('a', 200), route('b', 40)], flat).reliefUnmet, undefined);
 });
+
+test('boucles allongées : partent du départ et y reviennent, longues et étroites, à la bonne taille', async () => {
+  const { longLoopShapes } = await import('../js/planner.js');
+  for (const shape of longLoopShapes(start, 20_000, { count: 12 })) {
+    const points = shape.points(1);
+    assert.deepEqual(points[0], start);
+    assert.deepEqual(points.at(-1), start);
+    const length = cumulativeDistances(points).at(-1);
+    assert.ok(Math.abs(length * 1.25 - 20_000) < 1, `${length}`);
+    // Point le plus éloigné du départ : bien plus loin que la demi-largeur de la boucle.
+    const far = Math.max(...points.map((p) => distance(start, p)));
+    assert.ok(far > 20_000 / 1.25 / 2 * 0.75, `${far}`);
+  }
+});
+
+test('D+ max : si aucun tracé ne passe, second essai avec les formes estimées les plus plates', async () => {
+  // Relief partout sauf dans un couloir étroit plein est (une « vallée ») : seules les formes qui le suivent passent.
+  const inValley = ([lat, lon]) => Math.abs(lat - start[0]) < 0.004 && lon >= start[1] - 0.002;
+  const terrain = { load: async () => {}, elevationAt: (p) => (inValley(p) ? 200 : 200 + Math.abs(p[0] - start[0]) * 40_000) };
+  const { calls, fetchRoute } = fakeOrs({ climbFor: (mid) => (inValley(mid) ? 2 : 400) });
+  const criteria = { ...defaultCriteria(), distanceKm: 8, proposals: 1, maxGain: 150 };
+
+  const { routes, maxGainUnmet } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain });
+
+  assert.ok(calls.length <= 3, `${calls.length} requêtes`);
+  assert.equal(maxGainUnmet, undefined, 'une forme dans la vallée a été trouvée');
+  assert.ok(routes[0].ascent <= 150, `${routes[0].ascent}`);
+});

@@ -46,6 +46,33 @@ export function loopShapes(start, target, { count = LOOP_SHAPES, random = Math.r
   });
 }
 
+/**
+ * Boucles allongées : une ellipse étroite (3 à 16 fois plus longue que large) qui part du départ dans une
+ * direction et y revient. Elles peuvent suivre une vallée là où une boucle ronde franchirait le relief.
+ * @returns {Shape[]}
+ */
+export function longLoopShapes(start, target, { count = LOOP_SHAPES, random = Math.random } = {}) {
+  return Array.from({ length: count }, (_, index) => {
+    const heading = ((index + random()) * 360) / count;
+    const aspect = 0.06 + random() * 0.3; // largeur / longueur : de presque un aller-retour à une ellipse
+    const side = random() < 0.5 ? 1 : -1; // sens de parcours
+    const waypointCount = 4 + Math.floor(random() * 2);
+    const at = (a) => {
+      const center = destination(start, a, heading);
+      const waypoints = Array.from({ length: waypointCount }, (_, k) => {
+        // Angles autour du centre, le départ étant à 180° (bout de l'ellipse).
+        const theta = ((180 + side * (360 / (waypointCount + 1)) * (k + 1)) * Math.PI) / 180;
+        const along = destination(center, a * Math.cos(theta), heading);
+        return destination(along, a * aspect * Math.sin(theta), heading + 90);
+      });
+      return [start, ...waypoints, start];
+    };
+    const unit = 1000;
+    const semiMajor = (unit * target) / (DETOUR_FACTOR * cumulativeDistances(at(unit)).at(-1));
+    return { heading, points: (scale) => at(semiMajor * scale) };
+  });
+}
+
 /** Allers-retours : un point de demi-tour dans chaque direction. */
 export function outAndBackShapes(start, target, { count = OUT_AND_BACK_SHAPES, random = Math.random } = {}) {
   const offset = random() * 360;

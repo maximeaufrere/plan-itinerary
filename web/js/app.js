@@ -298,8 +298,10 @@ $('criteria-form').addEventListener('submit', async (event) => {
     }
     if (maxGainUnmet) {
       messages.push(
-        `Aucun parcours trouvé sous ${formatElevation(state.criteria.maxGain)} de D+ : voici les moins vallonnés. ` +
-          'Essayez une distance plus courte, un autre départ, ou générez à nouveau.',
+        `Aucun parcours trouvé sous ${formatElevation(state.criteria.maxGain)} de D+ : voici les moins vallonnés (badge « D+ > max »). ` +
+          (state.criteria.shape === 'loop'
+            ? 'Une boucle doit souvent franchir du relief : essayez un aller-retour, qui peut suivre une vallée, ou une distance plus courte.'
+            : 'Essayez une distance plus courte ou un autre départ.'),
       );
     }
     setStatus(messages.join(' '));
