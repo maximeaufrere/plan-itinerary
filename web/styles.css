@@ -1070,6 +1070,26 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
   .map .leaflet-control-zoom { display: none; }
 }
 
+/* Dans Safari (pas depuis l'écran d'accueil), les zones de la barre d'état et de la barre d'adresse prennent
+   la couleur du fond de la page ou de l'élément fixe collé au bord : on leur donne le vert du thème. La carte
+   reste dans le flux de la page pour que Safari lise le fond, et un liseré vert collé au bas de l'écran colore
+   la barre d'adresse au lieu du blanc de la barre d'onglets. */
+@media (max-width: 899px) and (display-mode: browser) {
+  html, body { background: #1e4d3a; }
+  .layout { position: relative; inset: auto; height: 100dvh; }
+  body::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: #1e4d3a;
+    z-index: 1250;
+    pointer-events: none;
+  }
+}
+
 /* ==========================================================================
    Barre d'onglets : Parcours, Mes parcours, Réglages
    ========================================================================== */
