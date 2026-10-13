@@ -961,7 +961,7 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .duration-row { display: flex; gap: 10px; }
 .duration-row .unit-input { height: 44px; }
 
-/* Actions sous un parcours : une rangée de 3 */
+/* Actions sous un parcours : une seule rangée */
 
 button.secondary.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 
@@ -1611,7 +1611,7 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 .details .stats-4 .stat strong { font-size: 0.98rem; }
 .profile-card header .muted { font-size: 0.78rem; }
 .legend-extra { color: var(--muted); }
-.tile-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tile-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
 .tile-actions button {
   display: flex;
   flex-direction: column;
@@ -1621,10 +1621,11 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
   min-height: 60px;
   padding: 8px 4px;
   white-space: nowrap;
+  min-width: 0;
   border: 0;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.12s var(--ease);
@@ -2263,3 +2264,45 @@ a.button,
 .unmet-card[hidden] { display: none; }
 .unmet-card h2 { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text); }
 .unmet-card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; line-height: 1.4; color: var(--text); }
+
+/* Survol d'une proposition (souris) : elle ressort, comme son tracé sur la carte */
+.card.hovered:not([aria-selected="true"]) { border-color: color-mix(in srgb, var(--route) 45%, transparent); }
+
+/* Suivi du parcours : distance parcourue et restante, au-dessus du bouton « Arrêter le suivi » */
+.follow-info { font-variant-numeric: tabular-nums; }
+.following-route .sheet-actions .map-pill#follow-stop { margin-left: 0; }
+
+@media (min-width: 900px) {
+  /* Propositions en liste verticale : toutes visibles, sans défilement horizontal */
+  .cards {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 2px 0;
+    overflow: visible;
+  }
+  .card {
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) 112px;
+    column-gap: 14px;
+    align-items: center;
+  }
+  .card > :not(.sparkline) { grid-column: 1; }
+  .card .card-tag { justify-self: start; }
+  .card .sparkline { grid-column: 2; grid-row: 1 / span 5; margin: 0; height: 40px; align-self: center; }
+
+  /* Profil en bandeau sous la carte, sur toute la largeur libre : lecture fine du relief au survol */
+  .layout:not(.map-full) #details .profile-card {
+    position: fixed;
+    left: var(--dock-margin);
+    right: calc(var(--tools-right) + var(--tool-size) + 12px);
+    bottom: var(--dock-margin);
+    z-index: 1020;
+    max-width: 1100px;
+    background: var(--bg);
+    box-shadow: var(--float-shadow);
+    padding: 10px 16px 8px;
+  }
+  .layout:not(.map-full) #details .profile-card .chart-plot { height: 96px; }
+  .layout:not(.map-full) #details .profile-card .chart { display: grid; grid-template-columns: minmax(0, 1fr); }
+}

@@ -27,6 +27,7 @@ const APP_FILES = [
   'js/criteria.js',
   'js/dom.js',
   'js/favorites.js',
+  'js/follow.js',
   'js/feasibility.js',
   'js/format.js',
   'js/generator.js',

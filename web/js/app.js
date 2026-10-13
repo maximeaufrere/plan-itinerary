@@ -17,6 +17,7 @@ import {
 import { $, escapeHtml } from './dom.js';
 import { fromFavorite, isValidFavorite, toFavorite } from './favorites.js';
 import { formatDistance, formatDuration, formatElevation, formatPercent } from './format.js';
+import { initFollow } from './follow.js';
 import { generateRoutes } from './generator.js';
 import { reverse as reverseGeocode } from './geocode.js';
 import { toGpx } from './gpx.js';
@@ -172,7 +173,10 @@ initCriteriaForm({
   },
 });
 
-$('locate').addEventListener('click', () => centerOnMe());
+$('locate').addEventListener('click', () => {
+  follow.recenter();
+  centerOnMe();
+});
 $('quick-generate').addEventListener('click', () => {
   if (state.controller) return; // le calcul en cours s'annule avec « Annuler »
   $('criteria-form').requestSubmit();
@@ -220,7 +224,10 @@ const hideUnmet = () => {
 
 function setGenerating(isGenerating) {
   showProgress(isGenerating);
-  if (!isGenerating) updateGenerateLabel();
+  if (isGenerating) return;
+  updateGenerateLabel();
+  // Ordinateur : le profil en bandeau n'apparaît qu'à la fin du calcul ; le parcours se recadre au-dessus.
+  if (!mobileQuery.matches && selectedRoute()) fitToRoute(state.selectedId);
 }
 
 $('criteria-form').addEventListener('submit', async (event) => {
@@ -373,6 +380,8 @@ function renderRoutes() {
       L.DomEvent.stopPropagation(event); // ne pas déplacer le départ
       selectRoute(route.id);
     });
+    layer.on('mouseover', () => highlightRoute(route.id));
+    layer.on('mouseout', () => highlightRoute(null));
     routeLayers.set(route.id, layer);
   }
 
@@ -408,6 +417,31 @@ $('cards').addEventListener('click', (event) => {
   if (card) selectRoute(card.dataset.id);
 });
 
+// Souris : survoler une proposition fait ressortir son tracé sur la carte (et inversement).
+$('cards').addEventListener('pointerover', (event) => {
+  if (event.pointerType === 'mouse') highlightRoute(event.target.closest('.card')?.dataset.id ?? null);
+});
+$('cards').addEventListener('pointerleave', () => highlightRoute(null));
+
+function highlightRoute(id) {
+  styleRoutes();
+  for (const card of $('cards').children) card.classList.toggle('hovered', card.dataset.id === id);
+  const layer = id && id !== state.selectedId ? routeLayers.get(id) : null;
+  if (!layer || isSearching()) return;
+  layer.setStyle({ color: getComputedStyle(document.documentElement).getPropertyValue('--route').trim(), weight: 5, opacity: 0.55 });
+  layer.bringToFront();
+  routeLayers.get(state.selectedId)?.bringToFront();
+}
+
+/** Proposition précédente (-1) ou suivante (+1). */
+function selectNeighbour(step) {
+  const index = state.routes.findIndex((r) => r.id === state.selectedId);
+  const next = state.routes[index + step];
+  if (!next) return;
+  selectRoute(next.id);
+  $('cards').querySelector(`[data-id="${next.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
 function selectRoute(id, { fit = true } = {}) {
   state.selectedId = id;
   const route = selectedRoute();
@@ -415,12 +449,13 @@ function selectRoute(id, { fit = true } = {}) {
 
   styleRoutes();
   decorateRoute(route);
-  if (fit) fitToRoute(id);
 
   for (const card of $('cards').children) {
     card.setAttribute('aria-selected', String(card.dataset.id === id));
   }
+  // Le détail d'abord : sur ordinateur, son profil en bandeau réduit la partie visible de la carte.
   renderDetails(route);
+  if (fit) fitToRoute(id);
   updatePeek();
 }
 
@@ -495,6 +530,7 @@ function renderDetails(route) {
       <button type="button" id="share-route">${icons.share}<span>Partager</span></button>
       <button type="button" id="log-outing">${icons.check}<span>Marquer fait</span></button>
       <button type="button" id="edit-route">${icons.pencil}<span>Ajuster</span></button>
+      ${'geolocation' in navigator ? `<button type="button" id="follow-route">${icons.navigate}<span>Suivre</span></button>` : ''}
     </div>`;
   $('share-route').addEventListener('click', () => account.shareRoute(route, { activity: state.routesActivity, name: routeName(route) }));
   $('log-outing').addEventListener('click', () =>
@@ -508,6 +544,7 @@ function renderDetails(route) {
     snapTo('peek', { fit: false });
     routeEdit.start();
   });
+  $('follow-route')?.addEventListener('click', () => follow.start());
   bindProfileCursor(route);
   keepMapVisibleWhileScrubbing();
 
@@ -533,6 +570,16 @@ function keepMapVisibleWhileScrubbing() {
     // La feuille rapetisse pendant l'animation : on recale une fois la hauteur atteinte.
     setTimeout(() => (scroll.scrollTop = top), 420);
   });
+}
+
+// Téléphone : le GPX part par la feuille de partage, droit vers Strava, Garmin Connect, Komoot…
+try {
+  if (navigator.canShare?.({ files: [new File([''], 'parcours.gpx', { type: 'application/gpx+xml' })] })) {
+    $('quick-gpx-label').textContent = 'Ouvrir dans…';
+    $('quick-gpx').querySelector('svg').outerHTML = icons.share;
+  }
+} catch {
+  // Partage de fichiers non pris en charge : on garde « Exporter en GPX ».
 }
 
 $('quick-gpx').addEventListener('click', async () => {
@@ -610,6 +657,17 @@ const routeEdit = initRouteEdit({
     $('quick-generate').hidden = editing;
     $('locate').hidden = editing;
     document.body.classList.toggle('editing-route', editing);
+  },
+});
+
+const follow = initFollow({
+  getRoute: selectedRoute,
+  setStatus,
+  onToggle: (following) => {
+    $('follow-stop').hidden = !following;
+    $('quick-generate').hidden = following;
+    document.body.classList.toggle('following-route', following);
+    if (following) snapTo('peek', { fit: false });
   },
 });
 
@@ -774,6 +832,27 @@ onViewChange((view) => {
   $('panel-scroll').scrollTo({ top: 0 });
   if (getSheetState() === 'peek') snapTo('mid', { fit: false });
   updatePeek();
+});
+
+// MARK: - Raccourcis clavier (ordinateur)
+// ← / → : proposition précédente / suivante ; G : générer ; Échap : quitter « Plus de critères » ou le suivi.
+
+document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
+  if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+  if (!document.querySelector('#onboarding').hidden || document.querySelector('dialog[open]')) return;
+  const onRoutes = !$('route-view').hidden;
+  const resultsShown = onRoutes && !$('results').hidden && !isSearching();
+  if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && resultsShown && !event.target.closest('input[type="range"]')) {
+    event.preventDefault();
+    selectNeighbour(event.key === 'ArrowLeft' ? -1 : 1);
+  } else if ((event.key === 'g' || event.key === 'G') && onRoutes && !$('quick-generate').hidden) {
+    event.preventDefault();
+    $('quick-generate').click();
+  } else if (event.key === 'Escape') {
+    if (follow.isFollowing()) follow.stop();
+    else if (!$('criteria-more').hidden) $('close-more').click();
+  }
 });
 
 // MARK: - Sources de la carte (repliées derrière un bouton « i »)

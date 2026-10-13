@@ -149,6 +149,9 @@ export function hiddenMapBottom() {
   if (mobileQuery.matches) return currentSheetHeight() + tabbarHeight();
   // Ordinateur, panneau replié : seule la petite carte reste en bas à droite.
   if (layout.classList.contains('map-full')) return Math.round(window.innerHeight - panel.getBoundingClientRect().top);
+  // Profil du parcours en bandeau sous la carte.
+  const strip = document.querySelector('#details .profile-card');
+  if (strip?.getClientRects().length) return Math.round(window.innerHeight - strip.getBoundingClientRect().top);
   return 0;
 }
 

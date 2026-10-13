@@ -166,3 +166,35 @@ test('critères impossibles : aucune proposition, les causes à la place, sans r
   await expect(page.locator('#unmet')).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test('suivre le parcours : distance parcourue et restante, puis arrêt', async ({ page, context }) => {
+  await mockNetwork(context);
+  await returningUser(context);
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await generate(page);
+  await page.click('#show-detail');
+  await page.click('#follow-route');
+  await expect(page.locator('#follow-stop')).toBeVisible();
+  await expect(page.locator('#quick-generate')).toBeHidden();
+  // Position simulée au départ du parcours (voir playwright.config.js).
+  await expect(page.locator('#follow-info')).toContainText(/parcourus · reste|Hors du parcours/);
+  await page.click('#follow-stop');
+  await expect(page.locator('#follow-info')).toBeHidden();
+  await expect(page.locator('#quick-generate')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('clavier : ← / → changent de proposition', async ({ page, context }) => {
+  await mockNetwork(context);
+  await returningUser(context);
+  await page.goto('./');
+  await generate(page);
+  const first = await page.locator('.card').first().getAttribute('data-id');
+  await expect(page.locator('.card[aria-selected="true"]')).toHaveAttribute('data-id', first);
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.card[aria-selected="true"]')).not.toHaveAttribute('data-id', first);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('.card[aria-selected="true"]')).toHaveAttribute('data-id', first);
+});

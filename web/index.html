@@ -41,6 +41,8 @@
         <span>Terminé</span>
       </button>
       <button type="button" id="edit-undo" class="map-pill" hidden>Tracé d'origine</button>
+      <p id="follow-info" class="edit-hint follow-info" role="status" aria-live="polite" hidden></p>
+      <button type="button" id="follow-stop" class="map-pill" hidden>Arrêter le suivi</button>
       <button type="button" id="locate" class="map-button locate-button" aria-label="Centrer la carte sur ma position">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L3 10.5l7.5 3 3 7.5z"/></svg>
       </button>
@@ -207,7 +209,7 @@
         <div id="result-actions" class="result-actions">
           <button type="button" id="quick-gpx" class="primary">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-            Exporter en GPX
+            <span id="quick-gpx-label">Exporter en GPX</span>
           </button>
           <button type="button" id="quick-save" class="round-button tonal" aria-label="Enregistrer dans mes parcours"></button>
           <button type="button" id="show-detail" class="secondary">Détail</button>

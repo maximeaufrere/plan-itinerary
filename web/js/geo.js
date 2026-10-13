@@ -139,3 +139,35 @@ export function pointsAlong(points, length, interval, { offset = interval } = {}
   }
   return result;
 }
+
+/**
+ * Projette un point sur une polyligne : distance parcourue le long du tracé jusqu'au point le plus proche,
+ * et écart au tracé (mètres). `near` : distance déjà parcourue ; on cherche d'abord autour d'elle
+ * (de 300 m en arrière à 2 km en avant), pour qu'une boucle ne saute pas de son début à sa fin.
+ * @returns {{ along: number, offset: number } | null}
+ */
+export function projectOnRoute(points, point, cumulative = cumulativeDistances(points), { near = null } = {}) {
+  if (points.length < 2) return null;
+  // Plan local (équirectangulaire) centré sur le point : précis à l'échelle d'un parcours.
+  const cosLat = Math.cos(toRad(point[0]));
+  const toXY = ([lat, lon]) => [toRad(lon - point[1]) * cosLat * EARTH_RADIUS, toRad(lat - point[0]) * EARTH_RADIUS];
+  const search = (from, to) => {
+    let best = null;
+    for (let i = 0; i < points.length - 1; i++) {
+      if (cumulative[i + 1] < from || cumulative[i] > to) continue;
+      const [ax, ay] = toXY(points[i]);
+      const [bx, by] = toXY(points[i + 1]);
+      const [dx, dy] = [bx - ax, by - ay];
+      const length2 = dx * dx + dy * dy;
+      const t = length2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / length2)) : 0;
+      const offset = Math.hypot(ax + dx * t, ay + dy * t);
+      if (!best || offset < best.offset) best = { along: cumulative[i] + (cumulative[i + 1] - cumulative[i]) * t, offset };
+    }
+    return best;
+  };
+  if (near != null) {
+    const local = search(near - 300, near + 2000);
+    if (local && local.offset < 80) return local;
+  }
+  return search(-Infinity, Infinity);
+}

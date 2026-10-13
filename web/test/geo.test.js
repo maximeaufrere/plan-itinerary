@@ -39,3 +39,28 @@ test('downsample garde le premier et le dernier point', () => {
   assert.equal(result.at(-1), 999);
   assert.deepEqual(downsample([1, 2, 3], 10), [1, 2, 3]);
 });
+
+test('projection sur un tracé : distance parcourue et écart', async () => {
+  const { projectOnRoute } = await import('../js/geo.js');
+  const a = destination(paris, 1000, 90);
+  const b = destination(a, 1000, 0);
+  const route = [paris, a, b];
+  // 300 m après le premier virage, 50 m à l'est du tracé.
+  const point = destination(destination(a, 300, 0), 50, 90);
+  const { along, offset } = projectOnRoute(route, point);
+  assert.ok(Math.abs(along - 1300) < 2, `along ${along}`);
+  assert.ok(Math.abs(offset - 50) < 2, `offset ${offset}`);
+});
+
+test('projection sur une boucle : au départ, on reste au début tant qu\'on vient de partir', async () => {
+  const { projectOnRoute } = await import('../js/geo.js');
+  const a = destination(paris, 1000, 90);
+  const b = destination(a, 1000, 0);
+  const c = destination(b, 1000, 270);
+  const loop = [paris, a, b, c, paris];
+  const nearStart = destination(paris, 20, 90);
+  assert.ok(projectOnRoute(loop, nearStart, undefined, { near: 0 }).along < 50);
+  // En fin de boucle, la recherche autour de la distance parcourue trouve l'arrivée.
+  const nearEnd = destination(paris, 20, 0);
+  assert.ok(projectOnRoute(loop, nearEnd, undefined, { near: 3900 }).along > 3900);
+});

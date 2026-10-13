@@ -28,13 +28,36 @@ function endpointMarker(point, kind) {
   });
 }
 
-/** Écart entre deux repères kilométriques, selon la longueur du parcours. */
-const kmStep = (km) => (km <= 6 ? 1 : km <= 15 ? 2 : km <= 40 ? 5 : km <= 100 ? 10 : 20);
+/** Écarts possibles entre deux repères kilométriques (km). */
+const KM_STEPS = [1, 2, 5, 10, 20, 50];
+/** Écart minimal à l'écran entre deux repères (px), pour qu'ils ne se chevauchent pas. */
+const MIN_GAP = 110; // un repère et une flèche entre deux repères : ~40 px de vide de part et d'autre
+
+/**
+ * Écart entre deux repères kilométriques : le plus petit qui laisse `MIN_GAP` px à l'écran au zoom actuel
+ * (`metersPerPixel`), sans descendre sous l'écart adapté à la longueur du parcours.
+ */
+function kmStep(km, metersPerPixel = 0) {
+  const byLength = km <= 6 ? 1 : km <= 15 ? 2 : km <= 40 ? 5 : km <= 100 ? 10 : 20;
+  const byScreen = KM_STEPS.find((step) => (step * 1000) / metersPerPixel >= MIN_GAP) ?? KM_STEPS.at(-1);
+  return metersPerPixel > 0 ? byScreen : byLength;
+}
+
+/** Mètres représentés par un pixel au zoom actuel, à la latitude du point. */
+const metersPerPixel = (point) => (40_075_016 * Math.cos((point[0] * Math.PI) / 180)) / (256 * 2 ** map.getZoom());
+
+let decorated = null; // parcours décoré, redessiné quand le zoom change
+map.on('zoomend', () => decorated && drawDecorations(decorated));
 
 export function decorateRoute(route) {
+  hideProfileCursor();
+  decorated = route;
+  drawDecorations(route);
+}
+
+function drawDecorations(route) {
   for (const layer of decorations) layer.remove();
   decorations = [];
-  hideProfileCursor();
   if (route.coordinates.length < 2) return;
   const marker = (point, html, size) =>
     L.marker(point, {
@@ -43,8 +66,9 @@ export function decorateRoute(route) {
       keyboard: false,
     }).addTo(map);
 
-  const arrowSpacing = route.distance / 7;
-  for (const { point, bearing } of pointsAlong(route.coordinates, route.distance, arrowSpacing, { offset: arrowSpacing / 2 })) {
+  // Repères espacés selon le zoom ; une flèche de sens à mi-chemin entre deux repères, jamais dessus.
+  const step = kmStep(route.distance / 1000, metersPerPixel(route.coordinates[0])) * 1000;
+  for (const { point, bearing } of pointsAlong(route.coordinates, route.distance, step, { offset: step / 2 })) {
     decorations.push(
       marker(
         point,
@@ -53,13 +77,15 @@ export function decorateRoute(route) {
       ),
     );
   }
-  const step = kmStep(route.distance / 1000) * 1000;
-  for (const { distance: at, point } of pointsAlong(route.coordinates, route.distance, step)) {
-    decorations.push(marker(point, `<span class="km-marker">${Math.round(at / 1000)}</span>`, 24));
-  }
-
   // Départ et arrivée : une seule étiquette quand ils se confondent (boucle, aller-retour).
   const [first, last] = [route.coordinates[0], route.coordinates.at(-1)];
+  // Pas de repère collé à l'étiquette de départ ou d'arrivée.
+  const screen = (point) => map.latLngToLayerPoint(point);
+  const clearOfEnds = (point) => [first, last].every((end) => screen(point).distanceTo(screen(end)) >= 40);
+  for (const { distance: at, point } of pointsAlong(route.coordinates, route.distance, step)) {
+    if (clearOfEnds(point)) decorations.push(marker(point, `<span class="km-marker">${Math.round(at / 1000)}</span>`, 24));
+  }
+
   if (distance(first, last) < 80) decorations.push(endpointMarker(first, 'both').addTo(map));
   else decorations.push(endpointMarker(first, 'start').addTo(map), endpointMarker(last, 'end').addTo(map));
 }

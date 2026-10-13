@@ -39,6 +39,10 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
 - Sur la carte : **flèches de sens** et **repères kilométriques** ; profil altimétrique **coloré selon la pente**
   avec **curseur relié à la carte** (distance, altitude, pente) ; statistiques compactes (D+/D−, sommet,
   repassages), revêtement, grands axes ; **coucher du soleil** et alerte si le retour se fait de nuit (`web/js/sun.js`)
+- **Suivre un parcours** sur le terrain : position GPS en direct, carte qui accompagne, distance parcourue et restante,
+  alerte hors du tracé, écran gardé allumé (`web/js/follow.js`)
+- Sur ordinateur : propositions en liste (survol relié au tracé), profil en bandeau sous la carte, raccourcis
+  clavier (← / → proposition précédente / suivante, G générer, Échap) ; repères kilométriques espacés selon le zoom
 - **Ajuster un parcours à la main** : poignées à faire glisser, recalcul en 1 requête (`web/js/route-edit.js`)
 - **Chemins nouveaux** : part du tracé jamais parcourue d'après l'historique et les favoris, prise en compte dans le
   classement (`web/js/novelty.js`)

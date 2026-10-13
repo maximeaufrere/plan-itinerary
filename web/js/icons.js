@@ -15,6 +15,7 @@ export const icons = {
   trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   bookmark: svg('<path d="M6 3h12v18l-6-4-6 4z"/>'),
   bookmarkFilled: svg('<path d="M6 3h12v18l-6-4-6 4z"/>', { fill: 'currentColor' }),
+  navigate: svg('<path d="M12 2l7 19-7-4-7 4z"/>'),
   chevronRight: svg('<path d="M9 6l6 6-6 6"/>'),
 };
 
