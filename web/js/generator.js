@@ -1,12 +1,10 @@
 import { majorRoadShare, overlapRatio, surfaceShares } from './analysis.js';
-import { ACTIVITIES, score } from './criteria.js';
+import { ACTIVITIES, DISTANCE_TOLERANCE, gainPerKmGap, score } from './criteria.js';
 import { cumulativeDistances, elevationGainAndLoss } from './geo.js';
 import { fetchRoute as orsFetchRoute, splitRoute } from './ors.js';
 import { DETOUR_FACTOR, detourShapes, loopShapes, outAndBackShapes, previewScore, previewShape, rankShapes } from './planner.js';
 import { defaultTerrain } from './terrain.js';
 
-/** Écart relatif à la distance visée considéré comme acceptable (au-delà, on corrige l'échelle une fois). */
-const DISTANCE_TOLERANCE = 0.1;
 /** Nombre maximal de requêtes pour une boucle de secours générée par ORS. */
 const MAX_ADJUSTMENTS = 2;
 /** Formes de rechange essayées quand certaines ne peuvent pas être tracées. */
@@ -68,9 +66,14 @@ export async function generateRoutes({
     return route;
   };
 
-  // On trace un peu plus de candidats que le nombre de propositions demandées,
-  // et davantage encore quand une limite de D+ risque d'en écarter.
-  const candidateCount = criteria.proposals + 1 + (criteria.maxGain != null ? 2 : 0);
+  // On trace plus de candidats que de propositions demandées, pour pouvoir choisir sur les vrais tracés :
+  // autant que ce qui tient dans une seule requête groupée (gratuit en requêtes), au moins une de plus,
+  // et deux de plus encore quand une limite de D+ risque d'en écarter.
+  const freeInOneRequest = Math.floor(BATCH_MAX_DISTANCE / (target * (1 + DISTANCE_TOLERANCE)));
+  const candidateCount = Math.max(
+    criteria.proposals + 1 + (criteria.maxGain != null ? 2 : 0),
+    Math.min(freeInOneRequest, criteria.proposals * 2 + 2),
+  );
   const key = sessionKey(start, end, criteria);
   const previous = session?.key === key ? session : null;
   session = null;
@@ -85,6 +88,8 @@ export async function generateRoutes({
     return { routes: [finish(direct)], directIsLonger: true };
   }
 
+  // Le relief des formes s'estime sans requête : quand il compte, on en étudie davantage pour mieux choisir.
+  const strictRelief = criteria.elevation !== 'any' || criteria.maxGain != null;
   let pool = [];
   let ranked;
   let reused = false;
@@ -95,10 +100,10 @@ export async function generateRoutes({
   } else {
     let shapes;
     if (criteria.shape === 'point_to_point') shapes = detourShapes(start, end, target);
-    else if (criteria.shape === 'loop') shapes = loopShapes(start, target, { random });
-    else shapes = outAndBackShapes(start, target, { random });
+    else if (criteria.shape === 'loop') shapes = loopShapes(start, target, { random, count: strictRelief ? 60 : undefined });
+    else shapes = outAndBackShapes(start, target, { random, count: strictRelief ? 36 : undefined });
     await rateShapes(shapes, criteria, terrain, signal);
-    ranked = rankShapes(shapes, candidateCount);
+    ranked = rankShapes(shapes, candidateCount, { strict: strictRelief });
   }
   const wanted = Math.max(0, candidateCount - pool.length);
   onPhase?.('relief', { studied: ranked.length, reused });
@@ -269,8 +274,11 @@ function makeBatches(jobs, target, defaultScale) {
     job.points = job.shape.points(job.scale);
     // Parcours + liaison éventuelle depuis la fin du parcours précédent (A → B : de B vers A).
     const jobLength = target + (current.length ? cumulativeDistances([current.at(-1).points.at(-1), job.points[0]]).at(-1) * DETOUR_FACTOR : 0);
+    // Une boucle qui repart du point où finit la précédente le partage (voir assemble) : un point de moins.
+    const shared = current.length > 0 && samePoint(current.at(-1).points.at(-1), job.points[0]);
+    const jobPoints = job.points.length - (shared ? 1 : 0);
     const fits = !job.solo && current.length > 0 && !current[0].solo
-      && length + jobLength <= BATCH_MAX_DISTANCE && pointCount + job.points.length <= BATCH_MAX_POINTS;
+      && length + jobLength <= BATCH_MAX_DISTANCE && pointCount + jobPoints <= BATCH_MAX_POINTS;
     if (current.length && !fits) {
       batches.push(current);
       current = [];
@@ -279,7 +287,7 @@ function makeBatches(jobs, target, defaultScale) {
     }
     current.push(job);
     length += current.length === 1 ? target : jobLength;
-    pointCount += job.points.length;
+    pointCount += current.length === 1 ? job.points.length : jobPoints;
   }
   if (current.length) batches.push(current);
   return batches;
@@ -314,6 +322,16 @@ export async function traceThrough({ points, activity, apiKey, signal, novelty =
 }
 
 export function selectRoutes(candidates, criteria) {
+  const result = pickRoutes(candidates, criteria);
+  // Relief demandé introuvable (plus de 3 m/km d'écart même pour le meilleur) : on le signale.
+  const gaps = result.routes
+    .filter((route) => route.ascent != null)
+    .map((route) => gainPerKmGap(route.ascent / Math.max(route.distance / 1000, 0.1), criteria.elevation));
+  if (gaps.length && Math.min(...gaps) > 3) result.reliefUnmet = true;
+  return result;
+}
+
+function pickRoutes(candidates, criteria) {
   const sorted = [...candidates].sort((a, b) => a.score - b.score);
   if (criteria.maxGain == null) return { routes: sorted.slice(0, criteria.proposals) };
 

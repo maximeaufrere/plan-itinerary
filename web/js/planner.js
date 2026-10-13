@@ -1,7 +1,7 @@
 // Notre propre algorithme de génération : on dessine des formes de parcours (points de passage),
 // on estime leur relief avec le modèle de terrain, et seules les meilleures sont tracées par OpenRouteService.
 
-import { ELEVATION_PREFERENCES } from './criteria.js';
+import { gainPerKmGap } from './criteria.js';
 import { bearing, cumulativeDistances, destination, distance, elevationGainAndLoss, resample } from './geo.js';
 
 /** Rapport moyen entre distance par la route et distance à vol d'oiseau. */
@@ -98,10 +98,7 @@ export function previewScore({ gain, length, inWater }, criteria) {
   if (gain == null) return result;
   // Les routes sont plus longues que la ligne droite : le D+ réel suit à peu près cette proportion.
   const estimated = gain * DETOUR_FACTOR;
-  const targetGainPerKm = ELEVATION_PREFERENCES[criteria.elevation].gainPerKm;
-  if (targetGainPerKm != null) {
-    result += Math.abs(gain / Math.max(length / 1000, 0.1) - targetGainPerKm) * 2;
-  }
+  result += gainPerKmGap(gain / Math.max(length / 1000, 0.1), criteria.elevation) * 3;
   if (criteria.maxGain != null) {
     result += Math.max(0, estimated - criteria.maxGain * 0.8) / 5;
   }
@@ -113,21 +110,25 @@ const angleBetween = (a, b) => {
   return d > 180 ? 360 - d : d;
 };
 
-/** Écart de note jusqu'auquel on préfère une direction différente à une forme mieux notée. */
-const SCORE_SLACK = 15;
+/**
+ * Écart de note jusqu'auquel on préfère une direction différente à une forme mieux notée :
+ * large sans préférence de relief, étroit (≈ 1,5 m/km) quand le relief compte.
+ */
+const SCORE_SLACK = { free: 15, strict: 4 };
 
 /**
  * Classe toutes les formes : d'abord `count` formes parmi les mieux notées, dans des directions assez
  * différentes pour que les propositions soient variées, puis toutes les autres (formes de rechange).
  * La variété ne passe jamais devant une forme nettement mieux notée.
  */
-export function rankShapes(shapes, count) {
+export function rankShapes(shapes, count, { strict = false } = {}) {
   const sorted = [...shapes].sort((a, b) => (a.previewScore ?? 0) - (b.previewScore ?? 0));
   const best = sorted[0]?.previewScore ?? 0;
   const picked = [];
+  const slack = strict ? SCORE_SLACK.strict : SCORE_SLACK.free;
   const passes = [
-    { gap: 360 / (count * 2), slack: SCORE_SLACK },
-    { gap: 360 / (count * 4), slack: SCORE_SLACK },
+    { gap: 360 / (count * 2), slack },
+    { gap: 360 / (count * 4), slack },
     { gap: 0, slack: Infinity },
   ];
   for (const { gap, slack } of passes) {

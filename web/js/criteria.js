@@ -19,13 +19,24 @@ export const SHAPES = {
   point_to_point: 'A → B',
 };
 
-// Dénivelé positif visé, en mètres par kilomètre (null = pas de préférence).
+// Dénivelé positif visé, en mètres par kilomètre : une plage (null = pas de préférence).
+// Dans la plage, aucune pénalité ; au-delà, l'écart compte d'autant plus qu'il est grand.
 export const ELEVATION_PREFERENCES = {
   any: { label: 'Peu importe', gainPerKm: null },
-  flat: { label: 'Plat', gainPerKm: 0 },
-  rolling: { label: 'Vallonné', gainPerKm: 10 },
-  hilly: { label: 'Montagneux', gainPerKm: 25 },
+  flat: { label: 'Plat', gainPerKm: [0, 6] },
+  rolling: { label: 'Vallonné', gainPerKm: [8, 20] },
+  hilly: { label: 'Montagneux', gainPerKm: [25, Infinity] },
 };
+
+/** Écart (m/km) entre un D+ par km et la plage visée ; 0 dans la plage ou sans préférence. */
+export function gainPerKmGap(gainPerKm, preference) {
+  const range = ELEVATION_PREFERENCES[preference]?.gainPerKm;
+  if (!range) return 0;
+  return Math.max(0, range[0] - gainPerKm, gainPerKm - range[1]);
+}
+
+/** Écart relatif à la distance visée jugé acceptable. */
+export const DISTANCE_TOLERANCE = 0.1;
 
 export const SURFACES = {
   any: 'Peu importe',
@@ -74,15 +85,14 @@ export function sanitizeCriteria(input) {
 /** Plus le score est bas, plus l'itinéraire correspond aux critères. */
 export function score(route, criteria) {
   const target = criteria.distanceKm * 1000;
-  // 1 point par % d'écart à la distance visée.
-  let result = (Math.abs(route.distance - target) / target) * 100;
+  // 1 point par % d'écart à la distance visée, et 5 de plus par % au-delà de la tolérance (±10 %).
+  const offBy = Math.abs(route.distance - target) / target;
+  let result = offBy * 100 + Math.max(0, offBy - DISTANCE_TOLERANCE) * 500;
 
   if (route.ascent != null) {
-    const targetGainPerKm = ELEVATION_PREFERENCES[criteria.elevation].gainPerKm;
-    if (targetGainPerKm != null) {
-      const gainPerKm = route.ascent / Math.max(route.distance / 1000, 0.1);
-      result += Math.abs(gainPerKm - targetGainPerKm) * 2;
-    }
+    // 3 points par m/km hors de la plage de relief visée (plat : 0–6, vallonné : 8–20, montagne : 25 et plus).
+    const gainPerKm = route.ascent / Math.max(route.distance / 1000, 0.1);
+    result += gainPerKmGap(gainPerKm, criteria.elevation) * 3;
     if (criteria.maxGain != null && route.ascent > criteria.maxGain) {
       result += 50 + (route.ascent - criteria.maxGain) / 10;
     }

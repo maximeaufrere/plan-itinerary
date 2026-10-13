@@ -57,7 +57,7 @@ test('boucles : plusieurs formes tracées en une seule requête, puis découpée
   const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(calls.length, 1, 'une seule requête pour toute la génération');
-  assert.equal(loopsIn(calls[0]), 4, '3 propositions + 1 candidat');
+  assert.equal(loopsIn(calls[0]), 8, 'autant de candidats que ce qui tient dans une requête (8 au plus pour 3 propositions)');
   assert.equal(routes.length, 3);
   for (const route of routes) {
     assert.deepEqual(route.coordinates[0], start);
@@ -75,7 +75,7 @@ test('boucles : les formes trop longues sont corrigées ensemble, en une requêt
   const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(calls.length, 2);
-  assert.equal(loopsIn(calls[1]), 4);
+  assert.equal(loopsIn(calls[1]), 8);
   for (const route of routes) assert.ok(Math.abs(route.distance - 10_000) < 200, `${route.distance}`);
 });
 
@@ -107,7 +107,8 @@ test('une forme impossible à tracer est remplacée, les autres sont retracées 
 
   assert.equal(routes.length, 1);
   assert.equal(calls.length, 2);
-  assert.equal(loopsIn(calls[1]), 2, 'la 1re boucle + une forme de rechange');
+  assert.equal(loopsIn(calls[0]), 4, '1 proposition : 4 candidats tracés ensemble');
+  assert.equal(loopsIn(calls[1]), 4, 'les 3 autres boucles + une forme de rechange');
   assert.deepEqual(calls[1].points[1], calls[0].points[1], 'la 1re boucle est reprise telle quelle');
 });
 
@@ -122,9 +123,8 @@ test('requête refusée sans coupable identifié : les formes sont retracées un
   const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(routes.length, 1);
-  assert.equal(calls.length, 3);
-  assert.equal(loopsIn(calls[1]), 1);
-  assert.equal(loopsIn(calls[2]), 1);
+  assert.equal(calls.length, 1 + loopsIn(calls[0]));
+  for (const call of calls.slice(1)) assert.equal(loopsIn(call), 1);
 });
 
 test('réponse illisible pour une requête groupée : on retente une par une, puis on s\'arrête', async () => {
@@ -158,7 +158,7 @@ test('boucles ORS en dernier recours si aucune forme ne passe', async () => {
 
   assert.equal(routes.length, 1);
   assert.ok(calls.at(-1).roundTrip);
-  assert.ok(calls.filter((c) => !c.roundTrip).length <= 8);
+  assert.ok(calls.filter((c) => !c.roundTrip).length <= 12);
 });
 
 test('aller-retour : plusieurs demi-tours enchaînés dans la même requête', async () => {
@@ -168,8 +168,9 @@ test('aller-retour : plusieurs demi-tours enchaînés dans la même requête', a
   const { routes } = await generateRoutes({ start, criteria, apiKey: 'k', fetchRoute, terrain: null });
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].points.length, 5);
-  for (const i of [0, 2, 4]) assert.deepEqual(calls[0].points[i], start);
+  // 1 proposition : 4 demi-tours candidats, dans la même requête.
+  assert.equal(calls[0].points.length, 9);
+  for (const i of [0, 2, 4, 6, 8]) assert.deepEqual(calls[0].points[i], start);
   assert.equal(calls[0].roundTrip, undefined);
   assert.equal(routes.length, 1);
 });
@@ -331,7 +332,7 @@ test('D+ max : les parcours au-dessus de la limite sont écartés', async () => 
   assert.ok(routes.every((r) => r.ascent <= 200), routes.map((r) => r.ascent).join(','));
   // Davantage de formes tracées quand une limite de D+ est fixée, toujours en une requête.
   assert.equal(calls.length, 1);
-  assert.equal(loopsIn(calls[0]), criteria.proposals + 3);
+  assert.equal(loopsIn(calls[0]), 2 * criteria.proposals + 2);
 });
 
 test('D+ max impossible à respecter : les moins vallonnés, signalés', () => {
@@ -346,4 +347,28 @@ test('sans limite de D+, rien n\'est écarté', () => {
   const route = (id, ascent, score) => ({ id, ascent, score, distance: 10_000 });
   const { routes } = selectRoutes([route('a', 900, 2), route('b', 50, 1)], { ...defaultCriteria(), proposals: 3 });
   assert.deepEqual(routes.map((r) => r.id), ['b', 'a']);
+});
+
+test('relief : plage visée (plat 0–6, vallonné 8–20, montagne 25 et plus), sans pénalité à l\'intérieur', () => {
+  const route = (ascent) => ({ distance: 10_000, ascent, overlap: 0, surface: null, majorRoads: 0, novelty: null });
+  const at = (elevation, ascent) => score(route(ascent), sanitizeCriteria({ distanceKm: 10, elevation }));
+  assert.equal(at('hilly', 400), at('hilly', 250), 'en montagne, 40 m/km convient autant que 25');
+  assert.ok(at('hilly', 150) > at('hilly', 250));
+  assert.equal(at('flat', 0), at('flat', 50));
+  assert.ok(at('flat', 120) > at('flat', 50) + 15);
+  assert.ok(at('rolling', 30) > at('rolling', 120) && at('rolling', 300) > at('rolling', 120));
+});
+
+test('distance : au-delà de ±10 %, un parcours passe derrière, même mieux noté ailleurs', () => {
+  const criteria = sanitizeCriteria({ distanceKm: 10 });
+  const onTarget = { distance: 10_200, ascent: null, overlap: 0.15, surface: null, majorRoads: 0, novelty: null };
+  const tooLong = { distance: 12_000, ascent: null, overlap: 0, surface: null, majorRoads: 0, novelty: null };
+  assert.ok(score(tooLong, criteria) > score(onTarget, criteria));
+});
+
+test('relief introuvable autour du départ : signalé', () => {
+  const route = (id, ascent) => ({ id, ascent, score: ascent, distance: 10_000 });
+  const flat = { ...defaultCriteria(), elevation: 'flat', proposals: 2 };
+  assert.equal(selectRoutes([route('a', 200), route('b', 150)], flat).reliefUnmet, true);
+  assert.equal(selectRoutes([route('a', 200), route('b', 40)], flat).reliefUnmet, undefined);
 });

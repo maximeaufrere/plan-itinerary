@@ -2,7 +2,7 @@
 import { initAccount } from './account.js';
 import { initAddressField } from './address.js';
 import { elevationChart, sparkline } from './chart.js';
-import { ACTIVITIES, estimatedDuration } from './criteria.js';
+import { ACTIVITIES, estimatedDuration, gainPerKmGap } from './criteria.js';
 import {
   criteriaSummary,
   initCriteriaForm,
@@ -247,7 +247,7 @@ $('criteria-form').addEventListener('submit', async (event) => {
   $('panel-scroll').scrollTo({ top: 0 });
 
   try {
-    const { routes, directIsLonger, maxGainUnmet, overMaxGain } = await generateRoutes({
+    const { routes, directIsLonger, maxGainUnmet, overMaxGain, reliefUnmet } = await generateRoutes({
       start: state.start,
       end: isPointToPoint() ? state.end : null,
       criteria: state.criteria,
@@ -284,6 +284,16 @@ $('criteria-form').addEventListener('submit', async (event) => {
       messages.push(
         `${overMaxGain} parcours écarté${overMaxGain > 1 ? 's' : ''} : plus de ${formatElevation(state.criteria.maxGain)} de D+. ` +
           '« Autres parcours » en cherche d\'autres.',
+      );
+    }
+    if (reliefUnmet && !maxGainUnmet) {
+      const perKm = (r) => r.ascent / Math.max(r.distance / 1000, 0.1);
+      const closest = routes.reduce((a, b) => (gainPerKmGap(perKm(b), state.criteria.elevation) < gainPerKmGap(perKm(a), state.criteria.elevation) ? b : a));
+      const best = Math.round(perKm(closest));
+      const wanted = { flat: 'plat', rolling: 'vallonné', hilly: 'montagneux' }[state.criteria.elevation];
+      messages.push(
+        `Pas de parcours vraiment ${wanted} autour de ce départ : le plus proche fait ${best} m de D+ par km. ` +
+          'Essayez une autre distance ou un autre départ.',
       );
     }
     if (maxGainUnmet) {
