@@ -40,6 +40,46 @@ function countRequest(now = new Date()) {
   storage.set(KEYS.requestLog, { date: localDate(now), count: requestsToday(now) + 1 }, { silent: true });
 }
 
+/**
+ * Quota du jour annoncé par ORS dans les en-têtes `x-ratelimit-*` d'une réponse, pour la clé entière
+ * (tous appareils et applications confondus). `null` si le navigateur ne peut pas les lire.
+ * `x-ratelimit-reset` peut être une date (secondes depuis 1970) ou un délai en secondes.
+ * @returns {{limit: number, remaining: number, resetAt: number | null, at: number} | null}
+ */
+export function parseQuotaHeaders(headers, now = Date.now()) {
+  const read = (name) => {
+    const value = headers?.get?.(name);
+    return value == null || value === '' ? NaN : Number(value);
+  };
+  const limit = read('x-ratelimit-limit');
+  const remaining = read('x-ratelimit-remaining');
+  // Une limite de l'ordre de quelques dizaines serait celle par minute, pas le quota du jour.
+  if (!Number.isFinite(limit) || !Number.isFinite(remaining) || limit < 100) return null;
+  const reset = read('x-ratelimit-reset');
+  let resetAt = null;
+  if (Number.isFinite(reset) && reset > 0) resetAt = reset > 1e9 ? reset * 1000 : now + reset * 1000;
+  return { limit, remaining: Math.max(0, Math.min(limit, remaining)), resetAt, at: now };
+}
+
+// Fin de la clé : suffit à reconnaître un quota relevé avec une autre clé, sans recopier la clé.
+const keyTag = (apiKey) => String(apiKey ?? '').slice(-6);
+
+function recordServerQuota(headers, apiKey, now = Date.now()) {
+  const quota = parseQuotaHeaders(headers, now);
+  if (quota) storage.set(KEYS.serverQuota, { ...quota, key: keyTag(apiKey) }, { silent: true });
+}
+
+/**
+ * Dernier quota annoncé par ORS pour cette clé, tant qu'il est encore valable (avant sa remise à zéro,
+ * ou à défaut le jour même).
+ */
+export function serverQuota(apiKey, now = Date.now()) {
+  const quota = storage.get(KEYS.serverQuota, null);
+  if (!quota || quota.key !== keyTag(apiKey)) return null;
+  const valid = quota.resetAt ? now < quota.resetAt : localDate(new Date(quota.at)) === localDate(new Date(now));
+  return valid ? quota : null;
+}
+
 /** Attend qu'une requête puisse partir sans dépasser la limite ; `onWait(secondes)` prévient l'interface. */
 async function waitForSlot(signal, onWait, now = Date.now) {
   for (;;) {
@@ -126,6 +166,7 @@ export async function fetchRoute({ apiKey, profile, points, roundTrip, signal, o
       0,
     );
   }
+  recordServerQuota(response.headers, apiKey);
 
   if (!response.ok) {
     let apiMessage;

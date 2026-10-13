@@ -15,6 +15,8 @@ export const KEYS = {
   settingsUpdatedAt: 'settingsUpdatedAt',
   /** Requêtes d'itinéraire envoyées aujourd'hui depuis cet appareil : { date, count }. */
   requestLog: 'requestLog',
+  /** Dernier quota du jour annoncé par ORS pour la clé : { limit, remaining, resetAt, at }. */
+  serverQuota: 'orsServerQuota',
   /** Sorties enregistrées sur cet appareil (sans compte). */
   outings: 'outings',
 };

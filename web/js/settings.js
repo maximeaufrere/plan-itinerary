@@ -3,7 +3,7 @@ import { $ } from './dom.js';
 import { isValidFavorite } from './favorites.js';
 import { formatPace } from './format.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
-import { DAILY_QUOTA, fetchRoute, requestsToday } from './ors.js';
+import { DAILY_QUOTA, fetchRoute, requestsToday, serverQuota } from './ors.js';
 import { shareOrDownload } from './share.js';
 import { KEYS, applyTheme, storage } from './storage.js';
 import { showView } from './views.js';
@@ -129,16 +129,29 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
     if (open) keyInput.focus({ preventScroll: true });
   });
 
-  /** Requêtes envoyées aujourd'hui depuis cet appareil. */
+  /**
+   * Quota consommé : la valeur annoncée par ORS pour la clé entière quand le navigateur peut la lire,
+   * sinon les requêtes envoyées aujourd'hui depuis cet appareil.
+   */
   function refreshQuota() {
-    const used = requestsToday();
-    const left = Math.max(0, DAILY_QUOTA - used);
-    $('quota-count').textContent = `${used.toLocaleString('fr-FR')} / ${DAILY_QUOTA.toLocaleString('fr-FR')}`;
-    $('quota-bar').style.width = `${Math.min(100, (used / DAILY_QUOTA) * 100).toFixed(1)}%`;
-    $('quota-bar').classList.toggle('high', used > DAILY_QUOTA * 0.8);
-    $('quota-note').textContent = left
-      ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui. Seules les requêtes de cet appareil sont comptées : si vous utilisez la même clé ailleurs, il en reste moins.`
-      : 'Quota du jour probablement atteint depuis cet appareil : il se renouvelle dans la nuit.';
+    const server = serverQuota(storage.get(KEYS.apiKey, ''));
+    const limit = server?.limit ?? DAILY_QUOTA;
+    const used = server ? server.limit - server.remaining : requestsToday();
+    const left = Math.max(0, limit - used);
+    $('quota-label').textContent = server ? 'Utilisé aujourd\'hui (toute la clé)' : 'Utilisé aujourd\'hui sur cet appareil';
+    $('quota-count').textContent = `${used.toLocaleString('fr-FR')} / ${limit.toLocaleString('fr-FR')}`;
+    $('quota-bar').style.width = `${Math.min(100, (used / limit) * 100).toFixed(1)}%`;
+    $('quota-bar').classList.toggle('high', used > limit * 0.8);
+    if (server) {
+      const time = new Date(server.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      $('quota-note').textContent = left
+        ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui. Chiffre donné par OpenRouteService à ${time}, tous vos appareils compris.`
+        : `Quota du jour atteint (chiffre donné par OpenRouteService à ${time}) : il se renouvelle dans la nuit.`;
+    } else {
+      $('quota-note').textContent = left
+        ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui. Seules les requêtes de cet appareil sont comptées : si vous utilisez la même clé ailleurs, il en reste moins.`
+        : 'Quota du jour probablement atteint depuis cet appareil : il se renouvelle dans la nuit.';
+    }
   }
 
   // MARK: Allure

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
-import { fetchRoute, OrsError, splitRoute } from '../js/ors.js';
+import { fetchRoute, OrsError, parseQuotaHeaders, serverQuota, splitRoute } from '../js/ors.js';
 
 const okResponse = () => ({
   ok: true,
@@ -83,4 +83,41 @@ test('erreur ORS : code et point en cause lus dans la réponse', async (t) => {
     assert.equal(error.isFatal, false);
     return true;
   });
+});
+
+test('quota annoncé par ORS : lu dans les en-têtes x-ratelimit-*, ignoré s\'il est illisible', () => {
+  const now = Date.UTC(2026, 9, 13, 12);
+  const headers = (values) => new Headers(values);
+  assert.deepEqual(
+    parseQuotaHeaders(headers({ 'x-ratelimit-limit': '2000', 'x-ratelimit-remaining': '1500', 'x-ratelimit-reset': '3600' }), now),
+    { limit: 2000, remaining: 1500, resetAt: now + 3_600_000, at: now },
+  );
+  // Remise à zéro donnée comme une date (secondes depuis 1970).
+  assert.equal(
+    parseQuotaHeaders(headers({ 'x-ratelimit-limit': '2000', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1791936000' }), now).resetAt,
+    1_791_936_000_000,
+  );
+  // En-têtes non exposés au navigateur (CORS) ou absents.
+  assert.equal(parseQuotaHeaders(headers({}), now), null);
+  assert.equal(parseQuotaHeaders(undefined, now), null);
+  // Limite par minute : ce n'est pas le quota du jour.
+  assert.equal(parseQuotaHeaders(headers({ 'x-ratelimit-limit': '40', 'x-ratelimit-remaining': '39' }), now), null);
+});
+
+test('quota annoncé par ORS : retenu pour cette clé jusqu\'à sa remise à zéro', async (t) => {
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+  };
+  t.after(() => delete globalThis.localStorage);
+  t.mock.method(globalThis, 'fetch', async () => ({
+    ...okResponse(),
+    headers: new Headers({ 'x-ratelimit-limit': '2000', 'x-ratelimit-remaining': '1234', 'x-ratelimit-reset': '600' }),
+  }));
+  await fetchRoute({ apiKey: 'cle-abcdef', profile: 'foot-walking', points: [[45.7, 4.8], [45.71, 4.81]] });
+  assert.equal(serverQuota('cle-abcdef')?.remaining, 1234);
+  assert.equal(serverQuota('autre-cle'), null);
+  assert.equal(serverQuota('cle-abcdef', Date.now() + 700_000), null);
 });
