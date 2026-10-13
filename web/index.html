@@ -121,70 +121,48 @@
             </div>
           </div>
 
-          <button type="button" id="open-more" class="more-button" aria-controls="criteria-more" aria-expanded="false">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-            <span class="more-text"><strong>Plus de critères</strong><span id="more-summary" class="tag-row"></span></span>
-            <svg class="icon chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-          </button>
-        </div>
-
-        <!-- Plus de critères : dénivelé, revêtement, options -->
-        <div id="criteria-more" class="criteria-more" hidden>
-          <div class="subview-header">
-            <button type="button" id="close-more" class="round-button" aria-label="Retour aux critères principaux">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-            </button>
-            <h2>Plus de critères</h2>
-            <button type="button" id="reset-more" class="link-button">Réinitialiser</button>
+          <!-- Terrain : modifie le tracé autant que la distance, donc toujours visible -->
+          <div class="terrain">
+            <div class="terrain-field">
+              <span id="label-elevation" class="group-title">Dénivelé</span>
+              <fieldset class="segmented" id="elevation" aria-labelledby="label-elevation"></fieldset>
+            </div>
+            <div class="terrain-field">
+              <span id="label-surface" class="group-title">Revêtement</span>
+              <fieldset class="segmented" id="surface" aria-labelledby="label-surface"></fieldset>
+            </div>
           </div>
 
-          <section class="group" aria-labelledby="group-elevation">
-            <h3 id="group-elevation" class="group-title">Dénivelé</h3>
-            <fieldset class="segmented" id="elevation" aria-labelledby="group-elevation"></fieldset>
-            <div class="limit-card">
-              <div class="limit-row">
-                <label for="limit-gain" class="list-label">Limiter le D+ total</label>
-                <input type="checkbox" id="limit-gain" class="switch">
+          <!-- Options : se déplient sur place, résumées en pastilles quand elles sont repliées -->
+          <div class="options">
+            <button type="button" id="toggle-options" class="options-toggle" aria-controls="criteria-options" aria-expanded="false">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+              <span class="options-text"><strong>Options</strong><span id="options-summary" class="tag-row"></span></span>
+              <svg class="icon chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="criteria-options" class="options-body" hidden>
+              <div class="limit-card">
+                <div class="limit-row">
+                  <label for="limit-gain" class="list-label">Limiter le D+ total</label>
+                  <input type="checkbox" id="limit-gain" class="switch">
+                </div>
+                <div class="limit-row" id="max-gain-row">
+                  <span class="hint">Les parcours qui montent plus sont écartés.</span>
+                  <div class="stepper" role="group" aria-label="D+ maximum">
+                    <button type="button" id="gain-minus" aria-label="Moins 50 m"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+                    <output id="max-gain" aria-live="polite"></output>
+                    <button type="button" id="gain-plus" aria-label="Plus 50 m"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+                  </div>
+                </div>
               </div>
-              <div class="limit-row" id="max-gain-row">
-                <span class="hint">Les parcours qui montent plus sont écartés.</span>
-                <div class="stepper" role="group" aria-label="D+ maximum">
-                  <button type="button" id="gain-minus" aria-label="Moins 50 m"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
-                  <output id="max-gain" aria-live="polite"></output>
-                  <button type="button" id="gain-plus" aria-label="Plus 50 m"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+              <div class="list">
+                <div class="list-row">
+                  <label for="avoid-major-roads" class="list-label">Éviter les grands axes</label>
+                  <input type="checkbox" id="avoid-major-roads" class="switch">
                 </div>
               </div>
             </div>
-          </section>
-
-          <section class="group" aria-labelledby="group-surface">
-            <h3 id="group-surface" class="group-title">Revêtement</h3>
-            <fieldset class="segmented" id="surface" aria-labelledby="group-surface"></fieldset>
-          </section>
-
-          <section class="group" aria-labelledby="group-options">
-            <h3 id="group-options" class="group-title">Options</h3>
-            <div class="list">
-              <div class="list-row">
-                <label for="avoid-major-roads" class="list-label">Éviter les grands axes</label>
-                <input type="checkbox" id="avoid-major-roads" class="switch">
-              </div>
-              <div class="list-row">
-                <label for="prefer-new" class="list-label">Privilégier les chemins nouveaux<small>D'après vos sorties et favoris</small></label>
-                <input type="checkbox" id="prefer-new" class="switch">
-              </div>
-              <div class="list-row">
-                <span class="list-label" id="proposals-label">Nombre de propositions</span>
-                <div class="stepper" role="group" aria-labelledby="proposals-label">
-                  <button type="button" id="proposals-minus" aria-label="Moins de propositions"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
-                  <output id="proposals" aria-live="polite"></output>
-                  <button type="button" id="proposals-plus" aria-label="Plus de propositions"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
-                </div>
-              </div>
-            </div>
-            <p class="hint">Votre allure se règle dans <button type="button" id="goto-pace" class="inline-link">Réglages</button> : elle ne change pas le parcours, seulement la durée estimée.</p>
-          </section>
-
+          </div>
         </div>
       </form>
 
@@ -303,6 +281,25 @@
           <h3 id="settings-pace">Mon allure</h3>
           <div class="list" id="pace-list"></div>
           <p class="hint">Sert à estimer la durée des parcours. À pied, chaque 100&nbsp;m de D+ compte comme 1&nbsp;km de plus.</p>
+        </section>
+
+        <section class="settings-section" aria-labelledby="settings-proposals">
+          <h3 id="settings-proposals">Propositions</h3>
+          <div class="list">
+            <div class="list-row">
+              <label for="prefer-new" class="list-label">Privilégier les chemins nouveaux<small>D'après vos sorties et favoris</small></label>
+              <input type="checkbox" id="prefer-new" class="switch">
+            </div>
+            <div class="list-row">
+              <span class="list-label" id="proposals-label">Nombre de propositions</span>
+              <div class="stepper" role="group" aria-labelledby="proposals-label">
+                <button type="button" id="proposals-minus" aria-label="Moins de propositions"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+                <output id="proposals" aria-live="polite"></output>
+                <button type="button" id="proposals-plus" aria-label="Plus de propositions"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <p class="hint">Valables pour toutes vos recherches.</p>
         </section>
 
         <section class="settings-section" aria-labelledby="settings-display">

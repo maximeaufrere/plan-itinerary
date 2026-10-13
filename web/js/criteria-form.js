@@ -1,4 +1,5 @@
-// Critères du parcours : activité, forme, distance, et l'écran « Plus de critères ».
+// Critères du parcours : activité, forme, distance, terrain et options (dépliées sur place).
+// Nombre de propositions et chemins nouveaux, réglés une fois pour toutes, sont dans Réglages.
 import { ACTIVITIES, ELEVATION_PREFERENCES, SHAPES, SURFACES, sanitizeCriteria } from './criteria.js';
 import { $, escapeHtml } from './dom.js';
 import { formatElevation } from './format.js';
@@ -13,7 +14,7 @@ const SURFACE_SHORT = { any: 'Libre', paved: 'Bitume', unpaved: 'Chemins' };
 const ACTIVITY_SHORT = { road: 'Route', bike: 'Balade' };
 const GAIN_STEP = 50;
 
-const hooks = { onChange: () => {}, onSync: () => {}, setStatus: () => {}, openPace: () => {}, onSearchChange: () => {} };
+const hooks = { onChange: () => {}, onSync: () => {}, setStatus: () => {}, onSearchChange: () => {} };
 
 /** Dernière limite de D+ choisie, reprise quand on réactive la limite. */
 let lastMaxGain = state.criteria.maxGain ?? 200;
@@ -44,23 +45,22 @@ function fillRange(input) {
   input.style.setProperty('--fill', `${(ratio * 100).toFixed(1)}%`);
 }
 
-/** Critères avancés qui s'écartent des valeurs par défaut, en pastilles courtes. */
-function advancedTags() {
+/** Options activées, en pastilles courtes (résumé du dépliant replié). */
+function optionTags() {
   const { criteria } = state;
   const tags = [];
-  if (criteria.elevation !== 'any') tags.push(ELEVATION_PREFERENCES[criteria.elevation].label);
   if (criteria.maxGain != null) tags.push(`D+ ≤ ${formatElevation(criteria.maxGain)}`);
-  if (criteria.surface !== 'any') tags.push(SURFACES[criteria.surface]);
   if (criteria.avoidMajorRoads) tags.push('Sans grands axes');
-  if (!criteria.preferNew) tags.push('Chemins connus acceptés');
-  if (criteria.proposals !== 3) tags.push(`${criteria.proposals} proposition${criteria.proposals > 1 ? 's' : ''}`);
   return tags;
 }
 
-/** Résumé d'une ligne des critères (« Course · Boucle · 10 km »). */
+/** Résumé d'une ligne des critères (« Course · Boucle · 10 km · Vallonné »). */
 export function criteriaSummary() {
   const { criteria } = state;
-  return [ACTIVITIES[criteria.activity].label, SHAPES[criteria.shape], `${criteria.distanceKm} km`, ...advancedTags()].join(' · ');
+  const terrain = [];
+  if (criteria.elevation !== 'any') terrain.push(ELEVATION_PREFERENCES[criteria.elevation].label);
+  if (criteria.surface !== 'any') terrain.push(SURFACES[criteria.surface]);
+  return [ACTIVITIES[criteria.activity].label, SHAPES[criteria.shape], `${criteria.distanceKm} km`, ...terrain, ...optionTags()].join(' · ');
 }
 
 /** Met le formulaire en accord avec les critères enregistrés. */
@@ -92,20 +92,20 @@ export function syncForm() {
   $('gain-minus').disabled = !limited || criteria.maxGain <= GAIN_STEP;
   $('gain-plus').disabled = !limited;
 
-  const tags = advancedTags();
-  $('more-summary').innerHTML = tags.length
+  const tags = optionTags();
+  $('options-summary').innerHTML = tags.length
     ? tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')
-    : '<span class="muted">Dénivelé, revêtement, options</span>';
+    : '<span class="muted">Limite de D+, grands axes</span>';
   $('criteria-summary-text').textContent = criteriaSummary();
   hooks.onSync();
 }
 
-/** Écran « Plus de critères » (dans la même feuille). */
-function setMoreOpen(open) {
-  $('criteria-more').hidden = !open;
-  $('criteria-main').hidden = open;
-  $('open-more').setAttribute('aria-expanded', String(open));
-  $('panel-scroll').scrollTo({ top: 0 });
+/** Déplie ou replie les options, sur place. */
+function setOptionsOpen(open) {
+  $('criteria-options').hidden = !open;
+  $('toggle-options').setAttribute('aria-expanded', String(open));
+  // Sur mobile, le dépliant peut s'ouvrir sous le bouton « Générer » : on l'amène à l'écran.
+  if (open) requestAnimationFrame(() => $('criteria-options').scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 }
 
 /** Écran « Nouvelle recherche » : critères ouverts alors que des propositions existent (mises de côté). */
@@ -115,7 +115,6 @@ export const isSearching = () => searching;
 /** Après un calcul, les critères se replient pour laisser la place aux propositions. */
 export function setCriteriaCollapsed(collapsed) {
   $('criteria-form').classList.toggle('collapsed', collapsed);
-  if (collapsed) setMoreOpen(false);
   $('criteria-summary-text').textContent = criteriaSummary();
   const nowSearching = !collapsed && state.routes.length > 0;
   $('route-view').classList.toggle('searching', nowSearching);
@@ -160,7 +159,6 @@ export const placing = () => document.querySelector('input[name="placing"]:check
  * @param {(changes: object) => void} options.onChange  les critères ont changé
  * @param {() => void} options.onSync  le résumé des critères a changé
  * @param {(message: string, isError?: boolean) => void} options.setStatus
- * @param {() => void} options.openPace  ouvre le réglage de l'allure
  * @param {(searching: boolean) => void} options.onSearchChange  entrée ou sortie de « Nouvelle recherche »
  */
 export function initCriteriaForm(options) {
@@ -176,20 +174,7 @@ export function initCriteriaForm(options) {
     setCriteriaCollapsed(true);
     $('panel-scroll').scrollTo({ top: 0 });
   });
-  $('open-more').addEventListener('click', () => setMoreOpen(true));
-  $('close-more').addEventListener('click', () => setMoreOpen(false));
-  $('reset-more').addEventListener('click', () => {
-    const defaults = sanitizeCriteria({});
-    updateCriteria({
-      elevation: defaults.elevation,
-      maxGain: defaults.maxGain,
-      surface: defaults.surface,
-      avoidMajorRoads: defaults.avoidMajorRoads,
-      preferNew: defaults.preferNew,
-      proposals: defaults.proposals,
-    });
-  });
-  $('goto-pace').addEventListener('click', () => hooks.openPace());
+  $('toggle-options').addEventListener('click', () => setOptionsOpen($('criteria-options').hidden));
 
   $('activity').addEventListener('change', (event) => {
     const activity = event.target.value;

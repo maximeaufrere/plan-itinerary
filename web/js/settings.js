@@ -252,7 +252,7 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
   $('app-version').textContent = `v${APP_VERSION}`;
 
   return {
-    open(message, { focusPace = false } = {}) {
+    open(message) {
       $('settings-message').hidden = !message;
       $('settings-message').textContent = message ?? '';
       keyInput.value = storage.get(KEYS.apiKey, '');
@@ -269,7 +269,6 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
       refreshCount();
       showView('settings');
       if (message) keyInput.focus({ preventScroll: true });
-      if (focusPace) requestAnimationFrame(() => $('pace-section').scrollIntoView({ block: 'start', behavior: 'smooth' }));
     },
     refreshQuota,
   };

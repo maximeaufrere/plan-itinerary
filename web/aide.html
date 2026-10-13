@@ -27,7 +27,7 @@
       <h2 id="quick">En bref</h2>
       <ol class="guide-steps">
         <li><strong>Une seule fois :</strong> la mise en route vous demande votre position et votre clé gratuite OpenRouteService (vous pourrez la changer dans <em>Réglages</em>).</li>
-        <li><strong>Choisissez l'essentiel :</strong> activité, boucle / aller-retour / A&nbsp;→&nbsp;B, départ et distance. Le reste (dénivelé, revêtement…) est dans <span class="ui-button">Plus de critères</span>.</li>
+        <li><strong>Choisissez l'essentiel :</strong> activité, boucle / aller-retour / A&nbsp;→&nbsp;B, départ, distance, dénivelé et revêtement. La limite de D+ et « Éviter les grands axes » se déplient sous <span class="ui-button">Options</span>.</li>
         <li><strong>Touchez « Générer »</strong> (le bouton vert juste au-dessus du panneau) et comparez les propositions. Pas convaincu ? <span class="ui-button">Autres parcours</span> en propose d'autres.</li>
       </ol>
     </section>
@@ -82,9 +82,9 @@
     <section id="criteres" aria-labelledby="criteres-title">
       <h2 id="criteres-title"><span class="guide-num">3</span> Régler les critères</h2>
       <p>
-        Vos réglages sont mémorisés d'une fois sur l'autre. L'écran principal ne montre que l'essentiel ;
-        <span class="ui-button">Plus de critères</span> ouvre le reste, et résume en pastilles ce que vous avez changé
-        (ex. « Vallonné · D+ ≤ 200 m · Chemins »).
+        Vos réglages sont mémorisés d'une fois sur l'autre. Tout se règle sur le même écran :
+        <span class="ui-button">Options</span> se déplie sur place pour les réglages plus rares, et résume en pastilles
+        ce qui est activé (ex. « D+ ≤ 200 m · Sans grands axes »).
       </p>
 
       <dl class="guide-defs">
@@ -106,27 +106,27 @@
         <dt>Distance</dt>
         <dd>La distance visée. Les propositions s'en approchent à ±10 %.</dd>
 
-        <dt>Dénivelé <small class="muted">(Plus de critères)</small></dt>
+        <dt>Dénivelé</dt>
         <dd>
           <strong>Libre</strong>, <strong>Plat</strong> (0 à 6 m de montée par km), <strong>Vallonné</strong> (8 à 20 m/km)
-          ou <strong>Montagne</strong> (25 m/km et plus). Les parcours dans la plage passent en premier. Juste en dessous, <strong>Limiter le D+ total</strong> écarte les
+          ou <strong>Montagne</strong> (25 m/km et plus). Les parcours dans la plage passent en premier. Dans <span class="ui-button">Options</span>, <strong>Limiter le D+ total</strong> écarte les
           parcours dont le total des montées dépasse la limite (réglable par pas de 50 m avec − et +) ; si aucun ne
           passe, l'app fait un second essai avec les formes estimées les plus plates. En montagne, une grande boucle doit
           souvent franchir du relief : un <strong>aller-retour</strong> peut, lui, suivre une vallée.
         </dd>
 
-        <dt>Revêtement <small class="muted">(Plus de critères)</small></dt>
+        <dt>Revêtement</dt>
         <dd><strong>Bitume</strong> pour rester sur routes et trottoirs, <strong>Chemins</strong> pour privilégier la terre, le gravier et l'herbe.</dd>
 
-        <dt>Éviter les grands axes</dt>
+        <dt>Éviter les grands axes <small class="muted">(Options)</small></dt>
         <dd>Écarte autant que possible les routes principales, souvent bruyantes et fréquentées.</dd>
 
-        <dt>Privilégier les chemins nouveaux</dt>
+        <dt>Privilégier les chemins nouveaux <small class="muted">(Réglages)</small></dt>
         <dd>Activé par défaut : les parcours qui passent par des chemins que vous n'avez jamais empruntés (d'après vos
         sorties marquées « faites » et vos favoris) sont classés en premier. Chaque proposition indique sa part de
         nouveauté (« Tout nouveau », « 60 % nouveau », « Déjà fait »).</dd>
 
-        <dt>Nombre de propositions</dt>
+        <dt>Nombre de propositions <small class="muted">(Réglages)</small></dt>
         <dd>Le nombre de parcours proposés (1 à 5). Chacun part dans une direction différente.</dd>
 
         <dt>Allure</dt>
@@ -234,6 +234,7 @@
         <dt>Compte</dt><dd>Connexion et synchronisation (voir plus bas), quand les comptes sont activés sur cette installation.</dd>
         <dt>Clé OpenRouteService</dt><dd>L'état de votre clé (« Changer » pour la remplacer et la tester) et le nombre d'itinéraires demandés aujourd'hui sur les 2 000 de l'offre gratuite : le chiffre donné par OpenRouteService pour toute la clé quand il est lisible, sinon celui de cet appareil. Le lien « Voir l'utilisation réelle de ma clé » ouvre votre tableau de bord openrouteservice.org, qui compte les requêtes de tous vos appareils.</dd>
         <dt>Mon allure</dt><dd>Votre allure (à pied) ou vitesse moyenne (à vélo) pour chaque activité, avec − et +.</dd>
+        <dt>Propositions</dt><dd>« Privilégier les chemins nouveaux » et le nombre de propositions (1 à 5), valables pour toutes vos recherches.</dd>
         <dt>Thème</dt><dd>Clair, sombre, ou automatique (suit le réglage de votre téléphone).</dd>
         <dt>Fond de carte</dt><dd><strong>Standard</strong>, <strong>Topographique</strong> (courbes de niveau, idéal en trail) ou <strong>Vélo</strong> (pistes cyclables mises en avant).</dd>
         <dt>Mes données</dt><dd>Exporter / importer vos favoris, réinitialiser les critères, ou tout effacer.</dd>

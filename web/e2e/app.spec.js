@@ -161,7 +161,6 @@ test('critères impossibles : aucune proposition, les causes à la place, sans r
   expect(calls.directions).toBe(0);
 
   // Changer un critère efface l'explication.
-  await page.click('#open-more');
   await page.click('#elevation label:nth-child(1)');
   await expect(page.locator('#unmet')).toBeHidden();
   expect(errors).toEqual([]);
@@ -197,4 +196,29 @@ test('clavier : ← / → changent de proposition', async ({ page, context }) =>
   await expect(page.locator('.card[aria-selected="true"]')).not.toHaveAttribute('data-id', first);
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.card[aria-selected="true"]')).toHaveAttribute('data-id', first);
+});
+
+test('critères : terrain visible, options dépliées sur place, propositions dans Réglages', async ({ page, context }) => {
+  await mockNetwork(context);
+  await returningUser(context);
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await expect(page.locator('#elevation')).toBeVisible();
+  await expect(page.locator('#surface')).toBeVisible();
+  await expect(page.locator('#criteria-options')).toBeHidden();
+
+  // Les options se déplient sous le bouton, sans quitter le formulaire.
+  await page.click('#toggle-options');
+  await expect(page.locator('#criteria-options')).toBeVisible();
+  await expect(page.locator('#distance')).toBeVisible();
+  await page.click('label[for="avoid-major-roads"]');
+  await page.click('#toggle-options');
+  await expect(page.locator('#criteria-options')).toBeHidden();
+  await expect(page.locator('#options-summary')).toContainText('Sans grands axes');
+
+  await page.click('#tab-settings');
+  await expect(page.locator('#proposals')).toHaveText('3');
+  await page.click('#proposals-plus');
+  await expect(page.locator('#proposals')).toHaveText('4');
+  expect(errors).toEqual([]);
 });

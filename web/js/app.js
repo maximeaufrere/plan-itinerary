@@ -164,7 +164,6 @@ initCriteriaForm({
   },
   onSync: () => updatePeek(),
   setStatus: (message, isError) => setStatus(message, isError),
-  openPace: () => settings.open('', { focusPace: true }),
   // Nouvelle recherche : « Générer » (et non « Autres parcours »), le parcours affiché passe au second plan.
   onSearchChange: (searching) => {
     document.body.classList.toggle('new-search', searching);
@@ -845,7 +844,7 @@ onViewChange((view) => {
 });
 
 // MARK: - Raccourcis clavier (ordinateur)
-// ← / → : proposition précédente / suivante ; G : générer ; Échap : quitter « Plus de critères » ou le suivi.
+// ← / → : proposition précédente / suivante ; G : générer ; Échap : quitter le suivi.
 
 document.addEventListener('keydown', (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
@@ -861,7 +860,6 @@ document.addEventListener('keydown', (event) => {
     $('quick-generate').click();
   } else if (event.key === 'Escape') {
     if (follow.isFollowing()) follow.stop();
-    else if (!$('criteria-more').hidden) $('close-more').click();
   }
 });
 

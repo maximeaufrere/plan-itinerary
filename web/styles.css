@@ -1415,9 +1415,9 @@ body.credits-open .map .leaflet-control-attribution { display: block; }
 .activity-option input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--route) 75%, transparent); outline-offset: 2px; }
 .activity-option span:active { transform: var(--press); }
 
-.criteria-main, .criteria-more { display: grid; gap: 16px; }
-.criteria-main[hidden], .criteria-more[hidden] { display: none; }
-.criteria.collapsed .criteria-main, .criteria.collapsed .criteria-more { display: none; }
+.criteria-main { display: grid; gap: 16px; }
+.criteria-main[hidden] { display: none; }
+.criteria.collapsed .criteria-main { display: none; }
 
 /* Résumé des critères au-dessus des propositions */
 .criteria-summary {
@@ -1436,8 +1436,14 @@ body.credits-open .map .leaflet-control-attribution { display: block; }
 .criteria-summary > span { min-width: 0; }
 .criteria-summary .link-button { flex: 0 0 auto; }
 
-/* Bouton « Plus de critères » */
-.more-button {
+/* Terrain : dénivelé et revêtement, sous la distance */
+.terrain { display: grid; gap: 12px; }
+.terrain-field { display: grid; gap: 6px; }
+.terrain .segmented span { font-size: 0.88rem; padding: 6px 2px; }
+
+/* Options : dépliant sur place */
+.options { display: grid; gap: 10px; }
+.options-toggle {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1445,15 +1451,21 @@ body.credits-open .map .leaflet-control-attribution { display: block; }
   padding: 12px 14px;
   border: 1.5px dashed var(--border);
   background: var(--bg);
+  color: inherit;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.2s, transform 0.12s var(--ease);
 }
-.more-button:hover { border-color: var(--accent); }
-.more-button:active { transform: var(--press); }
-.more-button > .icon { color: var(--accent); }
-.more-text { flex: 1; min-width: 0; display: grid; gap: 5px; }
-.more-text strong { font-size: 1rem; }
+.options-toggle:hover { border-color: var(--accent); }
+.options-toggle:active { transform: var(--press); }
+.options-toggle > .icon { color: var(--accent); }
+.options-toggle[aria-expanded="true"] { border-style: solid; }
+.options-text { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.options-text strong { font-size: 1rem; }
+.chevron-down { color: var(--muted); transition: transform 0.2s var(--ease); }
+.options-toggle[aria-expanded="true"] .chevron-down { transform: rotate(180deg); }
+.options-body { display: grid; gap: 10px; scroll-margin-bottom: 96px; }
+.options-body[hidden] { display: none; }
 .chevron-right { color: var(--muted); }
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.8rem; }
 .tag {
@@ -1485,18 +1497,7 @@ body.credits-open .map .leaflet-control-attribution { display: block; }
 .round-button.tonal { width: 50px; height: 50px; background: var(--accent-soft); color: var(--accent); }
 .round-button.tonal .icon { width: 22px; height: 22px; }
 
-.criteria-more .segmented span { font-size: 0.88rem; padding: 6px 2px; }
-.criteria-more .hint { line-height: 1.4; }
-.inline-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-}
+.options-body .hint { line-height: 1.4; }
 
 /* Limite de D+ */
 .limit-card { display: grid; gap: 10px; padding: 12px 14px; background: var(--surface); }
@@ -1923,7 +1924,7 @@ button.primary.wide, a.button.primary.wide { width: 100%; }
 .list,
 .group.sliders,
 .limit-card,
-.more-button,
+.options-toggle,
 .month-summary,
 .route-item,
 .account-row,

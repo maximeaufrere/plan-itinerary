@@ -29,9 +29,9 @@ HTML/CSS/JavaScript sans étape de compilation ; la carte utilise [Leaflet](http
     dont A et B sont les foyers (toutes ses positions donnent la même distance à vol d'oiseau), position choisie
     selon le relief estimé
 - Interface en 3 onglets : **Parcours**, **Mes parcours**, **Réglages**
-- Écran principal réduit à l'essentiel (activité en pictogrammes, type, départ, distance) ; **Plus de critères** :
-  profil de dénivelé + limite de D+ (pas de 50 m), revêtement (bitume / chemins), éviter les grands axes,
-  nombre de propositions, résumés en pastilles
+- Un seul écran de critères : activité en pictogrammes, type, départ, distance, profil de dénivelé et revêtement
+  (bitume / chemins) ; un dépliant **Options** (limite de D+ par pas de 50 m, éviter les grands axes) résumé en
+  pastilles ; nombre de propositions et chemins nouveaux dans **Réglages**
 - Classement des propositions selon ces critères, avec une **pénalité pour les rues empruntées deux fois**
   (sauf en aller-retour) ; chaque proposition reçoit une **étiquette** (« La plus plate », « La plus nature »,
   « Au plus près », direction…) (`web/js/labels.js`)
