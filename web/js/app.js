@@ -826,11 +826,21 @@ $('tabbar').addEventListener(
 );
 
 // Changer de vue rouvre la feuille si elle était réduite et revient en haut de son contenu.
+let previousView = 'route';
+let routeSheetState = 'mid';
 onViewChange((view) => {
   // « Générer » n'a de sens que dans la vue Parcours.
   $('sheet-actions').classList.toggle('route-only-hidden', view !== 'route');
   $('panel-scroll').scrollTo({ top: 0 });
-  if (getSheetState() === 'peek') snapTo('mid', { fit: false });
+  // Téléphone : Mes parcours, Réglages et Compte se lisent en grand (la carte n'y sert à rien) ;
+  // de retour sur Parcours, la feuille reprend la hauteur qu'elle avait.
+  if (mobileQuery.matches && view !== 'route') {
+    if (previousView === 'route') routeSheetState = getSheetState();
+    snapTo('full', { save: false, fit: false });
+  } else if (mobileQuery.matches && previousView !== 'route') {
+    snapTo(routeSheetState === 'peek' ? 'mid' : routeSheetState, { save: false });
+  } else if (getSheetState() === 'peek') snapTo('mid', { fit: false });
+  previousView = view;
   updatePeek();
 });
 

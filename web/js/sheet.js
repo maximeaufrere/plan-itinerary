@@ -6,6 +6,7 @@ export const mobileQuery = matchMedia('(max-width: 899px)');
 const panel = $('panel');
 const layout = document.querySelector('.layout');
 const SHEET_STATES = ['peek', 'mid', 'full'];
+const PEEK_HEIGHT = 78;
 
 /** Position du panneau : « peek » (réduit à une barre), « mid » (mi-hauteur) ou « full » (presque plein écran). */
 let sheetState = normalizeSheetState(storage.get(KEYS.panelCollapsed, 'mid'));
@@ -34,8 +35,17 @@ export const safeArea = (() => {
  * on compte de son haut jusqu'au bas de l'écran, plus un petit espace avant la feuille.
  */
 const SHEET_GAP = 0; // la feuille est posée sur la barre : les deux forment une seule carte
-export const tabbarHeight = () =>
-  mobileQuery.matches ? Math.round(window.innerHeight - $('tabbar').getBoundingClientRect().top) + SHEET_GAP : $('tabbar').offsetHeight;
+const PEEK_GAP = 10; // téléphone, panneau réduit : la barre d'onglets s'efface, la feuille descend jusqu'en bas
+export const tabbarHeight = () => {
+  if (mobileQuery.matches && layout.classList.contains('map-full')) return Math.round(PEEK_GAP + safeArea.bottom);
+  return restingTabbarHeight();
+};
+
+/** Place de la barre d'onglets quand elle est affichée (sans le décalage qui la cache, feuille réduite). */
+function restingTabbarHeight() {
+  if (!mobileQuery.matches) return $('tabbar').offsetHeight;
+  return Math.round(parseFloat(getComputedStyle($('tabbar')).bottom) + $('tabbar').offsetHeight) + SHEET_GAP;
+}
 
 /** Hauteur du contenu affiché dans la feuille (poignée comprise) ; dernière mesure si la feuille est réduite. */
 let contentHeight = Infinity;
@@ -55,10 +65,10 @@ function measureContent() {
  * La feuille ne monte jamais plus haut que son contenu : peu de contenu, feuille basse.
  */
 function sheetHeights() {
-  const available = window.innerHeight - tabbarHeight();
+  const available = window.innerHeight - restingTabbarHeight();
   const fit = Math.max(160, measureContent());
   return {
-    peek: 78,
+    peek: PEEK_HEIGHT,
     mid: Math.min(Math.round(available * 0.55), fit),
     full: Math.min(Math.round(available - safeArea.top - 48), fit), // laisse visibles les crédits de la carte
   };
@@ -72,9 +82,10 @@ export function currentSheetHeight() {
 function setSheetHeight(height, { animate = true } = {}) {
   panel.classList.toggle('dragging', !animate);
   panel.style.setProperty('--sheet-h', `${Math.round(height)}px`);
-  // La feuille repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
+  // Réduite, la feuille descend seule en bas de l'écran (la barre d'onglets s'efface) ;
+  // sinon elle repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
+  layout.classList.toggle('map-full', height <= PEEK_HEIGHT + 12);
   panel.style.bottom = `${tabbarHeight()}px`;
-  layout.classList.toggle('map-full', height <= sheetHeights().peek + 12);
   // Les boutons « Générer » et de localisation suivent le haut de la feuille…
   const actions = $('sheet-actions');
   actions.classList.toggle('dragging', !animate);
@@ -100,9 +111,10 @@ function placeDesktopActions() {
   document.documentElement.style.setProperty('--tabbar-h', `${$('tabbar').offsetHeight}px`);
   const rect = panel.getBoundingClientRect();
   if (layout.classList.contains('map-full')) {
+    // Panneau replié sous les onglets : les boutons passent en bas à droite de l'écran.
     actions.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
     actions.style.width = `${Math.round(rect.width)}px`;
-    actions.style.bottom = `${Math.round(window.innerHeight - rect.top + 12)}px`;
+    actions.style.bottom = `${DESKTOP_INSET - 6}px`;
   } else {
     actions.style.right = `${Math.round(window.innerWidth - rect.right + DESKTOP_INSET)}px`;
     actions.style.width = `${Math.round(rect.width - DESKTOP_INSET * 2)}px`;
@@ -147,12 +159,18 @@ export const toggleSheet = () => snapTo(sheetState === 'peek' ? 'mid' : 'peek');
 /** Hauteur (px) du bas de la carte masquée par le panneau et la barre d'onglets. */
 export function hiddenMapBottom() {
   if (mobileQuery.matches) return currentSheetHeight() + tabbarHeight();
-  // Ordinateur, panneau replié : seule la petite carte reste en bas à droite.
-  if (layout.classList.contains('map-full')) return Math.round(window.innerHeight - panel.getBoundingClientRect().top);
+  // Ordinateur, panneau replié : les boutons « Générer »… restent en bas à droite.
+  if (layout.classList.contains('map-full')) return Math.round(window.innerHeight - $('sheet-actions').getBoundingClientRect().top);
   // Profil du parcours en bandeau sous la carte.
   const strip = document.querySelector('#details .profile-card');
   if (strip?.getClientRects().length) return Math.round(window.innerHeight - strip.getBoundingClientRect().top);
   return 0;
+}
+
+/** Hauteur (px) du haut de la carte masquée par les onglets et le panneau replié (ordinateur uniquement). */
+export function hiddenMapTop() {
+  if (mobileQuery.matches || !layout.classList.contains('map-full')) return 0;
+  return Math.round(panel.getBoundingClientRect().bottom);
 }
 
 /** Largeur (px) de la carte masquée à droite par le panneau flottant (ordinateur uniquement). */

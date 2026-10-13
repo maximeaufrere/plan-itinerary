@@ -142,15 +142,16 @@ export function initSettings({ getFavorites, setFavorites, onBaseLayerChange, on
     $('quota-count').textContent = `${used.toLocaleString('fr-FR')} / ${limit.toLocaleString('fr-FR')}`;
     $('quota-bar').style.width = `${Math.min(100, (used / limit) * 100).toFixed(1)}%`;
     $('quota-bar').classList.toggle('high', used > limit * 0.8);
+    // Une ligne courte ; l'origine du chiffre et ses limites sous « En savoir plus ».
+    const generations = `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui.`;
     if (server) {
       const time = new Date(server.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      $('quota-note').textContent = left
-        ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui. Chiffre donné par OpenRouteService à ${time}, tous vos appareils compris.`
-        : `Quota du jour atteint (chiffre donné par OpenRouteService à ${time}) : il se renouvelle dans la nuit.`;
+      $('quota-note').textContent = left ? generations : 'Quota du jour atteint : il se renouvelle dans la nuit.';
+      $('quota-detail').textContent = `Chiffre donné par OpenRouteService à ${time}, tous vos appareils compris.`;
     } else {
-      $('quota-note').textContent = left
-        ? `Environ ${Math.floor(left / 2).toLocaleString('fr-FR')} générations encore possibles aujourd'hui. Seules les requêtes de cet appareil sont comptées : si vous utilisez la même clé ailleurs, il en reste moins.`
-        : 'Quota du jour probablement atteint depuis cet appareil : il se renouvelle dans la nuit.';
+      $('quota-note').textContent = left ? generations : 'Quota du jour probablement atteint : il se renouvelle dans la nuit.';
+      $('quota-detail').textContent =
+        'Seules les requêtes de cet appareil sont comptées : si vous utilisez la même clé ailleurs, il en reste moins.';
     }
   }
 
