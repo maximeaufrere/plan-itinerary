@@ -35,11 +35,14 @@ export const safeArea = (() => {
  * on compte de son haut jusqu'au bas de l'écran, plus un petit espace avant la feuille.
  */
 const SHEET_GAP = 0; // la feuille est posée sur la barre : les deux forment une seule carte
-const PEEK_GAP = 10; // téléphone, panneau réduit : la barre d'onglets s'efface, la feuille descend jusqu'en bas
+const PEEK_GAP = 10; // téléphone, suivi d'un parcours, panneau réduit : la barre d'onglets s'efface, la feuille descend jusqu'en bas
 export const tabbarHeight = () => {
-  if (mobileQuery.matches && layout.classList.contains('map-full')) return Math.round(PEEK_GAP + safeArea.bottom);
+  if (mobileQuery.matches && tabbarHidden()) return Math.round(PEEK_GAP + safeArea.bottom);
   return restingTabbarHeight();
 };
+
+/** La barre d'onglets ne s'efface que pendant le suivi d'un parcours, feuille réduite : c'est la navigation de l'app. */
+const tabbarHidden = () => layout.classList.contains('map-full') && document.body.classList.contains('following-route');
 
 /** Place de la barre d'onglets quand elle est affichée (sans le décalage qui la cache, feuille réduite). */
 function restingTabbarHeight() {
@@ -82,7 +85,7 @@ export function currentSheetHeight() {
 function setSheetHeight(height, { animate = true } = {}) {
   panel.classList.toggle('dragging', !animate);
   panel.style.setProperty('--sheet-h', `${Math.round(height)}px`);
-  // Réduite, la feuille descend seule en bas de l'écran (la barre d'onglets s'efface) ;
+  // Réduite pendant le suivi d'un parcours, la feuille descend seule en bas de l'écran (la barre d'onglets s'efface) ;
   // sinon elle repose exactement sur la barre d'onglets (sa hauteur dépend de l'appareil).
   layout.classList.toggle('map-full', height <= PEEK_HEIGHT + 12);
   panel.style.bottom = `${tabbarHeight()}px`;

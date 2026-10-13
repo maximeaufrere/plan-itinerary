@@ -2333,19 +2333,20 @@ a.button,
 .quota-more summary { width: fit-content; color: var(--accent); font-size: 0.85rem; font-weight: 700; cursor: pointer; }
 .quota-more[open] summary { margin-bottom: 4px; }
 
-/* Téléphone, panneau réduit : la barre d'onglets s'efface, la feuille descend en bas et laisse la carte */
+/* Téléphone, suivi d'un parcours, panneau réduit : la barre d'onglets s'efface, la feuille descend en bas et
+   laisse la carte. Le reste du temps, la barre reste affichée : c'est la navigation de l'app. */
 @media (max-width: 899px) {
   .tabbar { transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s; }
   /* Masquée à la fin du glissement : depuis l'écran d'accueil, l'iPhone affiche aussi ce qui dépasse sous
      le bas de la page, et la barre seulement poussée vers le bas restait visible. */
-  .layout.map-full ~ .tabbar {
+  .following-route .layout.map-full ~ .tabbar {
     transform: translateY(calc(100% + 24px));
     visibility: hidden;
     transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0.38s;
     pointer-events: none;
   }
   .panel { transition: height 0.38s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.38s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.38s; }
-  .layout.map-full .panel { border-radius: var(--radius-sheet); }
+  .following-route .layout.map-full .panel { border-radius: var(--radius-sheet); }
 }
 
 /* Téléphone : bouton « i » (sources de la carte) plus discret */

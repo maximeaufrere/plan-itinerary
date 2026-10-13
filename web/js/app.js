@@ -666,7 +666,8 @@ const follow = initFollow({
     $('follow-stop').hidden = !following;
     $('quick-generate').hidden = following;
     document.body.classList.toggle('following-route', following);
-    if (following) snapTo('peek', { fit: false });
+    // Feuille réduite pendant le suivi (la barre d'onglets s'efface) ; à l'arrêt, la barre revient sous la feuille.
+    snapTo(following ? 'peek' : getSheetState(), { fit: false, save: following });
   },
 });
 
