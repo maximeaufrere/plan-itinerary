@@ -111,10 +111,9 @@ function placeDesktopActions() {
   document.documentElement.style.setProperty('--tabbar-h', `${$('tabbar').offsetHeight}px`);
   const rect = panel.getBoundingClientRect();
   if (layout.classList.contains('map-full')) {
-    // Panneau replié sous les onglets : les boutons passent en bas à droite de l'écran.
     actions.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
     actions.style.width = `${Math.round(rect.width)}px`;
-    actions.style.bottom = `${DESKTOP_INSET - 6}px`;
+    actions.style.bottom = `${Math.round(window.innerHeight - rect.top + 12)}px`;
   } else {
     actions.style.right = `${Math.round(window.innerWidth - rect.right + DESKTOP_INSET)}px`;
     actions.style.width = `${Math.round(rect.width - DESKTOP_INSET * 2)}px`;
@@ -159,18 +158,12 @@ export const toggleSheet = () => snapTo(sheetState === 'peek' ? 'mid' : 'peek');
 /** Hauteur (px) du bas de la carte masquée par le panneau et la barre d'onglets. */
 export function hiddenMapBottom() {
   if (mobileQuery.matches) return currentSheetHeight() + tabbarHeight();
-  // Ordinateur, panneau replié : les boutons « Générer »… restent en bas à droite.
-  if (layout.classList.contains('map-full')) return Math.round(window.innerHeight - $('sheet-actions').getBoundingClientRect().top);
+  // Ordinateur, panneau replié : seule la petite carte reste en bas à droite.
+  if (layout.classList.contains('map-full')) return Math.round(window.innerHeight - panel.getBoundingClientRect().top);
   // Profil du parcours en bandeau sous la carte.
   const strip = document.querySelector('#details .profile-card');
   if (strip?.getClientRects().length) return Math.round(window.innerHeight - strip.getBoundingClientRect().top);
   return 0;
-}
-
-/** Hauteur (px) du haut de la carte masquée par les onglets et le panneau replié (ordinateur uniquement). */
-export function hiddenMapTop() {
-  if (mobileQuery.matches || !layout.classList.contains('map-full')) return 0;
-  return Math.round(panel.getBoundingClientRect().bottom);
 }
 
 /** Largeur (px) de la carte masquée à droite par le panneau flottant (ordinateur uniquement). */

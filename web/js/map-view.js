@@ -1,7 +1,7 @@
 // Carte Leaflet : fond de carte et cadrage dans la partie visible (hors panneau).
 import { $ } from './dom.js';
 import { BASE_LAYERS, DEFAULT_BASE_LAYER } from './layers.js';
-import { currentSheetHeight, hiddenMapBottom, hiddenMapRight, hiddenMapTop, mobileQuery, safeArea, tabbarHeight } from './sheet.js';
+import { currentSheetHeight, hiddenMapBottom, hiddenMapRight, mobileQuery, safeArea, tabbarHeight } from './sheet.js';
 import { KEYS, storage } from './storage.js';
 
 /* global L */
@@ -48,7 +48,7 @@ export function showPoints(points) {
     centerOnVisible(valid[0], Math.max(map.getZoom(), 14), { animate: true });
   } else if (valid.length > 1) {
     map.fitBounds(L.latLngBounds(valid), {
-      paddingTopLeft: [40, Math.max(60 + (mobileQuery.matches ? safeArea.top : 0), hiddenMapTop() + 24)],
+      paddingTopLeft: [40, 60 + (mobileQuery.matches ? safeArea.top : 0)],
       paddingBottomRight: [40 + hiddenMapRight(), hiddenMapBottom() + 40],
       maxZoom: 15,
     });
@@ -65,7 +65,7 @@ export function fitToLayer(layer, { animate = false } = {}) {
     ? Math.min(currentSheetHeight() + tabbarHeight(), window.innerHeight * 0.65) + floating + 16
     : hiddenMapBottom() + 30;
   map.fitBounds(layer.getBounds(), {
-    paddingTopLeft: [30, Math.max(64 + (mobileQuery.matches ? safeArea.top : 0), hiddenMapTop() + 40)],
+    paddingTopLeft: [30, 64 + (mobileQuery.matches ? safeArea.top : 0)],
     paddingBottomRight: [30 + hiddenMapRight(), bottom],
     animate,
   });

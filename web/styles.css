@@ -2319,40 +2319,6 @@ a.button,
   .layout.map-full .panel { border-radius: var(--radius-sheet); }
 }
 
-/* Ordinateur : onglets en haut de la colonne (en-tête de l'app), contenu dessous jusqu'en bas */
-@media (min-width: 900px) {
-  .tabbar,
-  .layout.map-full ~ .tabbar {
-    top: var(--dock-margin);
-    bottom: auto;
-    border-top: 0;
-    border-bottom: 1px solid var(--border);
-    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-    box-shadow: 0 -10px 30px rgb(27 38 32 / 0.14);
-  }
-  .tab { flex-direction: row; justify-content: center; gap: 8px; min-height: 44px; padding: 0 8px; }
-  .tab .icon { width: 20px; height: 20px; }
-  .tab span { font-size: 0.85rem; }
-  #open-account.signed-in::after { top: 8px; }
-
-  .panel {
-    top: calc(var(--dock-margin) + var(--tabbar-h, 57px));
-    bottom: var(--dock-margin);
-    border-radius: 0 0 var(--radius-sheet) var(--radius-sheet);
-    box-shadow: 0 14px 30px rgb(27 38 32 / 0.18);
-  }
-  /* Panneau replié : il reste sous les onglets, réduit à sa ligne de résumé */
-  .layout.map-full .panel { top: calc(var(--dock-margin) + var(--tabbar-h, 57px)); bottom: auto; }
-}
-@media (min-width: 900px) and (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .panel { box-shadow: 0 14px 30px rgb(0 0 0 / 0.55); }
-  :root:not([data-theme="light"]) .tabbar { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.5); }
-}
-@media (min-width: 900px) {
-  :root[data-theme="dark"] .panel { box-shadow: 0 14px 30px rgb(0 0 0 / 0.55); }
-  :root[data-theme="dark"] .tabbar { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.5); }
-}
-
 /* Téléphone : bouton « i » (sources de la carte) plus discret */
 @media (max-width: 899px) {
   .map-credits { width: 28px; height: 28px; font-size: 13px; opacity: 0.85; }
