@@ -1038,7 +1038,10 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
    Téléphone : feuille glissable au-dessus de la carte en plein écran
    ========================================================================== */
 @media (max-width: 899px) {
-  .layout { display: block; position: relative; height: 100dvh; }
+  /* Hauteur « grande » (barres de Safari repliées) : la carte passe aussi sous la barre d'adresse et la
+     barre d'état au lieu de laisser voir le fond clair de la page en haut et en bas. */
+  html, body { overflow: hidden; overscroll-behavior: none; }
+  .layout { display: block; position: relative; height: 100lvh; }
   .map { position: absolute; inset: 0; height: 100%; min-height: 0; }
 
   .panel {
