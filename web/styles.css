@@ -1071,11 +1071,11 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
 }
 
 /* Dans Safari (pas depuis l'écran d'accueil), les zones de la barre d'état et de la barre d'adresse prennent
-   la couleur du fond de la page ou de l'élément fixe collé au bord : on leur donne le vert du thème. La carte
-   reste dans le flux de la page pour que Safari lise le fond, et un liseré vert collé au bas de l'écran colore
+   la couleur du fond de la page ou de l'élément fixe collé au bord : on leur donne le vert pâle du fond. La carte
+   reste dans le flux de la page pour que Safari lise le fond, et un liseré vert pâle collé au bas de l'écran colore
    la barre d'adresse au lieu du blanc de la feuille (Safari ne retient pas un élément qui ignore le toucher). */
 @media (max-width: 899px) and (display-mode: browser) {
-  html, body { background: #1e4d3a; }
+  html, body { background: var(--surface); }
   .layout { position: relative; inset: auto; height: 100dvh; }
   body::after {
     content: "";
@@ -1084,7 +1084,7 @@ button.secondary.danger { color: var(--danger); background: color-mix(in srgb, v
     right: 0;
     bottom: 0;
     height: 6px;
-    background: #1e4d3a;
+    background: var(--surface);
     z-index: 1250;
   }
 }
