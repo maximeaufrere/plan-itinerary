@@ -95,7 +95,12 @@ export async function generateRoutes({
   let reused = false;
   if (previous && previous.leftovers.length + previous.remaining.length >= criteria.proposals) {
     reused = true;
+    // Parcours déjà tracés : leur nouveauté (et donc leur note) dépend de l'historique, qui a pu changer.
     pool = previous.leftovers;
+    for (const route of pool) {
+      route.novelty = novelty ? novelty(route.coordinates) : null;
+      route.score = score(route, criteria);
+    }
     ranked = previous.remaining;
   } else {
     let shapes;
